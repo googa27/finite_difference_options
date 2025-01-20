@@ -9,6 +9,8 @@ import seaborn as sns
 
 import config.CONFIG as CFG
 
+st.title('Finite Difference Option Pricing')
+
 with st.sidebar:
     is_american = st.checkbox('american')
     is_call = st.checkbox('call', value=True)
