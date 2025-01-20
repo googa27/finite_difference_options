@@ -1,0 +1,7 @@
+streamlit
+matplotlib
+findiff
+numpy
+pydantic
+scipy
+seaborn
