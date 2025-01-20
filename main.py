@@ -15,12 +15,14 @@ with st.sidebar:
     left_bc = st.radio('left boundary conditions',
                        ['dirichlet',
                         'neumann',
-                        'gamma']
+                        'gamma'],
+                       1
                        )
     right_bc = st.radio('right boundary conditions',
                         ['dirichlet',
                          'neumann',
-                         'gamma']
+                         'gamma'],
+                        1
                         )
 
     ns = st.slider('ns', 1, 1000, 150)
@@ -203,12 +205,12 @@ plot_1d(x=s, y=delta[-1], title='Option Delta')
 plot_1d(x=s, y=gamma[-1], title='Option Gamma')
 plot_1d(x=s, y=theta[-1], title='Option Theta')
 
-st.write((v_ts**2).mean().mean()**0.5)
-err = theta + c*s**2*gamma + r*s*delta - r*v_ts
-st.write((err**2).mean().mean()**0.5)
-fig, ax = plt.subplots()
-_ = sns.heatmap(np.log10(np.abs(err)), ax=ax)
-st.pyplot(fig)
-fig, ax = plt.subplots()
-_ = sns.heatmap(np.abs(err), ax=ax)
-st.pyplot(fig)
+# st.write((v_ts**2).mean().mean()**0.5)
+# err = theta + c*s**2*gamma + r*s*delta - r*v_ts
+# st.write((err**2).mean().mean()**0.5)
+# fig, ax = plt.subplots()
+# _ = sns.heatmap(np.log10(np.abs(err)), ax=ax)
+# st.pyplot(fig)
+# fig, ax = plt.subplots()
+# _ = sns.heatmap(np.abs(err), ax=ax)
+# st.pyplot(fig)
