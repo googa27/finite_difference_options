@@ -19,6 +19,12 @@ the Black--Scholes partial differential equation (PDE) with
 pip install -r requirements.txt
 ```
 
+For development with linting and test tools:
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
 ## Usage
 
 ```python
