@@ -14,6 +14,7 @@ the Black--Scholes partial differential equation (PDE) with
 - Unit tests covering calls and puts.
 - Finite difference Greeks (Delta, Gamma, Theta).
 - Continuous integration with linting (`ruff`), type checking (`mypy`) and tests (`pytest`).
+- Basic regulatory reporting utilities (CRIF, CUSO, Basel, FRTB placeholders).
 
 ## Installation
 
@@ -122,6 +123,10 @@ Endpoints:
 
 - `POST /price` → `{ "price": float }`
 - `POST /greeks` → `{ "delta": float, "gamma": float, "theta": float }`
+- `POST /reports/crif` → `{ "crif": str }`
+- `POST /reports/cuso` → `{ "status": str }`
+- `POST /reports/basel` → `{ "status": str }`
+- `POST /reports/frtb` → `{ "status": str }`
 
 ## Next.js Client
 
@@ -134,6 +139,10 @@ npm run dev
 ```
 
 It expects the FastAPI server to run locally on port 8000.
+
+## Regulatory Documentation
+
+Details on assumptions and limitations are available in [docs/regulatory.md](docs/regulatory.md).
 
 ## License
 
