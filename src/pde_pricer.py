@@ -5,12 +5,12 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from numpy.typing import NDArray
-import findiff as fd
-from findiff import PDE
 
 from .models import GeometricBrownianMotion, Market
 from .options import EuropeanOption
 from .boundary_conditions import BlackScholesBoundaryBuilder
+from .spatial_operator import SpatialOperator
+from .time_steppers import TimeStepper, ThetaMethod
 
 
 @dataclass
@@ -19,10 +19,18 @@ class BlackScholesPDE:
 
     model: GeometricBrownianMotion
     market: Market
-    theta: float = 0.5  # 0.5 corresponds to Crank–Nicolson
+    theta: float = 0.5  # retained for backward compatibility
     boundary_builder: BlackScholesBoundaryBuilder = field(
         default_factory=BlackScholesBoundaryBuilder
     )
+    time_stepper: TimeStepper | None = None
+
+    def __post_init__(self) -> None:
+        """Initialise default time stepper if not supplied."""
+        if self.time_stepper is None:
+            self.time_stepper = ThetaMethod(self.theta)
+        else:  # keep ``theta`` in sync for backward compatibility
+            self.theta = getattr(self.time_stepper, "theta", self.theta)
 
     def price(
         self,
@@ -40,17 +48,13 @@ class BlackScholesPDE:
             Spatial and temporal grids.
         """
         dt = t[1] - t[0]
-        L = self.model.generator(s)
-        A = fd.Identity() - self.theta * dt * L
-        B = fd.Identity() + (1 - self.theta) * dt * L
+        L = SpatialOperator(self.model).build(s)
 
         values = np.empty((len(t), len(s)))
         values[0] = option.payoff(s)
 
         bc = self.boundary_builder.build(s, option)
         for i in range(len(t) - 1):
-            rhs = B(values[i])
-            pde = PDE(lhs=A, rhs=rhs, bcs=bc)
-            values[i + 1] = pde.solve()
+            values[i + 1] = self.time_stepper.step(values[i], L, bc, dt)
         return values
 
