@@ -11,7 +11,7 @@ the Black--Scholes partial differential equation (PDE) with
 - Clean object‑oriented design following SOLID principles.
 - Modular boundary condition builder for easy extension.
 - Unit tests covering calls and puts.
-- Continuous integration with linting (`ruff`) and tests (`pytest`).
+- Continuous integration with linting (`ruff`), type checking (`mypy`) and tests (`pytest`).
 
 ## Installation
 
@@ -51,6 +51,7 @@ Run the linter and tests locally:
 
 ```bash
 ruff .
+mypy src
 pytest
 ```
 
