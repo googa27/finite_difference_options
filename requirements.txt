@@ -1,9 +1,2 @@
-streamlit
-matplotlib
-findiff
-numpy
-pydantic
-scipy
-seaborn
-pytest
-ruff
+findiff==0.12.1
+numpy==2.3.2
