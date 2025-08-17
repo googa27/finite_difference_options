@@ -14,9 +14,5 @@ jobs:
           python-version: '3.x'
       - name: Install dependencies
         run: pip install -r requirements.txt -r requirements-dev.txt
-      - name: Lint
-        run: ruff check .
-      - name: Type check
-        run: mypy src
-      - name: Test
-        run: pytest
+      - name: Run pre-commit
+        run: pre-commit run --show-diff-on-failure --all-files
