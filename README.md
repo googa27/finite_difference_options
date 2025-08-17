@@ -2,17 +2,16 @@
 
 [![CI](https://github.com/PLACEHOLDER/finite_difference_options/actions/workflows/ci.yml/badge.svg)](https://github.com/PLACEHOLDER/finite_difference_options/actions/workflows/ci.yml)
 
-A small educational project that demonstrates how to price European
-options with finite difference methods using the excellent
-[`findiff`](https://github.com/findiff/findiff) package.
+Educational project demonstrating how to price European options by solving
+the Black--Scholes partial differential equation (PDE) with
+[`findiff`](https://github.com/findiff/findiff).
 
 ## Features
 
-- Black–Scholes model implemented with the
-  [`findiff.pde.PDE`](https://findiff.readthedocs.io/en/latest/)
-  solver.
-- Object oriented design following the SOLID principles.
-- Unit tests and continuous integration.
+- Clean object‑oriented design following SOLID principles.
+- Modular boundary condition builder for easy extension.
+- Unit tests covering calls and puts.
+- Continuous integration with linting (`ruff`) and tests (`pytest`).
 
 ## Installation
 
@@ -34,15 +33,18 @@ option = EuropeanCall(strike=1.0)
 
 s = np.linspace(0, 3, 100)
 t = np.linspace(0, 1, 100)
-pricer = BlackScholesPDE(model, market)
+pricer = BlackScholesPDE(model=model, market=market)
 values = pricer.price(option, s, t)
 price_at_S0 = values[-1, np.searchsorted(s, 1.0)]
 print(price_at_S0)
 ```
 
-## Running the tests
+## Development
+
+Run the linter and tests locally:
 
 ```bash
+ruff .
 pytest
 ```
 

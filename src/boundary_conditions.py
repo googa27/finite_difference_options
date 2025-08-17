@@ -1,39 +1,54 @@
-import findiff as fd
+"""Utilities for constructing boundary conditions.
+
+This module provides helpers to build boundary conditions for the
+Black--Scholes PDE solver.  The implementation lives in its own module to
+respect the single responsibility principle.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
 import numpy as np
-import pydantic as pyd
+from findiff import BoundaryConditions, FinDiff
+
+from .options import EuropeanOption, EuropeanCall, EuropeanPut
 
 
-class BcHandler():
-    pass
+@dataclass
+class BlackScholesBoundaryBuilder:
+    """Factory for boundary conditions in the Black--Scholes model.
 
+    The builder creates first- or second-order boundary conditions depending
+    on the option type:
 
-def _set_dirichlet(bc,
-                   option_payoff: str,
-                   s: np.ndarray):
-    is_call: bool = option_payoff == 'call'
-    bc[0] = mkt.D(th)*k*(not is_call)
-    bc[1] = (s[-1] - mkt.D(th)*k)*is_call
+    * Left boundary: gamma equals zero.
+    * Right boundary: delta tends to +1 for calls and -1 for puts.
+    """
 
+    def build(self, s: np.ndarray, option: EuropeanOption) -> BoundaryConditions:
+        """Return boundary conditions for the spatial grid.
 
-def _set_neumann(bc, option_payoff: str):
-    is_call: bool = option_payoff == 'call'
-    bc[0] = fd.FinDiff(0, ds, 1), -1*(not is_call)
-    bc[1] = fd.FinDiff(0, ds, 1), 1*is_call
+        Parameters
+        ----------
+        s:
+            Spatial grid for the underlying asset price.
+        option:
+            Option contract whose payoff determines the boundary behaviour.
+        """
+        ds = s[1] - s[0]
+        bc = BoundaryConditions(s.shape)
+        d1 = FinDiff(0, ds, 1)
+        d2 = FinDiff(0, ds, 2)
 
+        # Gamma equals zero on the left boundary for stability
+        bc[0] = d2, 0.0
 
-def _set_gamma(bc):
-    bc[0] = fd.FinDiff(0, ds, 2), 0
-    bc[1] = fd.FinDiff(0, ds, 2), 0
+        # Right boundary: delta approaches 1 for calls and -1 for puts.
+        if isinstance(option, EuropeanCall):
+            bc[-1] = d1, 1.0
+        elif isinstance(option, EuropeanPut):
+            bc[-1] = d1, -1.0
+        else:
+            bc[-1] = d2, 0.0
 
-
-def set_bc(bc,
-           boundary_contidion: str,
-           option_payoff: str) -> None:
-    if boundary_contidion == 'dirichlet':
-        _set_dirichlet()
-    elif boundary_contidion == 'neumann':
-        _set_neumann()
-    elif boundary_contidion == 'gamma':
-        _set_gamma()
-    else:
-        raise ValueError(f'Wrong bc string: {boundary_contidion}')
+        return bc
