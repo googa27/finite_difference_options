@@ -74,6 +74,40 @@ Launch an interactive application to explore option prices:
 streamlit run apps/streamlit_app.py
 ```
 
+## Command-line Interface
+
+Use [Typer](https://typer.tiangolo.com/) commands for quick pricing and plotting:
+
+```bash
+python -m cli price --option-type Call --strike 1 --maturity 1 --s0 1 --rate 0.05 --sigma 0.2
+python -m cli plot --option-type Call --strike 1 --maturity 1 --output plot.png
+```
+
+## FastAPI Service
+
+Start a REST API that exposes pricing and Greek calculations:
+
+```bash
+uvicorn api.main:app --reload
+```
+
+Endpoints:
+
+- `POST /price` → `{ "price": float }`
+- `POST /greeks` → `{ "delta": float, "gamma": float, "theta": float }`
+
+## Next.js Client
+
+A minimal client in `nextjs-client/` demonstrates how to call the API from the browser:
+
+```bash
+cd nextjs-client
+npm install
+npm run dev
+```
+
+It expects the FastAPI server to run locally on port 8000.
+
 ## License
 
 MIT
