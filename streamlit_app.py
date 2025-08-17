@@ -6,31 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
 
-from src.models import Market, GeometricBrownianMotion
-from src.options import EuropeanCall, EuropeanPut
-from src.pde_pricer import BlackScholesPDE
-
-
-def compute_grid(
-    rate: float,
-    sigma: float,
-    strike: float,
-    maturity: float,
-    option_type: str,
-    s_max: float,
-    s_steps: int,
-    t_steps: int,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return asset and time grids with option values."""
-    market = Market(rate=rate)
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
-    option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
-    option = option_cls(strike=strike)
-    s = np.linspace(0, s_max, s_steps)
-    t = np.linspace(0, maturity, t_steps)
-    pricer = BlackScholesPDE(model=model, market=market)
-    values = pricer.price(option=option, s=s, t=t)
-    return s, t, values
+from src.option_pricer import OptionPricer
 
 
 def main() -> None:
@@ -46,9 +22,8 @@ def main() -> None:
     t_steps = st.number_input("Time steps", value=100, min_value=10, step=10)
 
     if st.button("Compute"):
-        s, t, grid = compute_grid(
-            rate=rate,
-            sigma=sigma,
+        pricer = OptionPricer(rate=rate, sigma=sigma)
+        s, t, grid = pricer.compute_grid(
             strike=strike,
             maturity=maturity,
             option_type=option_type,

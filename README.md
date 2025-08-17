@@ -29,18 +29,21 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 ```python
 import numpy as np
-from src.models import Market, GeometricBrownianMotion
+from src.option_pricer import OptionPricer
 from src.options import EuropeanCall
-from src.pde_pricer import BlackScholesPDE
 
-market = Market(rate=0.05)
-model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+pricer = OptionPricer(rate=0.05, sigma=0.2)
 option = EuropeanCall(strike=1.0)
-
 s = np.linspace(0, 3, 100)
 t = np.linspace(0, 1, 100)
-pricer = BlackScholesPDE(model=model, market=market)
-values = pricer.price(option, s, t)
+_, _, values = pricer.compute_grid(
+    strike=option.strike,
+    maturity=t[-1],
+    option_type="Call",
+    s_max=s[-1],
+    s_steps=len(s),
+    t_steps=len(t),
+)
 price_at_S0 = values[-1, np.searchsorted(s, 1.0)]
 print(price_at_S0)
 ```
