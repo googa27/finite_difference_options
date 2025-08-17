@@ -1,12 +1,22 @@
 """Streamlit demo for the Black--Scholes PDE option pricer."""
 from __future__ import annotations
 
-import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
+import logging
+import sys
+from pathlib import Path
+
 import streamlit as st
 
-from src.option_pricer import OptionPricer
+# Ensure repository root is on the Python path when executed via Streamlit.
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:  # pragma: no cover - runtime path fix
+    sys.path.append(str(ROOT))
+
+from src.option_pricer import OptionPricer  # noqa: E402
+from src.plotter import MatplotlibSeabornPlotter  # noqa: E402
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def main() -> None:
@@ -22,6 +32,7 @@ def main() -> None:
     t_steps = st.number_input("Time steps", value=100, min_value=10, step=10)
 
     if st.button("Compute"):
+        logger.info("Computing option price grid")
         pricer = OptionPricer(rate=rate, sigma=sigma)
         s, t, grid = pricer.compute_grid(
             strike=strike,
@@ -31,15 +42,8 @@ def main() -> None:
             s_steps=int(s_steps),
             t_steps=int(t_steps),
         )
-        fig, ax = plt.subplots()
-        sns.heatmap(
-            grid,
-            xticklabels=np.round(s, 2),
-            yticklabels=np.round(t, 2),
-            ax=ax,
-        )
-        ax.set_xlabel("Asset price")
-        ax.set_ylabel("Time")
+        plotter = MatplotlibSeabornPlotter()
+        fig = plotter.heatmap(grid=grid, s=s, t=t)
         st.pyplot(fig)
 
 
