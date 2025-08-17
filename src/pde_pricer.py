@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 import numpy as np
+from numpy.typing import NDArray
 import findiff as fd
 from findiff import PDE
 
@@ -23,7 +24,12 @@ class BlackScholesPDE:
         default_factory=BlackScholesBoundaryBuilder
     )
 
-    def price(self, option: EuropeanOption, s: np.ndarray, t: np.ndarray) -> np.ndarray:
+    def price(
+        self,
+        option: EuropeanOption,
+        s: NDArray[np.float64],
+        t: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
         """Return grid with option values.
 
         Parameters

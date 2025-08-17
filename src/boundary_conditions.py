@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 from findiff import BoundaryConditions, FinDiff
 
 from .options import EuropeanOption, EuropeanCall, EuropeanPut
@@ -25,7 +26,11 @@ class BlackScholesBoundaryBuilder:
     * Right boundary: delta tends to +1 for calls and -1 for puts.
     """
 
-    def build(self, s: np.ndarray, option: EuropeanOption) -> BoundaryConditions:
+    def build(
+        self,
+        s: NDArray[np.float64],
+        option: EuropeanOption,
+    ) -> BoundaryConditions:
         """Return boundary conditions for the spatial grid.
 
         Parameters

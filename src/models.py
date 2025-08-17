@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import numpy as np
+from numpy.typing import NDArray
 import findiff as fd
 
 
@@ -35,7 +36,7 @@ class GeometricBrownianMotion:
         """Convenient shortcut for ``sigma^2 / 2``."""
         return 0.5 * self.sigma ** 2
 
-    def generator(self, s: np.ndarray) -> fd.FinDiff:
+    def generator(self, s: NDArray[np.float64]) -> fd.FinDiff:
         """Return the discretised infinitesimal generator.
 
         Parameters
