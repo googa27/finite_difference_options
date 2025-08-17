@@ -68,7 +68,7 @@ pre-commit run --all-files
 Launch an interactive application to explore option prices:
 
 ```bash
-streamlit run streamlit_app.py
+streamlit run apps/streamlit_app.py
 ```
 
 ## License
