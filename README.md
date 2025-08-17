@@ -11,6 +11,7 @@ the Black--Scholes partial differential equation (PDE) with
 - Clean object‑oriented design following SOLID principles.
 - Modular boundary condition builder for easy extension.
 - Unit tests covering calls and puts.
+- Finite difference Greeks (Delta, Gamma, Theta).
 - Continuous integration with linting (`ruff`), type checking (`mypy`) and tests (`pytest`).
 
 ## Installation
@@ -36,13 +37,14 @@ pricer = OptionPricer(rate=0.05, sigma=0.2)
 option = EuropeanCall(strike=1.0)
 s = np.linspace(0, 3, 100)
 t = np.linspace(0, 1, 100)
-_, _, values = pricer.compute_grid(
+_, _, values, delta, gamma, theta = pricer.compute_grid(
     strike=option.strike,
     maturity=t[-1],
     option_type="Call",
     s_max=s[-1],
     s_steps=len(s),
     t_steps=len(t),
+    return_greeks=True,
 )
 price_at_S0 = values[-1, np.searchsorted(s, 1.0)]
 print(price_at_S0)
