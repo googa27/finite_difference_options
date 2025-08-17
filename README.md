@@ -39,16 +39,43 @@ option = EuropeanCall(strike=1.0)
 s = np.linspace(0, 3, 100)
 t = np.linspace(0, 1, 100)
 _, _, values, delta, gamma, theta = pricer.compute_grid(
-    strike=option.strike,
     maturity=t[-1],
-    option_type="Call",
     s_max=s[-1],
     s_steps=len(s),
     t_steps=len(t),
+    strike=option.strike,
+    option_type="Call",
     return_greeks=True,
 )
 price_at_S0 = values[-1, np.searchsorted(s, 1.0)]
 print(price_at_S0)
+```
+
+### Pricing a callable bond
+
+```python
+import numpy as np
+from src.option_pricer import OptionPricer
+from src.pde_pricer import CallableBondPDEModel
+from src.models import Market, GeometricBrownianMotion
+
+market = Market(rate=0.03)
+short_rate = GeometricBrownianMotion(rate=0.03, sigma=0.01)
+bond_model = CallableBondPDEModel(
+    face_value=100.0,
+    call_price=105.0,
+    market=market,
+    model=short_rate,
+)
+pricer = OptionPricer(pde_model=bond_model)
+s, t, values = pricer.compute_grid(
+    maturity=1.0,
+    s_max=150.0,
+    s_steps=100,
+    t_steps=100,
+)
+price_at_par = values[-1, np.searchsorted(s, 100.0)]
+print(price_at_par)
 ```
 
 ## Development

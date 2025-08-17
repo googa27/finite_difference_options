@@ -9,31 +9,48 @@ from numpy.typing import NDArray
 
 from .models import GeometricBrownianMotion, Market
 from .options import EuropeanCall, EuropeanOption, EuropeanPut
-from .pde_pricer import BlackScholesPDE
+from .pde_pricer import BlackScholesPDE, PDEModel
 from .greeks import FiniteDifferenceGreeks
 
 
 @dataclass
 class OptionPricer:
-    """Compute option value grids using finite difference methods."""
+    """Compute value grids using finite difference methods.
 
-    rate: float
-    sigma: float
+    Parameters
+    ----------
+    rate, sigma:
+        Parameters of the default Black--Scholes model.  They are ignored when
+        ``pde_model`` is provided.
+    pde_model:
+        Custom :class:`~src.pde_pricer.PDEModel` implementation.  When supplied
+        the pricer delegates all computations to this model.
+    """
+
+    rate: float | None = None
+    sigma: float | None = None
+    pde_model: PDEModel | None = None
 
     def __post_init__(self) -> None:
-        """Initialize market, model and PDE pricer from inputs."""
-        self.market = Market(rate=self.rate)
-        self.model = GeometricBrownianMotion(rate=self.rate, sigma=self.sigma)
-        self._pricer = BlackScholesPDE(model=self.model, market=self.market)
+        """Initialise market, model and PDE solver from inputs."""
+        if self.pde_model is None:
+            if self.rate is None or self.sigma is None:
+                raise ValueError("rate and sigma must be set when no model supplied")
+            self.market = Market(rate=self.rate)
+            self.model = GeometricBrownianMotion(rate=self.rate, sigma=self.sigma)
+            self._default_pricer = BlackScholesPDE(model=self.model, market=self.market)
+        else:
+            self._default_pricer = None
 
     def compute_grid(
         self,
-        strike: float,
+        *,
         maturity: float,
-        option_type: str,
         s_max: float,
         s_steps: int,
         t_steps: int,
+        strike: float | None = None,
+        option_type: str | None = None,
         return_greeks: bool = False,
     ) -> Union[
         Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]],
@@ -46,32 +63,21 @@ class OptionPricer:
             NDArray[np.float64],
         ],
     ]:
-        """Return asset and time grids with option values and Greeks.
-
-        Parameters
-        ----------
-        strike:
-            Strike price of the option.
-        maturity:
-            Time to maturity in years.
-        option_type:
-            "Call" for call option, "Put" for put option.
-        s_max:
-            Maximum underlying asset price to consider.
-        s_steps:
-            Number of discrete asset price steps.
-        t_steps:
-            Number of discrete time steps.
-        return_greeks:
-            When ``True`` also compute Delta, Gamma and Theta grids.
-        """
-        option_cls: type[EuropeanOption]
-        option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
-        option = option_cls(strike=strike)
+        """Return asset and time grids with instrument values and Greeks."""
 
         s = np.linspace(0, s_max, s_steps)
         t = np.linspace(0, maturity, t_steps)
-        values = self._pricer.price(option=option, s=s, t=t)
+
+        if self.pde_model is None:
+            if strike is None or option_type is None:
+                msg = "strike and option_type must be provided for default model"
+                raise ValueError(msg)
+            option_cls: type[EuropeanOption]
+            option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
+            option = option_cls(strike=strike)
+            values = self._default_pricer.price(option=option, s=s, t=t)
+        else:
+            values = self.pde_model.price(option=None, s=s, t=t)
 
         if not return_greeks:
             return s, t, values
