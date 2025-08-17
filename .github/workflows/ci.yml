@@ -13,8 +13,6 @@ jobs:
         with:
           python-version: '3.x'
       - name: Install dependencies
-        run: pip install -r requirements.txt
-      - name: Lint
-        run: ruff check .
-      - name: Test
-        run: pytest
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run pre-commit
+        run: pre-commit run --show-diff-on-failure --all-files

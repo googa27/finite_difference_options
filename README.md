@@ -47,11 +47,17 @@ print(price_at_S0)
 
 ## Development
 
-Run the linter and tests locally:
+Install the development tools and activate the pre-commit hooks:
 
 ```bash
-ruff .
-pytest
+pip install -r requirements.txt -r requirements-dev.txt
+pre-commit install
+```
+
+Run formatting, linting and tests in one go:
+
+```bash
+pre-commit run --all-files
 ```
 
 ## License
