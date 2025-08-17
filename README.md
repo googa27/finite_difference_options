@@ -60,6 +60,14 @@ Run formatting, linting and tests in one go:
 pre-commit run --all-files
 ```
 
+## Streamlit Demo
+
+Launch an interactive application to explore option prices:
+
+```bash
+streamlit run streamlit_app.py
+```
+
 ## License
 
 MIT

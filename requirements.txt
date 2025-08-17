@@ -1,2 +1,5 @@
 findiff==0.12.1
 numpy==2.3.2
+streamlit==1.48.1
+matplotlib==3.10.5
+seaborn==0.13.2
