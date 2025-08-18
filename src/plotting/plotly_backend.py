@@ -1,7 +1,7 @@
 """Plotly-based plotter implementation for interactive visuals."""
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, Optional, Set
+from typing import Any, Dict, Set
 
 import numpy as np
 import plotly.graph_objects as go

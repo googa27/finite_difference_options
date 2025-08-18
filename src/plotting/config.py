@@ -1,7 +1,7 @@
 """Streamlit-friendly plotting defaults & helpers."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Tuple, Optional
 
 from .base import PlotOptions

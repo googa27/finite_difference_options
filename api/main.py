@@ -54,7 +54,7 @@ def price(request: OptionRequest) -> PriceResponse:
     """Return option price for the given parameters."""
     s_max = request.s_max or request.s0 * 3
     pricer = OptionPricer(rate=request.rate, sigma=request.sigma)
-    s, _, values = pricer.compute_grid(
+    res = pricer.compute_grid(
         strike=request.strike,
         maturity=request.maturity,
         option_type=request.option_type,
@@ -62,8 +62,8 @@ def price(request: OptionRequest) -> PriceResponse:
         s_steps=request.s_steps,
         t_steps=request.t_steps,
     )
-    s_idx = int(np.searchsorted(s, request.s0))
-    return PriceResponse(price=float(values[-1, s_idx]))
+    s_idx = int(np.searchsorted(res.s, request.s0))
+    return PriceResponse(price=float(res.values[-1, s_idx]))
 
 
 @app.post("/greeks", response_model=GreeksResponse)
@@ -71,7 +71,7 @@ def greeks(request: OptionRequest) -> GreeksResponse:
     """Return Delta, Gamma and Theta for the given parameters."""
     s_max = request.s_max or request.s0 * 3
     pricer = OptionPricer(rate=request.rate, sigma=request.sigma)
-    s, _, values, delta, gamma, theta = pricer.compute_grid(
+    res = pricer.compute_grid(
         strike=request.strike,
         maturity=request.maturity,
         option_type=request.option_type,
@@ -80,11 +80,11 @@ def greeks(request: OptionRequest) -> GreeksResponse:
         t_steps=request.t_steps,
         return_greeks=True,
     )
-    s_idx = int(np.searchsorted(s, request.s0))
+    s_idx = int(np.searchsorted(res.s, request.s0))
     return GreeksResponse(
-        delta=float(delta[-1, s_idx]),
-        gamma=float(gamma[-1, s_idx]),
-        theta=float(theta[-1, s_idx]),
+        delta=float(res.delta[-1, s_idx]),
+        gamma=float(res.gamma[-1, s_idx]),
+        theta=float(res.theta[-1, s_idx]),
     )
 
 
