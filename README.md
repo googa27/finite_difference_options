@@ -39,7 +39,7 @@ pricer = OptionPricer(rate=0.05, sigma=0.2)
 option = EuropeanCall(strike=1.0)
 s = np.linspace(0, 3, 100)
 t = np.linspace(0, 1, 100)
-_, _, values, delta, gamma, theta = pricer.compute_grid(
+res = pricer.compute_grid(
     maturity=t[-1],
     s_max=s[-1],
     s_steps=len(s),
@@ -48,7 +48,8 @@ _, _, values, delta, gamma, theta = pricer.compute_grid(
     option_type="Call",
     return_greeks=True,
 )
-price_at_S0 = values[-1, np.searchsorted(s, 1.0)]
+# Grid orientation: values.shape == (len(t), len(s))
+price_at_S0 = res.values[-1, np.searchsorted(res.s, 1.0)]
 print(price_at_S0)
 ```
 
@@ -101,6 +102,10 @@ Launch an interactive application to explore option prices:
 ```bash
 streamlit run apps/streamlit_app.py
 ```
+
+In the app you can switch plotting backends between Matplotlib and Plotly.
+Plotly is optional but recommended for interactivity (requirements already pin
+`plotly>=6.3,<7`).
 
 ## Command-line Interface
 

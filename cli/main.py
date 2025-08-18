@@ -8,7 +8,7 @@ import numpy as np
 import typer
 
 from src.option_pricer import OptionPricer
-from src.plotter import MatplotlibSeabornPlotter
+from src.plotting.base import MatplotlibSeabornPlotter, PlotOptions
 
 app = typer.Typer(help="Command-line tools for option pricing.")
 
@@ -37,16 +37,15 @@ def price(
         t_steps=t_steps,
         return_greeks=greeks,
     )
-    s = result[0]
-    values = result[2]
+    s = result.s
+    values = result.values
     s_idx = int(np.searchsorted(s, s0))
     price_at_s0 = float(values[-1, s_idx])
     typer.echo(f"Price: {price_at_s0}")
-    if greeks:
-        delta, gamma, theta = result[3], result[4], result[5]
-        typer.echo(f"Delta: {float(delta[-1, s_idx])}")
-        typer.echo(f"Gamma: {float(gamma[-1, s_idx])}")
-        typer.echo(f"Theta: {float(theta[-1, s_idx])}")
+    if greeks and result.delta is not None and result.gamma is not None and result.theta is not None:
+        typer.echo(f"Delta: {float(result.delta[-1, s_idx])}")
+        typer.echo(f"Gamma: {float(result.gamma[-1, s_idx])}")
+        typer.echo(f"Theta: {float(result.theta[-1, s_idx])}")
 
 
 @app.command()
@@ -67,7 +66,7 @@ def plot(
 ) -> None:
     """Render option value grid as a heatmap or surface plot."""
     pricer = OptionPricer(rate=rate, sigma=sigma)
-    s, t, values = pricer.compute_grid(
+    res = pricer.compute_grid(
         strike=strike,
         maturity=maturity,
         option_type=option_type,
@@ -76,11 +75,11 @@ def plot(
         t_steps=t_steps,
     )
     plotter = MatplotlibSeabornPlotter()
-    fig = (
-        plotter.surface(values, s, t)
-        if kind == "surface"
-        else plotter.heatmap(values, s, t)
-    )
+    opts = PlotOptions()
+    if kind == "surface":
+        fig = plotter.surface(res.values, res.s, res.t, opts=opts)
+    else:
+        fig = plotter.heatmap(res.values, res.s, res.t, opts=opts)
     if output:
         fig.savefig(output)
     else:
