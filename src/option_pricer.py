@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple, Union
+from typing import NamedTuple, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -11,6 +11,22 @@ from .models import GeometricBrownianMotion, Market
 from .options import EuropeanCall, EuropeanOption, EuropeanPut
 from .pde_pricer import BlackScholesPDE, PDEModel
 from .greeks import FiniteDifferenceGreeks
+
+
+class GridResult(NamedTuple):
+    """Named result for pricing grid and Greeks.
+
+    Orientation convention: ``values`` and Greeks are shaped ``(t, s)`` where the
+    first axis is time ascending from 0 to maturity, and the second axis is the
+    spatial asset-price grid from 0 to ``s_max``.
+    """
+
+    s: NDArray[np.float64]
+    t: NDArray[np.float64]
+    values: NDArray[np.float64]
+    delta: Optional[NDArray[np.float64]]
+    gamma: Optional[NDArray[np.float64]]
+    theta: Optional[NDArray[np.float64]]
 
 
 @dataclass
@@ -52,18 +68,8 @@ class OptionPricer:
         strike: float | None = None,
         option_type: str | None = None,
         return_greeks: bool = False,
-    ) -> Union[
-        Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]],
-        Tuple[
-            NDArray[np.float64],
-            NDArray[np.float64],
-            NDArray[np.float64],
-            NDArray[np.float64],
-            NDArray[np.float64],
-            NDArray[np.float64],
-        ],
-    ]:
-        """Return asset and time grids with instrument values and Greeks."""
+    ) -> GridResult:
+        """Return grids and values with optional Greeks as a NamedTuple."""
 
         s = np.linspace(0, s_max, s_steps)
         t = np.linspace(0, maturity, t_steps)
@@ -80,10 +86,10 @@ class OptionPricer:
             values = self.pde_model.price(option=None, s=s, t=t)
 
         if not return_greeks:
-            return s, t, values
+            return GridResult(s=s, t=t, values=values, delta=None, gamma=None, theta=None)
 
         calculator = FiniteDifferenceGreeks()
         delta = calculator.delta(values, s)
         gamma = calculator.gamma(values, s)
         theta = calculator.theta(values, t)
-        return s, t, values, delta, gamma, theta
+        return GridResult(s=s, t=t, values=values, delta=delta, gamma=gamma, theta=theta)
