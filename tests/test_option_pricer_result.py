@@ -1,5 +1,3 @@
-import numpy as np
-
 from src.option_pricer import OptionPricer, GridResult
 
 

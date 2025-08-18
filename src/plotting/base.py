@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from abc import ABC
 from typing import Any, Dict, Iterable, Optional, Protocol, Set
 
 import matplotlib.pyplot as plt
@@ -62,8 +61,8 @@ class Plotter(Protocol):
     ) -> Any: ...
 
 
-class BasePlotter(ABC):
-    """Optional abstract base with reusable helpers for plotters."""
+class BasePlotter:
+    """Optional base with reusable helpers for plotters."""
 
     @staticmethod
     def _subset_indices(n: int, k: int) -> np.ndarray:
@@ -166,7 +165,10 @@ class MatplotlibSeabornPlotter(BasePlotter):
             edgecolor="none",
         )
         if opts.elev is not None or opts.azim is not None:
-            ax.view_init(elev=opts.elev if opts.elev is not None else 30, azim=opts.azim if opts.azim is not None else -60)
+            ax.view_init(
+                elev=opts.elev if opts.elev is not None else 30,
+                azim=opts.azim if opts.azim is not None else -60,
+            )
         ax.set_xlabel("Asset price")
         ax.set_ylabel("Time")
         ax.set_zlabel("Option value")

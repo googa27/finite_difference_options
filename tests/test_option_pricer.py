@@ -30,7 +30,7 @@ def test_compute_grid_shapes_and_price():
     nt = 40
 
     pricer = OptionPricer(rate=rate, sigma=sigma)
-    s, t, grid = pricer.compute_grid(
+    res = pricer.compute_grid(
         strike=K,
         maturity=T,
         option_type="Call",
@@ -39,11 +39,11 @@ def test_compute_grid_shapes_and_price():
         t_steps=nt,
     )
 
-    assert s.shape == (ns,)
-    assert t.shape == (nt,)
-    assert grid.shape == (nt, ns)
+    assert res.s.shape == (ns,)
+    assert res.t.shape == (nt,)
+    assert res.values.shape == (nt, ns)
 
-    idx = np.searchsorted(s, 1.0)
-    price = grid[-1, idx]
+    idx = np.searchsorted(res.s, 1.0)
+    price = res.values[-1, idx]
     expected = bs_call_price(1.0, K, rate, sigma, T)
     assert abs(price - expected) < 2e-2

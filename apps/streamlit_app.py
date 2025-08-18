@@ -21,10 +21,13 @@ if str(ROOT) not in sys.path:  # pragma: no cover - runtime path fix
     sys.path.append(str(ROOT))
 
 from src.option_pricer import OptionPricer, GridResult  # noqa: E402
-from src.plotting.base import MatplotlibSeabornPlotter, PlotOptions  # noqa: E402
 from src.plotting.factory import get_plotter  # noqa: E402
 from src.plotting.colors import DEFAULT_DIVERGING, symmetric_bounds  # noqa: E402
-from src.plotting.config import DEFAULT_PLOT_HEIGHT, surface_figsize_from_height, line_figsize_from_height, PlotDefaults  # noqa: E402
+from src.plotting.config import (  # noqa: E402
+    surface_figsize_from_height,
+    line_figsize_from_height,
+    PlotDefaults,
+)
 try:  # noqa: E402
     import plotly  # type: ignore
     PLOTLY_AVAILABLE = True
@@ -107,16 +110,18 @@ def build_sidebar() -> dict:
 
     with st.expander("Plot options", expanded=False):
         backends = ["Matplotlib"]
-        default_index = 0
         if PLOTLY_AVAILABLE:
             backends.insert(0, "Plotly")
-            default_index = 0
         backend_label = st.selectbox("Backend", backends, key="backend_label")
         backend = "plotly" if backend_label.startswith("Plotly") else "matplotlib"
         if not PLOTLY_AVAILABLE and backend == "plotly":
             st.caption("Plotly not installed — falling back to Matplotlib.")
             backend = "matplotlib"
-        cmap = st.selectbox("Colormap", ["viridis", "magma", "plasma", "cividis", "inferno", "RdBu", "coolwarm"], key="cmap")
+        cmap = st.selectbox(
+            "Colormap",
+            ["viridis", "magma", "plasma", "cividis", "inferno", "RdBu", "coolwarm"],
+            key="cmap",
+        )
         plot_height = st.slider("Plot height (px)", min_value=300, max_value=800, step=10, key="plot_height")
         elev = azim = None
         if backend == "matplotlib":
@@ -213,7 +218,13 @@ def main() -> None:
         default_time = float(t[len(t)//2])
         if "time_val" not in st.session_state:
             st.session_state.time_val = default_time
-        time_val = st.slider("Time (T)", min_value=float(t[0]), max_value=float(t[-1]), step=float(max(t[-1]-t[0], 1e-6)/100), key="time_val")
+        time_val = st.slider(
+            "Time (T)",
+            min_value=float(t[0]),
+            max_value=float(t[-1]),
+            step=float(max(t[-1] - t[0], 1e-6) / 100),
+            key="time_val",
+        )
         # Find nearest time index
         t_idx = int(np.argmin(np.abs(t - time_val)))
         show_delta = st.checkbox("Show Delta", key="show_delta")
@@ -289,7 +300,14 @@ def main() -> None:
             else:
                 vmin = float(np.nanmin(delta)) if delta is not None else None
                 vmax = float(np.nanmax(delta)) if delta is not None else None
-            opts = plot_def.heatmap(x_label="Time", y_label="Asset price", cmap=greeks_cmap, height=int(params["plot_height"] * 0.9), vmin=vmin, vmax=vmax)
+            opts = plot_def.heatmap(
+                x_label="Time",
+                y_label="Asset price",
+                cmap=greeks_cmap,
+                height=int(params["plot_height"] * 0.9),
+                vmin=vmin,
+                vmax=vmax,
+            )
             fig_d = plotter.heatmap(grid=delta, s=s, t=t, opts=opts)
             if params["backend"] == "plotly":
                 st.plotly_chart(fig_d, use_container_width=True)
@@ -304,7 +322,14 @@ def main() -> None:
             else:
                 vmin = float(np.nanmin(gamma)) if gamma is not None else None
                 vmax = float(np.nanmax(gamma)) if gamma is not None else None
-            opts = plot_def.heatmap(x_label="Time", y_label="Asset price", cmap=greeks_cmap, height=int(params["plot_height"] * 0.9), vmin=vmin, vmax=vmax)
+            opts = plot_def.heatmap(
+                x_label="Time",
+                y_label="Asset price",
+                cmap=greeks_cmap,
+                height=int(params["plot_height"] * 0.9),
+                vmin=vmin,
+                vmax=vmax,
+            )
             fig_g = plotter.heatmap(grid=gamma, s=s, t=t, opts=opts)
             if params["backend"] == "plotly":
                 st.plotly_chart(fig_g, use_container_width=True)
@@ -319,7 +344,14 @@ def main() -> None:
             else:
                 vmin = float(np.nanmin(theta)) if theta is not None else None
                 vmax = float(np.nanmax(theta)) if theta is not None else None
-            opts = plot_def.heatmap(x_label="Time", y_label="Asset price", cmap=greeks_cmap, height=int(params["plot_height"] * 0.9), vmin=vmin, vmax=vmax)
+            opts = plot_def.heatmap(
+                x_label="Time",
+                y_label="Asset price",
+                cmap=greeks_cmap,
+                height=int(params["plot_height"] * 0.9),
+                vmin=vmin,
+                vmax=vmax,
+            )
             fig_th = plotter.heatmap(grid=theta, s=s, t=t, opts=opts)
             if params["backend"] == "plotly":
                 st.plotly_chart(fig_th, use_container_width=True)
