@@ -52,7 +52,7 @@ class BlackScholesBoundaryBuilder:
         if isinstance(option, EuropeanCall):
             bc[-1] = d1, 1.0
         elif isinstance(option, EuropeanPut):
-            bc[-1] = d1, -1.0
+            bc[-1] = d1, 0.0
         else:
             bc[-1] = d2, 0.0
 
