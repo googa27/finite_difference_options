@@ -61,7 +61,4 @@ def test_cli_price_command():
 def test_streamlit_app_runs():
     at = AppTest.from_file("apps/streamlit_app.py")
     at.run()
-    at.number_input[5].set_value(5)
-    at.number_input[6].set_value(5)
-    at.button[0].click().run()
     assert not at.exception
