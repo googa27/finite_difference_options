@@ -5,6 +5,7 @@ concrete implementations for vanilla options and callable bonds.  The models
 encapsulate the construction of the infinitesimal generator and the boundary
 conditions required by the finite difference solver.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -72,7 +73,7 @@ class BlackScholesPDE(PDEModel):
     boundary_builder: BlackScholesBoundaryBuilder = field(
         default_factory=BlackScholesBoundaryBuilder
     )
-    time_stepper: TimeStepper | None = None
+    time_stepper: TimeStepper | None = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
         """Initialise default time stepper if not supplied."""
@@ -139,9 +140,9 @@ class CallableBondPDEModel(PDEModel):
 
         bc = BoundaryConditions(s.shape)
         # Value is zero when the bond price approaches zero
-        bc[0] = 0, 0.0
+        bc[0] = 0.0
         # Bond cannot exceed the call price
-        bc[-1] = 0, self.call_price
+        bc[-1] = self.call_price
         return bc
 
     def price(
@@ -168,4 +169,3 @@ class CallableBondPDEModel(PDEModel):
             values[i + 1] = np.minimum(values[i + 1], self.call_price)
         values = np.minimum(values, self.call_price)
         return values
-

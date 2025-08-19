@@ -1,7 +1,8 @@
 """High-level option pricing interface."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import NamedTuple, Optional
 
 import numpy as np
@@ -46,6 +47,7 @@ class OptionPricer:
     rate: float | None = None
     sigma: float | None = None
     pde_model: PDEModel | None = None
+    _default_pricer: BlackScholesPDE | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
         """Initialise market, model and PDE solver from inputs."""
@@ -81,15 +83,20 @@ class OptionPricer:
             option_cls: type[EuropeanOption]
             option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
             option = option_cls(strike=strike)
+            assert self._default_pricer is not None
             values = self._default_pricer.price(option=option, s=s, t=t)
         else:
             values = self.pde_model.price(option=None, s=s, t=t)
 
         if not return_greeks:
-            return GridResult(s=s, t=t, values=values, delta=None, gamma=None, theta=None)
+            return GridResult(
+                s=s, t=t, values=values, delta=None, gamma=None, theta=None
+            )
 
         calculator = FiniteDifferenceGreeks()
         delta = calculator.delta(values, s)
         gamma = calculator.gamma(values, s)
         theta = calculator.theta(values, t)
-        return GridResult(s=s, t=t, values=values, delta=delta, gamma=gamma, theta=theta)
+        return GridResult(
+            s=s, t=t, values=values, delta=delta, gamma=gamma, theta=theta
+        )
