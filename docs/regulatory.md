@@ -13,3 +13,7 @@ This module offers minimal structures for representing trades, risk factors and 
 - The simplified data model does not cover product-specific attributes.
 - No validation against official regulatory schemas is performed.
 - Risk calculations are not implemented and must be provided by a risk engine.
+
+## Further reading
+
+For the mathematical background on the PDE solver, see [docs/explanation/black_scholes_fdm.md](explanation/black_scholes_fdm.md).
