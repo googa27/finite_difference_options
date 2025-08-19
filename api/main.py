@@ -1,10 +1,12 @@
 """FastAPI service for option pricing and Greek calculations."""
+
 from __future__ import annotations
 
 from typing import Optional
 
 import numpy as np
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from src.option_pricer import OptionPricer
@@ -19,6 +21,14 @@ from src.risk import (
 )
 
 app = FastAPI(title="Finite Difference Option Pricing")
+
+# Allow browser applications from the specified domain to access the API.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://your-domain.com"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class OptionRequest(BaseModel):
