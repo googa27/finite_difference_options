@@ -150,6 +150,7 @@ It expects the FastAPI server to run locally on port 8000.
 
 Details on assumptions and limitations are available in [docs/regulatory.md](docs/regulatory.md).
 An explanation of the Black--Scholes PDE and its finite difference discretization is provided in [docs/explanation/black_scholes_fdm.md](docs/explanation/black_scholes_fdm.md).
+The derivation of θ-stepping and the modelling of callable bonds are discussed in [docs/explanation/pde_models.md](docs/explanation/pde_models.md).
 
 ## License
 
