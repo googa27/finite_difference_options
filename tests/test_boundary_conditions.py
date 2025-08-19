@@ -46,4 +46,4 @@ def test_put_boundary_conditions():
     assert np.allclose(lhs[0], expected_left)
     assert np.allclose(lhs[-1], expected_right)
     assert np.allclose(bc.rhs.toarray().ravel()[0], 0.0)
-    assert np.allclose(bc.rhs.toarray().ravel()[-1], -1.0)
+    assert np.allclose(bc.rhs.toarray().ravel()[-1], 0.0)

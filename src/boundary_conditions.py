@@ -23,7 +23,7 @@ class BlackScholesBoundaryBuilder:
     on the option type:
 
     * Left boundary: gamma equals zero.
-    * Right boundary: delta tends to +1 for calls and -1 for puts.
+    * Right boundary: delta tends to +1 for calls and 0 for puts.
     """
 
     def build(
@@ -48,7 +48,7 @@ class BlackScholesBoundaryBuilder:
         # Gamma equals zero on the left boundary for stability
         bc[0] = d2, 0.0
 
-        # Right boundary: delta approaches 1 for calls and -1 for puts.
+        # Right boundary: delta approaches 1 for calls and 0 for puts.
         if isinstance(option, EuropeanCall):
             bc[-1] = d1, 1.0
         elif isinstance(option, EuropeanPut):
