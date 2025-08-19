@@ -16,4 +16,4 @@ This module offers minimal structures for representing trades, risk factors and 
 
 ## Further reading
 
-For the mathematical background on the PDE solver, see [docs/explanation/black_scholes_fdm.md](explanation/black_scholes_fdm.md).
+For the mathematical background on the PDE solver, see [docs/explanation/black_scholes_fdm.md](explanation/black_scholes_fdm.md) and [docs/explanation/pde_models.md](explanation/pde_models.md).
