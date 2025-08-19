@@ -13,8 +13,8 @@ export default function Home() {
         maturity: 1,
         s0: 1,
         rate: 0.05,
-        sigma: 0.2
-      })
+        sigma: 0.2,
+      }),
     });
     const data = await res.json();
     setPrice(data.price);
