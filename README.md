@@ -118,7 +118,8 @@ python -m cli plot --option-type Call --strike 1 --maturity 1 --output plot.png
 
 ## FastAPI Service
 
-Start a REST API that exposes pricing and Greek calculations:
+Start a REST API that exposes pricing and Greek calculations.
+The service allows cross-origin requests from `https://your-domain.com`.
 
 ```bash
 uvicorn api.main:app --reload
