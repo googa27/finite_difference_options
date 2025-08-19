@@ -1,4 +1,5 @@
 """Time stepping schemes for finite difference PDE solvers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -7,7 +8,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from numpy.typing import NDArray
 import findiff as fd
-from findiff import PDE
+from findiff import PDE, BoundaryConditions
 
 
 class TimeStepper(ABC):
@@ -18,7 +19,7 @@ class TimeStepper(ABC):
         self,
         u: NDArray[np.float64],
         operator: fd.FinDiff,
-        bc,
+        bc: BoundaryConditions,
         dt: float,
     ) -> NDArray[np.float64]:
         """Advance the solution ``u`` by one time step of size ``dt``."""
@@ -34,7 +35,7 @@ class ThetaMethod(TimeStepper):
         self,
         u: NDArray[np.float64],
         operator: fd.FinDiff,
-        bc,
+        bc: BoundaryConditions,
         dt: float,
     ) -> NDArray[np.float64]:
         A = fd.Identity() - self.theta * dt * operator
