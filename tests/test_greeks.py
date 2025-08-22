@@ -9,6 +9,8 @@ import numpy as np
 from scipy.stats import norm
 
 from src.option_pricer import OptionPricer
+from src.models import GeometricBrownianMotion
+from src.options import EuropeanCall
 
 
 def bs_call_greeks(
@@ -38,11 +40,10 @@ def test_finite_difference_greeks_match_analytical():
     ns = 300
     nt = 300
 
-    pricer = OptionPricer(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    instrument = EuropeanCall(strike=K, maturity=T, model=model)
+    pricer = OptionPricer(instrument=instrument)
     s, t, values, delta, gamma, theta = pricer.compute_grid(
-        strike=K,
-        maturity=T,
-        option_type="Call",
         s_max=S_max,
         s_steps=ns,
         t_steps=nt,

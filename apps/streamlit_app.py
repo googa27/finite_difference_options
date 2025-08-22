@@ -23,11 +23,16 @@ if str(ROOT) not in sys.path:  # pragma: no cover - runtime path fix
 from src.option_pricer import OptionPricer, GridResult  # noqa: E402
 from src.plotting.factory import get_plotter  # noqa: E402
 from src.plotting.colors import DEFAULT_DIVERGING, symmetric_bounds  # noqa: E402
-from src.plotting.config import (  # noqa: E402
+from src.plotting.config_manager import (
     surface_figsize_from_height,
     line_figsize_from_height,
-    PlotDefaults,
+    PlottingConfigManager,
 )
+from src.models import GeometricBrownianMotion, Market # noqa: E402
+from src.options import EuropeanCall, EuropeanPut # noqa: E402
+from src.pde_pricer import CallableBondPDEModel # noqa: E402
+from src.instruments import Instrument # noqa: E402
+
 try:  # noqa: E402
     import plotly  # type: ignore
     PLOTLY_AVAILABLE = True
@@ -50,21 +55,14 @@ sns.set_theme(style="white", context="talk")
 @st.cache_data(show_spinner=False)
 def _compute_grid_cached(
     *,
-    rate: float,
-    sigma: float,
-    strike: float,
-    maturity: float,
-    option_type: str,
+    instrument: Instrument,
     s_max: float,
     s_steps: int,
     t_steps: int,
     return_greeks: bool,
 ) -> GridResult:
-    pricer = OptionPricer(rate=rate, sigma=sigma)
+    pricer = OptionPricer(instrument=instrument)
     return pricer.compute_grid(
-        strike=strike,
-        maturity=maturity,
-        option_type=option_type,
         s_max=s_max,
         s_steps=int(s_steps),
         t_steps=int(t_steps),
@@ -93,60 +91,61 @@ def build_sidebar() -> dict:
         show_delta=True,
         show_gamma=True,
         show_theta=False,
+        instrument_type="European Option",
+        face_value=100.0,
+        call_price=105.0,
     )
     for k, v in defaults.items():
         st.session_state.setdefault(k, v)
     st.header("Parameters")
-    rate = st.slider("Interest rate r", min_value=0.0, max_value=0.2, step=0.005, key="rate")
-    sigma = st.slider("Volatility σ", min_value=0.05, max_value=1.0, step=0.01, key="sigma")
-    strike = st.slider("Strike K", min_value=0.1, max_value=5.0, step=0.1, key="strike")
-    maturity = st.slider("Maturity T (years)", min_value=0.1, max_value=5.0, step=0.1, key="maturity")
-    option_type = st.radio("Option type", ["Call", "Put"], horizontal=True, key="option_type")
+
+    instrument_type = st.radio("Instrument Type", ["European Option", "Callable Bond"], key="instrument_type")
+
+    params = {}
+    if instrument_type == "European Option":
+        params["rate"] = st.slider("Interest rate r", min_value=0.0, max_value=0.2, step=0.005, key="rate")
+        params["sigma"] = st.slider("Volatility σ", min_value=0.05, max_value=1.0, step=0.01, key="sigma")
+        params["strike"] = st.slider("Strike K", min_value=0.1, max_value=5.0, step=0.1, key="strike")
+        params["maturity"] = st.slider("Maturity T (years)", min_value=0.1, max_value=5.0, step=0.1, key="maturity")
+        params["option_type"] = st.radio("Option type", ["Call", "Put"], horizontal=True, key="option_type")
+    elif instrument_type == "Callable Bond":
+        params["face_value"] = st.slider("Face Value", min_value=50.0, max_value=200.0, step=5.0, key="face_value")
+        params["call_price"] = st.slider("Call Price", min_value=50.0, max_value=200.0, step=5.0, key="call_price")
+        params["maturity"] = st.slider("Maturity T (years)", min_value=0.1, max_value=5.0, step=0.1, key="maturity")
+        params["rate"] = st.slider("Interest rate r (for bond model)", min_value=0.0, max_value=0.2, step=0.005, key="rate")
+        params["sigma"] = st.slider("Volatility σ (for bond model)", min_value=0.01, max_value=0.1, step=0.005, key="sigma")
+
+    params["instrument_type"] = instrument_type
 
     with st.expander("Grid settings", expanded=False):
-        s_max = st.slider("Max stock price Sₘₐₓ", min_value=1.0, max_value=10.0, step=0.5, key="s_max")
-        s_steps = st.slider("Price steps Nₛ", min_value=20, max_value=400, step=10, key="s_steps")
-        t_steps = st.slider("Time steps Nₜ", min_value=20, max_value=400, step=10, key="t_steps")
+        params["s_max"] = st.slider("Max stock price Sₘₐₓ", min_value=1.0, max_value=10.0, step=0.5, key="s_max")
+        params["s_steps"] = st.slider("Price steps Nₛ", min_value=20, max_value=400, step=10, key="s_steps")
+        params["t_steps"] = st.slider("Time steps Nₜ", min_value=20, max_value=400, step=10, key="t_steps")
 
     with st.expander("Plot options", expanded=False):
         backends = ["Matplotlib"]
         if PLOTLY_AVAILABLE:
             backends.insert(0, "Plotly")
-        backend_label = st.selectbox("Backend", backends, key="backend_label")
-        backend = "plotly" if backend_label.startswith("Plotly") else "matplotlib"
-        if not PLOTLY_AVAILABLE and backend == "plotly":
+        params["backend_label"] = st.selectbox("Backend", backends, key="backend_label")
+        params["backend"] = "plotly" if params["backend_label"].startswith("Plotly") else "matplotlib"
+        if not PLOTLY_AVAILABLE and params["backend"] == "plotly":
             st.caption("Plotly not installed — falling back to Matplotlib.")
-            backend = "matplotlib"
-        cmap = st.selectbox(
+            params["backend"] = "matplotlib"
+        params["cmap"] = st.selectbox(
             "Colormap",
             ["viridis", "magma", "plasma", "cividis", "inferno", "RdBu", "coolwarm"],
             key="cmap",
         )
-        plot_height = st.slider("Plot height (px)", min_value=300, max_value=800, step=10, key="plot_height")
-        elev = azim = None
-        if backend == "matplotlib":
-            elev = st.slider("3D elevation (deg)", min_value=0, max_value=80, key="elev")
-            azim = st.slider("3D azimuth (deg)", min_value=-180, max_value=180, key="azim")
-        live = st.toggle("Live update on change", key="live")
-        recompute = st.button("Recompute", disabled=live)
+        params["plot_height"] = st.slider("Plot height (px)", min_value=300, max_value=800, step=10, key="plot_height")
+        params["elev"] = None
+        params["azim"] = None
+        if params["backend"] == "matplotlib":
+            params["elev"] = st.slider("3D elevation (deg)", min_value=0, max_value=80, key="elev")
+            params["azim"] = st.slider("3D azimuth (deg)", min_value=-180, max_value=180, key="azim")
+        params["live"] = st.toggle("Live update on change", key="live")
+        params["recompute"] = st.button("Recompute", disabled=params["live"])
 
-    return {
-        "rate": rate,
-        "sigma": sigma,
-        "strike": strike,
-        "maturity": maturity,
-        "option_type": option_type,
-        "s_max": s_max,
-        "s_steps": s_steps,
-        "t_steps": t_steps,
-        "backend": backend,
-        "cmap": cmap,
-        "plot_height": plot_height,
-        "elev": elev,
-        "azim": azim,
-        "live": live,
-        "recompute": recompute,
-    }
+    return params
 
 
 def main() -> None:
@@ -159,12 +158,25 @@ def main() -> None:
 
     # Compute in real time (cached) when parameters change
     def maybe_compute() -> GridResult:
+        if params["instrument_type"] == "European Option":
+            model = GeometricBrownianMotion(rate=params["rate"], sigma=params["sigma"])
+            option_cls = EuropeanCall if params["option_type"] == "Call" else EuropeanPut
+            instrument = option_cls(strike=params["strike"], maturity=params["maturity"], model=model)
+        elif params["instrument_type"] == "Callable Bond":
+            market = Market(rate=params["rate"])
+            model = GeometricBrownianMotion(rate=params["rate"], sigma=params["sigma"])
+            instrument = CallableBondPDEModel(
+                face_value=params["face_value"],
+                call_price=params["call_price"],
+                market=market,
+                model=model,
+                _maturity=params["maturity"],
+            )
+        else:
+            raise ValueError("Unknown instrument type")
+
         return _compute_grid_cached(
-            rate=params["rate"],
-            sigma=params["sigma"],
-            strike=params["strike"],
-            maturity=params["maturity"],
-            option_type=params["option_type"],
+            instrument=instrument,
             s_max=params["s_max"],
             s_steps=params["s_steps"],
             t_steps=params["t_steps"],
@@ -180,7 +192,7 @@ def main() -> None:
 
     s, t, grid = data.s, data.t, data.values
     # Prepare plotting defaults instance to build PlotOptions consistently
-    plot_def = PlotDefaults(cmap=params["cmap"], height=params["plot_height"], elev=params["elev"], azim=params["azim"])
+    plot_def = PlottingConfigManager(cmap=params["cmap"], height=params["plot_height"], elev=params["elev"], azim=params["azim"])
     delta, gamma, theta = data.delta, data.gamma, data.theta
 
     # Header metrics

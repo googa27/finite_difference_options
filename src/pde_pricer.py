@@ -1,15 +1,15 @@
-"""Finite difference models for solving parabolic PDEs.
+"""Legacy PDE models for backward compatibility.
 
-This module defines an abstract :class:`PDEModel` base class together with
-concrete implementations for vanilla options and callable bonds.  The models
-encapsulate the construction of the infinitesimal generator and the boundary
-conditions required by the finite difference solver.
+This module maintains the original PDEModel interface for backward compatibility
+while internally using the new modular architecture with PDESolver and PricingEngine.
+New code should use the PricingEngine directly.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from typing import Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -17,31 +17,39 @@ from findiff import BoundaryConditions, FinDiff
 
 from .models import GeometricBrownianMotion, Market
 from .options import EuropeanOption
-from .boundary_conditions import BlackScholesBoundaryBuilder
 from .spatial_operator import SpatialOperator
 from .time_steppers import TimeStepper, ThetaMethod
+from .instruments import Instrument
+from .pde_solver import FiniteDifferenceSolver
 
 
 class PDEModel(ABC):
-    """Abstract base class for PDE pricing models."""
+    """Abstract base class for PDE pricing models.
+    
+    This class is maintained for backward compatibility. New implementations
+    should use the PricingEngine and PDESolver architecture directly.
+    """
 
     time_stepper: TimeStepper
 
     @abstractmethod
     def generator(self, s: NDArray[np.float64]) -> FinDiff:
         """Return the discretised generator on the spatial grid."""
+        ...
 
     @abstractmethod
     def payoff(
         self, s: NDArray[np.float64], option: EuropeanOption | None
     ) -> NDArray[np.float64]:
         """Return payoff at maturity for the spatial grid."""
+        ...
 
     @abstractmethod
     def boundary_conditions(
         self, s: NDArray[np.float64], option: EuropeanOption | None
     ) -> BoundaryConditions:
         """Return boundary conditions for the spatial grid."""
+        ...
 
     def price(
         self,
@@ -49,30 +57,31 @@ class PDEModel(ABC):
         s: NDArray[np.float64],
         t: NDArray[np.float64],
     ) -> NDArray[np.float64]:
-        """Return grid with instrument values."""
+        """Return grid with instrument values.
+        
+        Uses the new PDESolver internally for consistency.
+        """
+        solver = FiniteDifferenceSolver(time_stepper=self.time_stepper)
+        
+        generator = self.generator(s)
+        boundary_conditions = self.boundary_conditions(s, option)
+        initial_conditions = self.payoff(s, option)
+        
+        return solver.solve(
+            generator=generator,
+            boundary_conditions=boundary_conditions,
+            initial_conditions=initial_conditions,
+            time_grid=t,
+        )
 
-        dt = t[1] - t[0]
-        L = self.generator(s)
-
-        values = np.empty((len(t), len(s)))
-        values[0] = self.payoff(s, option)
-
-        bc = self.boundary_conditions(s, option)
-        for i in range(len(t) - 1):
-            values[i + 1] = self.time_stepper.step(values[i], L, bc, dt)
-        return values
 
 
 @dataclass
 class BlackScholesPDE(PDEModel):
     """Price European options by solving the Black–Scholes PDE."""
 
-    model: GeometricBrownianMotion
-    market: Market
+    instrument: Instrument
     theta: float = 0.5  # retained for backward compatibility
-    boundary_builder: BlackScholesBoundaryBuilder = field(
-        default_factory=BlackScholesBoundaryBuilder
-    )
     time_stepper: TimeStepper | None = None  # type: ignore[assignment]
 
     def __post_init__(self) -> None:
@@ -82,28 +91,24 @@ class BlackScholesPDE(PDEModel):
         else:  # keep ``theta`` in sync for backward compatibility
             self.theta = getattr(self.time_stepper, "theta", self.theta)
 
-    def generator(self, s: NDArray[np.float64]) -> SpatialOperator:
+    def generator(self, s: NDArray[np.float64]) -> FinDiff:
         """Return the Black--Scholes infinitesimal generator."""
 
-        return SpatialOperator(self.model).build(s)
+        return self.instrument.generator(s)
 
     def payoff(
-        self, s: NDArray[np.float64], option: EuropeanOption | None
+        self, s: NDArray[np.float64], option: EuropeanOption | None = None
     ) -> NDArray[np.float64]:
         """Return option payoff at maturity."""
 
-        if option is None:
-            raise ValueError("Option contract must be provided for BlackScholesPDE")
-        return option.payoff(s)
+        return self.instrument.payoff(s)
 
     def boundary_conditions(
-        self, s: NDArray[np.float64], option: EuropeanOption | None
+        self, s: NDArray[np.float64], option: EuropeanOption | None = None
     ) -> BoundaryConditions:
         """Return model-specific boundary conditions."""
 
-        if option is None:
-            raise ValueError("Option contract must be provided for BlackScholesPDE")
-        return self.boundary_builder.build(s, option)
+        return self.instrument.boundary_conditions(s)
 
 
 @dataclass
@@ -119,7 +124,16 @@ class CallableBondPDEModel(PDEModel):
     call_price: float
     market: Market
     model: GeometricBrownianMotion
+    _maturity: float
     time_stepper: TimeStepper = field(default_factory=lambda: ThetaMethod(0.5))
+
+    @property
+    def maturity(self) -> float:
+        return self._maturity
+
+    @property
+    def strike(self) -> Optional[float]:
+        return None
 
     def generator(self, s: NDArray[np.float64]) -> FinDiff:
         """Return the infinitesimal generator for the short rate."""
@@ -127,14 +141,14 @@ class CallableBondPDEModel(PDEModel):
         return SpatialOperator(self.model).build(s)
 
     def payoff(
-        self, s: NDArray[np.float64], option: EuropeanOption | None
+        self, s: NDArray[np.float64], option: EuropeanOption | None = None
     ) -> NDArray[np.float64]:
         """Face value paid at maturity."""
 
         return np.full_like(s, min(self.face_value, self.call_price))
 
     def boundary_conditions(
-        self, s: NDArray[np.float64], option: EuropeanOption | None
+        self, s: NDArray[np.float64], option: EuropeanOption | None = None
     ) -> BoundaryConditions:
         """Dirichlet boundaries enforcing the call price."""
 
@@ -147,7 +161,6 @@ class CallableBondPDEModel(PDEModel):
 
     def price(
         self,
-        option: EuropeanOption | None,
         s: NDArray[np.float64],
         t: NDArray[np.float64],
     ) -> NDArray[np.float64]:
@@ -156,16 +169,19 @@ class CallableBondPDEModel(PDEModel):
         After each time step the value is capped at the call price to emulate
         the early redemption feature.
         """
-
-        dt = t[1] - t[0]
-        L = self.generator(s)
-
-        values = np.empty((len(t), len(s)))
-        values[0] = self.payoff(s, option)
-
-        bc = self.boundary_conditions(s, option)
-        for i in range(len(t) - 1):
-            values[i + 1] = self.time_stepper.step(values[i], L, bc, dt)
-            values[i + 1] = np.minimum(values[i + 1], self.call_price)
+        solver = FiniteDifferenceSolver(time_stepper=self.time_stepper)
+        
+        generator = self.generator(s)
+        boundary_conditions = self.boundary_conditions(s)
+        initial_conditions = self.payoff(s)
+        
+        values = solver.solve(
+            generator=generator,
+            boundary_conditions=boundary_conditions,
+            initial_conditions=initial_conditions,
+            time_grid=t,
+        )
+        
+        # Apply call constraint after each time step
         values = np.minimum(values, self.call_price)
         return values

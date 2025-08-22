@@ -1,15 +1,16 @@
 from src.option_pricer import OptionPricer, GridResult
+from src.models import GeometricBrownianMotion
+from src.options import EuropeanCall, EuropeanPut
 
 
 def test_compute_grid_returns_namedtuple_and_shapes():
-    pricer = OptionPricer(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    instrument = EuropeanCall(strike=1.0, maturity=1.0, model=model)
+    pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(
-        maturity=1.0,
         s_max=2.0,
         s_steps=20,
         t_steps=30,
-        strike=1.0,
-        option_type="Call",
         return_greeks=True,
     )
     assert isinstance(res, GridResult)
@@ -22,14 +23,13 @@ def test_compute_grid_returns_namedtuple_and_shapes():
 
 
 def test_compute_grid_without_greeks_sets_none():
-    pricer = OptionPricer(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    instrument = EuropeanPut(strike=1.0, maturity=0.5, model=model)
+    pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(
-        maturity=0.5,
         s_max=1.5,
         s_steps=10,
         t_steps=12,
-        strike=1.0,
-        option_type="Put",
         return_greeks=False,
     )
     assert res.delta is None

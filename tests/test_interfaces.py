@@ -1,4 +1,5 @@
 """Sanity checks for Streamlit, CLI and FastAPI interfaces."""
+from __future__ import annotations
 import pathlib
 import sys
 
@@ -62,3 +63,30 @@ def test_streamlit_app_runs():
     at = AppTest.from_file("apps/streamlit_app.py")
     at.run()
     assert not at.exception
+
+
+def test_fastapi_regulatory_reports():
+    client = TestClient(fastapi_app)
+    payload = [
+        {
+            "trade": {"trade_id": "T1", "product_type": "Swap", "notional": 1000.0, "currency": "USD"},
+            "risk_factor": {"name": "InterestRate", "value": 0.05},
+            "amount": 50.0,
+        }
+    ]
+
+    response = client.post("/reports/crif", json=payload)
+    assert response.status_code == 200
+    assert "crif" in response.json()
+
+    response = client.post("/reports/cuso", json=payload)
+    assert response.status_code == 200
+    assert "status" in response.json()
+
+    response = client.post("/reports/basel", json=payload)
+    assert response.status_code == 200
+    assert "status" in response.json()
+
+    response = client.post("/reports/frtb", json=payload)
+    assert response.status_code == 200
+    assert "status" in response.json()

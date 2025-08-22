@@ -14,11 +14,10 @@ from src.risk import (
     Exposure,
     RiskFactor,
     Trade,
-    calculate_basel,
-    calculate_cuso,
-    calculate_frtb,
-    exposures_to_crif,
 )
+from src.risk.reporting_strategies import ReportFactory
+from src.models import GeometricBrownianMotion
+from src.options import EuropeanCall, EuropeanPut
 
 app = FastAPI(title="Finite Difference Option Pricing")
 
@@ -63,11 +62,11 @@ class GreeksResponse(BaseModel):
 def price(request: OptionRequest) -> PriceResponse:
     """Return option price for the given parameters."""
     s_max = request.s_max or request.s0 * 3
-    pricer = OptionPricer(rate=request.rate, sigma=request.sigma)
+    model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
+    option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
+    instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
+    pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(
-        strike=request.strike,
-        maturity=request.maturity,
-        option_type=request.option_type,
         s_max=s_max,
         s_steps=request.s_steps,
         t_steps=request.t_steps,
@@ -80,11 +79,11 @@ def price(request: OptionRequest) -> PriceResponse:
 def greeks(request: OptionRequest) -> GreeksResponse:
     """Return Delta, Gamma and Theta for the given parameters."""
     s_max = request.s_max or request.s0 * 3
-    pricer = OptionPricer(rate=request.rate, sigma=request.sigma)
+    model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
+    option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
+    instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
+    pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(
-        strike=request.strike,
-        maturity=request.maturity,
-        option_type=request.option_type,
         s_max=s_max,
         s_steps=request.s_steps,
         t_steps=request.t_steps,
@@ -153,15 +152,17 @@ def _convert_exposures(models: list[ExposureModel]) -> list[Exposure]:
 def crif_report(exposures: list[ExposureModel]) -> CRIFResponse:
     """Generate a CRIF report for the provided exposures."""
 
-    crif = exposures_to_crif(_convert_exposures(exposures))
-    return CRIFResponse(crif=crif)
+    strategy = ReportFactory.get_strategy("crif")
+    crif = strategy.generate_report(_convert_exposures(exposures))
+    return CRIFResponse(**crif)
 
 
 @app.post("/reports/cuso", response_model=PlaceholderResponse)
 def cuso_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
     """Placeholder CUSO report endpoint."""
 
-    data = calculate_cuso(_convert_exposures(exposures))
+    strategy = ReportFactory.get_strategy("cuso")
+    data = strategy.generate_report(_convert_exposures(exposures))
     return PlaceholderResponse(**data)
 
 
@@ -169,7 +170,8 @@ def cuso_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
 def basel_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
     """Placeholder Basel report endpoint."""
 
-    data = calculate_basel(_convert_exposures(exposures))
+    strategy = ReportFactory.get_strategy("basel")
+    data = strategy.generate_report(_convert_exposures(exposures))
     return PlaceholderResponse(**data)
 
 
@@ -177,5 +179,6 @@ def basel_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
 def frtb_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
     """Placeholder FRTB report endpoint."""
 
-    data = calculate_frtb(_convert_exposures(exposures))
+    strategy = ReportFactory.get_strategy("frtb")
+    data = strategy.generate_report(_convert_exposures(exposures))
     return PlaceholderResponse(**data)

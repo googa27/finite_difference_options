@@ -9,6 +9,8 @@ import numpy as np
 from scipy.stats import norm
 
 from src.option_pricer import OptionPricer
+from src.models import GeometricBrownianMotion
+from src.options import EuropeanCall
 
 
 def bs_call_price(s: float, k: float, r: float, sigma: float, T: float) -> float:
@@ -29,11 +31,10 @@ def test_compute_grid_shapes_and_price():
     ns = 40
     nt = 40
 
-    pricer = OptionPricer(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    instrument = EuropeanCall(strike=K, maturity=T, model=model)
+    pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(
-        strike=K,
-        maturity=T,
-        option_type="Call",
         s_max=S_max,
         s_steps=ns,
         t_steps=nt,

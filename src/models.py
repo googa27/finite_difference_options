@@ -12,7 +12,6 @@ import numpy as np
 from numpy.typing import NDArray
 import findiff as fd
 
-from .spatial_operator import SpatialOperator
 
 
 @dataclass
@@ -50,4 +49,5 @@ class GeometricBrownianMotion:
         s:
             Spatial grid for the asset price.
         """
+        from .spatial_operator import SpatialOperator
         return SpatialOperator(self).build(s)

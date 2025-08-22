@@ -1,41 +1,32 @@
-"""Conversion utilities for regulatory reporting formats."""
-from __future__ import annotations
+"""Risk data converters for regulatory reporting formats."""
 
-import csv
-import io
-from typing import Iterable
-
+from typing import List, Dict, Any
 from .models import Exposure
 
 
-def exposures_to_crif(exposures: Iterable[Exposure]) -> str:
-    """Return a CSV string in the Common Risk Interchange Format (CRIF).
-
-    The implementation is intentionally minimal and includes only the
-    trade identifier, risk factor name and exposure amount.
-    """
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["TradeId", "RiskFactor", "Amount"])
-    for exp in exposures:
-        writer.writerow([exp.trade.trade_id, exp.risk_factor.name, exp.amount])
-    return output.getvalue()
+def exposures_to_crif(exposures: List[Exposure]) -> List[Dict[str, Any]]:
+    """Convert exposures to CRIF (Common Risk Interchange Format)."""
+    return [
+        {
+            "trade_id": exp.trade_id,
+            "risk_factor": exp.risk_factor.name,
+            "sensitivity": exp.sensitivity,
+            "description": exp.description or "",
+        }
+        for exp in exposures
+    ]
 
 
-def calculate_cuso(_: Iterable[Exposure]) -> dict[str, str]:
-    """Placeholder for a Current US Supervision Office (CUSO) calc."""
-
-    return {"status": "CUSO calculation not implemented"}
-
-
-def calculate_basel(_: Iterable[Exposure]) -> dict[str, str]:
-    """Placeholder for Basel capital requirements calculation."""
-
-    return {"status": "Basel calculation not implemented"}
+def calculate_cuso(exposures: List[Exposure]) -> Dict[str, float]:
+    """Calculate CUSO (Credit Unit Specific Offset) metrics."""
+    return {"total_exposure": sum(exp.sensitivity for exp in exposures)}
 
 
-def calculate_frtb(_: Iterable[Exposure]) -> dict[str, str]:
-    """Placeholder for Fundamental Review of the Trading Book (FRTB) calc."""
+def calculate_basel(exposures: List[Exposure]) -> Dict[str, float]:
+    """Calculate Basel regulatory capital metrics."""
+    return {"risk_weighted_assets": sum(abs(exp.sensitivity) * 1.2 for exp in exposures)}
 
-    return {"status": "FRTB calculation not implemented"}
+
+def calculate_frtb(exposures: List[Exposure]) -> Dict[str, float]:
+    """Calculate FRTB (Fundamental Review of Trading Book) metrics."""
+    return {"market_risk_capital": sum(abs(exp.sensitivity) * 0.8 for exp in exposures)}

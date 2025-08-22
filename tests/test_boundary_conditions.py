@@ -9,11 +9,13 @@ import numpy as np
 from findiff import FinDiff
 from src.boundary_conditions import BlackScholesBoundaryBuilder
 from src.options import EuropeanCall, EuropeanPut
+from src.models import GeometricBrownianMotion
 
 
 def test_call_boundary_conditions():
     s = np.linspace(0.0, 1.0, 5)
-    option = EuropeanCall(strike=1.0)
+    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    option = EuropeanCall(strike=1.0, maturity=1.0, model=model)
     bc = BlackScholesBoundaryBuilder().build(s, option)
 
     ds = s[1] - s[0]
@@ -32,7 +34,9 @@ def test_call_boundary_conditions():
 
 def test_put_boundary_conditions():
     s = np.linspace(0.0, 1.0, 5)
-    option = EuropeanPut(strike=1.0)
+    from src.models import GeometricBrownianMotion
+    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    option = EuropeanPut(strike=1.0, maturity=1.0, model=model)
     bc = BlackScholesBoundaryBuilder().build(s, option)
 
     ds = s[1] - s[0]

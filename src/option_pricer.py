@@ -8,10 +8,9 @@ from typing import NamedTuple, Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from .models import GeometricBrownianMotion, Market
-from .options import EuropeanCall, EuropeanOption, EuropeanPut
-from .pde_pricer import BlackScholesPDE, PDEModel
+from .pde_pricer import BlackScholesPDE
 from .greeks import FiniteDifferenceGreeks
+from .instruments import Instrument
 
 
 class GridResult(NamedTuple):
@@ -36,57 +35,33 @@ class OptionPricer:
 
     Parameters
     ----------
-    rate, sigma:
-        Parameters of the default Black--Scholes model.  They are ignored when
-        ``pde_model`` is provided.
-    pde_model:
-        Custom :class:`~src.pde_pricer.PDEModel` implementation.  When supplied
-        the pricer delegates all computations to this model.
+    instrument:
+        The financial instrument to be priced.
     """
 
-    rate: float | None = None
-    sigma: float | None = None
-    pde_model: PDEModel | None = None
-    _default_pricer: BlackScholesPDE | None = field(init=False, default=None)
+    instrument: Instrument
+    _pde_model: BlackScholesPDE | None = field(init=False, default=None)
 
     def __post_init__(self) -> None:
-        """Initialise market, model and PDE solver from inputs."""
-        if self.pde_model is None:
-            if self.rate is None or self.sigma is None:
-                raise ValueError("rate and sigma must be set when no model supplied")
-            self.market = Market(rate=self.rate)
-            self.model = GeometricBrownianMotion(rate=self.rate, sigma=self.sigma)
-            self._default_pricer = BlackScholesPDE(model=self.model, market=self.market)
-        else:
-            self._default_pricer = None
+        """Initialise PDE solver from instrument."""
+        # For now, we assume BlackScholesPDE can handle any Instrument.
+        # In a more complex scenario, a factory might be needed here.
+        self._pde_model = BlackScholesPDE(instrument=self.instrument)
 
     def compute_grid(
         self,
         *,
-        maturity: float,
         s_max: float,
         s_steps: int,
         t_steps: int,
-        strike: float | None = None,
-        option_type: str | None = None,
         return_greeks: bool = False,
     ) -> GridResult:
         """Return grids and values with optional Greeks as a NamedTuple."""
 
         s = np.linspace(0, s_max, s_steps)
-        t = np.linspace(0, maturity, t_steps)
+        t = np.linspace(0, self.instrument.maturity, t_steps)
 
-        if self.pde_model is None:
-            if strike is None or option_type is None:
-                msg = "strike and option_type must be provided for default model"
-                raise ValueError(msg)
-            option_cls: type[EuropeanOption]
-            option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
-            option = option_cls(strike=strike)
-            assert self._default_pricer is not None
-            values = self._default_pricer.price(option=option, s=s, t=t)
-        else:
-            values = self.pde_model.price(option=None, s=s, t=t)
+        values = self._pde_model.price(option=self.instrument, s=s, t=t)
 
         if not return_greeks:
             return GridResult(

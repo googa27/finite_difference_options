@@ -9,6 +9,8 @@ import typer
 
 from src.option_pricer import OptionPricer
 from src.plotting.base import MatplotlibSeabornPlotter, PlotOptions
+from src.models import GeometricBrownianMotion
+from src.options import EuropeanCall, EuropeanPut
 
 app = typer.Typer(help="Command-line tools for option pricing.")
 
@@ -27,11 +29,11 @@ def price(
     greeks: bool = typer.Option(False, help="Also compute Delta, Gamma and Theta."),
 ) -> None:
     """Compute option price at ``s0`` and optionally Greeks."""
-    pricer = OptionPricer(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
+    instrument = option_cls(strike=strike, maturity=maturity, model=model)
+    pricer = OptionPricer(instrument=instrument)
     result = pricer.compute_grid(
-        strike=strike,
-        maturity=maturity,
-        option_type=option_type,
         s_max=s_max,
         s_steps=s_steps,
         t_steps=t_steps,
@@ -65,20 +67,22 @@ def plot(
         None, help="Optional path to save the plot."),
 ) -> None:
     """Render option value grid as a heatmap or surface plot."""
-    pricer = OptionPricer(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
+    instrument = option_cls(strike=strike, maturity=maturity, model=model)
+    pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(
-        strike=strike,
-        maturity=maturity,
-        option_type=option_type,
         s_max=s_max,
         s_steps=s_steps,
         t_steps=t_steps,
     )
     plotter = MatplotlibSeabornPlotter()
-    opts = PlotOptions()
+    plot_config_manager = PlottingConfigManager()
     if kind == "surface":
+        opts = plot_config_manager.surface()
         fig = plotter.surface(res.values, res.s, res.t, opts=opts)
     else:
+        opts = plot_config_manager.heatmap()
         fig = plotter.heatmap(res.values, res.s, res.t, opts=opts)
     if output:
         fig.savefig(output)

@@ -6,7 +6,7 @@ import sys
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
-from src.models import Market, GeometricBrownianMotion
+from src.models import GeometricBrownianMotion
 from src.options import EuropeanCall, EuropeanPut
 from src.pde_pricer import BlackScholesPDE
 from src.time_steppers import ExplicitEuler
@@ -44,12 +44,11 @@ def test_call_matches_analytical():
     s = np.linspace(0.0, S_max, ns)
     t = np.linspace(0.0, T, nt)
 
-    market = Market(rate=rate)
     model = GeometricBrownianMotion(rate=rate, sigma=sigma)
-    option = EuropeanCall(strike=K)
+    instrument = EuropeanCall(strike=K, maturity=T, model=model)
 
-    pricer = BlackScholesPDE(model=model, market=market)
-    grid = pricer.price(option, s, t)
+    pricer = BlackScholesPDE(instrument=instrument)
+    grid = pricer.price(option=instrument, s=s, t=t)
 
     idx = np.searchsorted(s, 1.0)
     pde_price = grid[-1, idx]
@@ -70,12 +69,11 @@ def test_put_matches_analytical():
     s = np.linspace(0.0, S_max, ns)
     t = np.linspace(0.0, T, nt)
 
-    market = Market(rate=rate)
     model = GeometricBrownianMotion(rate=rate, sigma=sigma)
-    option = EuropeanPut(strike=K)
+    instrument = EuropeanPut(strike=K, maturity=T, model=model)
 
-    pricer = BlackScholesPDE(model=model, market=market)
-    grid = pricer.price(option, s, t)
+    pricer = BlackScholesPDE(instrument=instrument)
+    grid = pricer.price(option=instrument, s=s, t=t)
 
     idx = np.searchsorted(s, 1.0)
     pde_price = grid[-1, idx]
@@ -96,14 +94,13 @@ def test_call_matches_analytical_explicit_euler():
     s = np.linspace(0.0, S_max, ns)
     t = np.linspace(0.0, T, nt)
 
-    market = Market(rate=rate)
     model = GeometricBrownianMotion(rate=rate, sigma=sigma)
-    option = EuropeanCall(strike=K)
+    instrument = EuropeanCall(strike=K, maturity=T, model=model)
 
     pricer = BlackScholesPDE(
-        model=model, market=market, time_stepper=ExplicitEuler()
+        instrument=instrument, time_stepper=ExplicitEuler()
     )
-    grid = pricer.price(option, s, t)
+    grid = pricer.price(option=instrument, s=s, t=t)
 
     idx = np.searchsorted(s, 1.0)
     pde_price = grid[-1, idx]

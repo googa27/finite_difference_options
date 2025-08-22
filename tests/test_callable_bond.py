@@ -21,10 +21,10 @@ def test_callable_bond_grid_respects_call_price_and_face_value() -> None:
         call_price=105.0,
         market=market,
         model=short_rate,
+        _maturity=1.0,
     )
-    pricer = OptionPricer(pde_model=bond_model)
+    pricer = OptionPricer(instrument=bond_model)
     res = pricer.compute_grid(
-        maturity=1.0,
         s_max=150.0,
         s_steps=50,
         t_steps=50,

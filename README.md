@@ -2,8 +2,8 @@
 
 [![CI](https://github.com/PLACEHOLDER/finite_difference_options/actions/workflows/ci.yml/badge.svg)](https://github.com/PLACEHOLDER/finite_difference_options/actions/workflows/ci.yml)
 
-Educational project demonstrating how to price European options by solving
-the Black--Scholes partial differential equation (PDE) with
+Educational project demonstrating how to price options by solving
+partial differential equations (PDEs) with
 [`findiff`](https://github.com/findiff/findiff).
 
 ## Features
