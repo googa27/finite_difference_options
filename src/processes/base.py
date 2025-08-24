@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Tuple
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, ConfigDict
 
 from ..utils.exceptions import ValidationError
 from ..utils.state_handling import ensure_state_array, validate_state_dimensions
@@ -21,7 +21,8 @@ class ProcessDimension(BaseModel):
     
     value: int
     
-    @validator('value')
+    @field_validator('value')
+    @classmethod
     def validate_value(cls, v):
         """Validate that dimension is positive."""
         if v < 1:

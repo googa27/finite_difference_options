@@ -44,11 +44,11 @@ class EuropeanOption(Instrument, BaseModel):
     """Base class for European options."""
     
     strike: float
-    _maturity: float = Field(..., alias="maturity")
+    maturity: float
     
     class Config:
         """Pydantic configuration."""
-        allow_mutation = False  # Make it immutable like a dataclass
+        frozen = True  # Make it immutable like a dataclass
         extra = "forbid"  # Prevent extra fields
     
     @validator('strike')
@@ -58,17 +58,12 @@ class EuropeanOption(Instrument, BaseModel):
             raise ValidationError(f"Strike price must be positive, got {v}")
         return v
     
-    @validator('_maturity')
+    @validator('maturity')
     def validate_maturity(cls, v):
         """Validate maturity."""
         if v <= 0:
             raise ValidationError(f"Maturity must be positive, got {v}")
         return v
-    
-    @property
-    def maturity(self) -> float:
-        """Get instrument maturity."""
-        return self._maturity
 
 
 class EuropeanCall(EuropeanOption):

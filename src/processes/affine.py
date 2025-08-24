@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Tuple
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from .base import AffineProcess, ProcessDimension
 from ..utils.validation import validate_positive, validate_non_negative
@@ -21,7 +21,7 @@ from ..utils.process_validators import (
 from ..utils.state_handling import validate_positive_state_components
 
 
-class GeometricBrownianMotion(AffineProcess):
+class GeometricBrownianMotion(AffineProcess, BaseModel):
     """Geometric Brownian Motion process.
     
     dS = μS dt + σS dW
@@ -37,12 +37,10 @@ class GeometricBrownianMotion(AffineProcess):
     mu: float
     sigma: float
     
-    class Config:
-        """Pydantic configuration."""
-        allow_mutation = False  # Make it immutable like a dataclass
-        extra = "forbid"  # Prevent extra fields
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @validator('sigma')
+    @field_validator('sigma')
+    @classmethod
     def validate_sigma(cls, v):
         """Validate sigma parameter."""
         validate_positive(v, "sigma")
@@ -72,7 +70,7 @@ class GeometricBrownianMotion(AffineProcess):
             return result
 
 
-class OrnsteinUhlenbeck(AffineProcess):
+class OrnsteinUhlenbeck(AffineProcess, BaseModel):
     """Ornstein-Uhlenbeck process.
     
     dr = κ(θ - r) dt + σ dW
@@ -91,18 +89,17 @@ class OrnsteinUhlenbeck(AffineProcess):
     theta: float
     sigma: float
     
-    class Config:
-        """Pydantic configuration."""
-        allow_mutation = False  # Make it immutable like a dataclass
-        extra = "forbid"  # Prevent extra fields
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @validator('kappa')
+    @field_validator('kappa')
+    @classmethod
     def validate_kappa(cls, v):
         """Validate kappa parameter."""
         validate_positive(v, "kappa")
         return v
     
-    @validator('sigma')
+    @field_validator('sigma')
+    @classmethod
     def validate_sigma(cls, v):
         """Validate sigma parameter."""
         validate_positive(v, "sigma")
@@ -131,7 +128,7 @@ class OrnsteinUhlenbeck(AffineProcess):
             return result
 
 
-class CoxIngersollRoss(AffineProcess):
+class CoxIngersollRoss(AffineProcess, BaseModel):
     """Cox-Ingersoll-Ross process.
     
     dr = κ(θ - r) dt + σ√r dW
@@ -150,24 +147,24 @@ class CoxIngersollRoss(AffineProcess):
     theta: float
     sigma: float
     
-    class Config:
-        """Pydantic configuration."""
-        allow_mutation = False  # Make it immutable like a dataclass
-        extra = "forbid"  # Prevent extra fields
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @validator('kappa')
+    @field_validator('kappa')
+    @classmethod
     def validate_kappa(cls, v):
         """Validate kappa parameter."""
         validate_positive(v, "kappa")
         return v
     
-    @validator('theta')
+    @field_validator('theta')
+    @classmethod
     def validate_theta(cls, v):
         """Validate theta parameter."""
         validate_positive(v, "theta")
         return v
     
-    @validator('sigma')
+    @field_validator('sigma')
+    @classmethod
     def validate_sigma(cls, v):
         """Validate sigma parameter."""
         validate_positive(v, "sigma")
@@ -205,7 +202,7 @@ class CoxIngersollRoss(AffineProcess):
             return result
 
 
-class HestonModel(AffineProcess):
+class HestonModel(AffineProcess, BaseModel):
     """Heston stochastic volatility model.
     
     dS = rS dt + √V S dW₁
@@ -236,10 +233,7 @@ class HestonModel(AffineProcess):
     rho: float
     dividend_yield: float = 0.0
     
-    class Config:
-        """Pydantic configuration."""
-        allow_mutation = False  # Make it immutable like a dataclass
-        extra = "forbid"  # Prevent extra fields
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
     def __init__(self, **data):
         """Initialize and validate Heston parameters."""
