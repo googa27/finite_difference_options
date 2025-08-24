@@ -19,12 +19,6 @@ class Instrument(BaseModel):
     
     model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @property
-    def maturity(self) -> float:
-        """Get instrument maturity."""
-        # This will be overridden by subclasses that have a maturity field
-        raise NotImplementedError("Subclasses must implement maturity property or have a maturity field")
-    
     def payoff(self, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute payoff at maturity.
         
