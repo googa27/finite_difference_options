@@ -9,8 +9,8 @@ import numpy as np
 from scipy.stats import norm
 
 from src.option_pricer import OptionPricer
-from src.models import GeometricBrownianMotion
-from src.options import EuropeanCall
+from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall
 
 
 def bs_call_greeks(
@@ -56,4 +56,3 @@ def test_finite_difference_greeks_match_analytical():
     assert abs(delta[-1, idx] - delta_a) < 1e-2
     assert abs(gamma[-1, idx] - gamma_a) < 2e-2
     assert abs(theta[-1, idx] - theta_a) < 1e-2
-
