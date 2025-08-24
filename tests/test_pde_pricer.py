@@ -6,8 +6,8 @@ import sys
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
-from src.models import GeometricBrownianMotion
-from src.options import EuropeanCall, EuropeanPut
+from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall, EuropeanPut
 from src.pde_pricer import BlackScholesPDE
 from src.time_steppers import ExplicitEuler
 
