@@ -8,6 +8,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+from typing import Any
 
 from .base import UnifiedInstrument
 from .payoff_calculators import PayoffCalculatorFactory
@@ -56,12 +57,12 @@ class UnifiedEuropeanOption(UnifiedInstrument, BaseModel):
 class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     """Basket option for unified pricing framework."""
     
-    strikes: NDArray[np.float64]
-    weights: NDArray[np.float64]
+    strikes: Any  # Using Any to avoid Pydantic issues with NDArray
+    weights: Any  # Using Any to avoid Pydantic issues with NDArray
     maturity: float
     option_type: str  # 'call' or 'put'
     
-    model_config = ConfigDict(frozen=True, extra='forbid')
+    model_config = ConfigDict(frozen=True, extra='forbid', arbitrary_types_allowed=True)
     
     @field_validator('maturity')
     @classmethod
@@ -74,8 +75,16 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     @classmethod
     def validate_strikes(cls, v):
         """Validate strikes."""
+        v = np.asarray(v, dtype=np.float64)
         if not np.all(v > 0):
             raise ValidationError("All strikes must be positive")
+        return v
+    
+    @field_validator('weights')
+    @classmethod
+    def validate_weights(cls, v):
+        """Validate weights."""
+        v = np.asarray(v, dtype=np.float64)
         return v
     
     @field_validator('option_type')
