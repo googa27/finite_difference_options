@@ -10,6 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .base import UnifiedInstrument
+from .payoff_calculators import PayoffCalculatorFactory
 from ...utils.validation import validate_positive
 from ...utils.process_validators import validate_weights_sum_to_one
 from ...utils.exceptions import ValidationError
@@ -22,6 +23,23 @@ class UnifiedEuropeanOption(UnifiedInstrument):
     strike: float
     _maturity: float
     option_type: str  # 'call' or 'put'
+    
+    def __init__(self, strike: float, maturity: float, option_type: str = 'call'):
+        """Initialize European option.
+        
+        Parameters
+        ----------
+        strike : float
+            Strike price.
+        maturity : float
+            Time to maturity.
+        option_type : str
+            Option type ('call' or 'put').
+        """
+        self.strike = strike
+        self._maturity = maturity
+        self.option_type = option_type
+        self.__post_init__()
     
     @property
     def maturity(self) -> float:
@@ -38,16 +56,8 @@ class UnifiedEuropeanOption(UnifiedInstrument):
     
     def payoff(self, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute European option payoff."""
-        if len(grids) == 0:
-            raise ValidationError("At least one grid required")
-        
-        # First grid is always the underlying asset price
-        price_grid = grids[0]
-        
-        if self.option_type == 'call':
-            return np.maximum(price_grid - self.strike, 0.0)
-        else:  # put
-            return np.maximum(self.strike - price_grid, 0.0)
+        calculator = PayoffCalculatorFactory.create_calculator(self)
+        return calculator.calculate_payoff(self, *grids)
 
 
 @dataclass
@@ -58,6 +68,32 @@ class UnifiedBasketOption(UnifiedInstrument):
     weights: NDArray[np.float64]
     _maturity: float
     option_type: str  # 'call' or 'put'
+    
+    def __init__(
+        self, 
+        strikes: NDArray[np.float64], 
+        weights: NDArray[np.float64], 
+        maturity: float, 
+        option_type: str = 'call'
+    ):
+        """Initialize basket option.
+        
+        Parameters
+        ----------
+        strikes : NDArray[np.float64]
+            Strike prices for each asset.
+        weights : NDArray[np.float64]
+            Weights for each asset in the basket.
+        maturity : float
+            Time to maturity.
+        option_type : str
+            Option type ('call' or 'put').
+        """
+        self.strikes = strikes
+        self.weights = weights
+        self._maturity = maturity
+        self.option_type = option_type
+        self.__post_init__()
     
     @property
     def maturity(self) -> float:
@@ -81,26 +117,8 @@ class UnifiedBasketOption(UnifiedInstrument):
     
     def payoff(self, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute basket option payoff."""
-        if len(grids) != len(self.weights):
-            raise ValidationError(
-                f"Number of grids ({len(grids)}) must match number of assets ({len(self.weights)})"
-            )
-        
-        # Create meshgrid for all dimensions
-        mesh_grids = np.meshgrid(*grids, indexing='ij')
-        
-        # Compute basket value
-        basket_value = np.zeros_like(mesh_grids[0])
-        for weight, grid in zip(self.weights, mesh_grids, strict=True):
-            basket_value += weight * grid
-        
-        # Compute weighted strike
-        weighted_strike = np.sum(self.weights * self.strikes)
-        
-        if self.option_type == 'call':
-            return np.maximum(basket_value - weighted_strike, 0.0)
-        else:  # put
-            return np.maximum(weighted_strike - basket_value, 0.0)
+        calculator = PayoffCalculatorFactory.create_calculator(self)
+        return calculator.calculate_payoff(self, *grids)
 
 
 # Convenience functions
