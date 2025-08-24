@@ -6,15 +6,14 @@ for all financial instruments in the unified framework.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import BaseModel, Field, validator
 
 from ..utils.exceptions import ValidationError
 
 
-@dataclass
 class Instrument(ABC):
     """Abstract base class for all financial instruments."""
     
@@ -41,19 +40,30 @@ class Instrument(ABC):
         ...
 
 
-@dataclass
-class EuropeanOption(Instrument):
+class EuropeanOption(Instrument, BaseModel):
     """Base class for European options."""
     
     strike: float
-    _maturity: float
+    _maturity: float = Field(..., alias="maturity")
     
-    def __post_init__(self) -> None:
-        """Validate option parameters."""
-        if self.strike <= 0:
-            raise ValidationError(f"Strike price must be positive, got {self.strike}")
-        if self._maturity <= 0:
-            raise ValidationError(f"Maturity must be positive, got {self._maturity}")
+    class Config:
+        """Pydantic configuration."""
+        allow_mutation = False  # Make it immutable like a dataclass
+        extra = "forbid"  # Prevent extra fields
+    
+    @validator('strike')
+    def validate_strike(cls, v):
+        """Validate strike price."""
+        if v <= 0:
+            raise ValidationError(f"Strike price must be positive, got {v}")
+        return v
+    
+    @validator('_maturity')
+    def validate_maturity(cls, v):
+        """Validate maturity."""
+        if v <= 0:
+            raise ValidationError(f"Maturity must be positive, got {v}")
+        return v
     
     @property
     def maturity(self) -> float:
@@ -61,7 +71,6 @@ class EuropeanOption(Instrument):
         return self._maturity
 
 
-@dataclass
 class EuropeanCall(EuropeanOption):
     """European call option."""
     
@@ -70,7 +79,6 @@ class EuropeanCall(EuropeanOption):
         return np.maximum(state - self.strike, 0.0)
 
 
-@dataclass
 class EuropeanPut(EuropeanOption):
     """European put option."""
     

@@ -6,23 +6,27 @@ for all stochastic processes in the unified framework.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import BaseModel, validator
 
 from ..utils.exceptions import ValidationError
 from ..utils.state_handling import ensure_state_array, validate_state_dimensions
 
 
-class ProcessDimension:
+class ProcessDimension(BaseModel):
     """Represents the dimension of a stochastic process."""
     
-    def __init__(self, value: int):
-        if value < 1:
-            raise ValidationError(f"Process dimension must be positive, got {value}")
-        self.value = value
+    value: int
+    
+    @validator('value')
+    def validate_value(cls, v):
+        """Validate that dimension is positive."""
+        if v < 1:
+            raise ValidationError(f"Process dimension must be positive, got {v}")
+        return v
     
     @property
     def is_univariate(self) -> bool:

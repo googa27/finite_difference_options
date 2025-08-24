@@ -1,10 +1,11 @@
+"""Market model for risk neutral pricing."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel
 import numpy as np
 
-@dataclass
-class Market:
+
+class Market(BaseModel):
     """Risk neutral market with constant interest rate."""
 
     rate: float

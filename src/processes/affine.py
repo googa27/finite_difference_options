@@ -5,10 +5,10 @@ used in quantitative finance, utilizing the new validation utilities.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Tuple
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import Field, validator
 
 from .base import AffineProcess, ProcessDimension
 from ..utils.validation import validate_positive, validate_non_negative
@@ -21,7 +21,6 @@ from ..utils.process_validators import (
 from ..utils.state_handling import validate_positive_state_components
 
 
-@dataclass
 class GeometricBrownianMotion(AffineProcess):
     """Geometric Brownian Motion process.
     
@@ -38,12 +37,20 @@ class GeometricBrownianMotion(AffineProcess):
     mu: float
     sigma: float
     
-    def __post_init__(self) -> None:
-        validate_positive(self.sigma, "sigma")
+    class Config:
+        """Pydantic configuration."""
+        allow_mutation = False  # Make it immutable like a dataclass
+        extra = "forbid"  # Prevent extra fields
+    
+    @validator('sigma')
+    def validate_sigma(cls, v):
+        """Validate sigma parameter."""
+        validate_positive(v, "sigma")
+        return v
     
     @property
     def dimension(self) -> ProcessDimension:
-        return ProcessDimension(1)
+        return ProcessDimension(value=1)
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(S) = μS, so α=0, β=μ."""
@@ -65,7 +72,6 @@ class GeometricBrownianMotion(AffineProcess):
             return result
 
 
-@dataclass
 class OrnsteinUhlenbeck(AffineProcess):
     """Ornstein-Uhlenbeck process.
     
@@ -85,13 +91,26 @@ class OrnsteinUhlenbeck(AffineProcess):
     theta: float
     sigma: float
     
-    def __post_init__(self) -> None:
-        validate_positive(self.kappa, "kappa")
-        validate_positive(self.sigma, "sigma")
+    class Config:
+        """Pydantic configuration."""
+        allow_mutation = False  # Make it immutable like a dataclass
+        extra = "forbid"  # Prevent extra fields
+    
+    @validator('kappa')
+    def validate_kappa(cls, v):
+        """Validate kappa parameter."""
+        validate_positive(v, "kappa")
+        return v
+    
+    @validator('sigma')
+    def validate_sigma(cls, v):
+        """Validate sigma parameter."""
+        validate_positive(v, "sigma")
+        return v
     
     @property
     def dimension(self) -> ProcessDimension:
-        return ProcessDimension(1)
+        return ProcessDimension(value=1)
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(r) = κθ - κr, so α=κθ, β=-κ."""
@@ -112,7 +131,6 @@ class OrnsteinUhlenbeck(AffineProcess):
             return result
 
 
-@dataclass
 class CoxIngersollRoss(AffineProcess):
     """Cox-Ingersoll-Ross process.
     
@@ -132,15 +150,37 @@ class CoxIngersollRoss(AffineProcess):
     theta: float
     sigma: float
     
-    def __post_init__(self) -> None:
-        validate_positive(self.kappa, "kappa")
-        validate_positive(self.theta, "theta")
-        validate_positive(self.sigma, "sigma")
+    class Config:
+        """Pydantic configuration."""
+        allow_mutation = False  # Make it immutable like a dataclass
+        extra = "forbid"  # Prevent extra fields
+    
+    @validator('kappa')
+    def validate_kappa(cls, v):
+        """Validate kappa parameter."""
+        validate_positive(v, "kappa")
+        return v
+    
+    @validator('theta')
+    def validate_theta(cls, v):
+        """Validate theta parameter."""
+        validate_positive(v, "theta")
+        return v
+    
+    @validator('sigma')
+    def validate_sigma(cls, v):
+        """Validate sigma parameter."""
+        validate_positive(v, "sigma")
+        return v
+    
+    def __init__(self, **data):
+        """Initialize and validate CIR parameters."""
+        super().__init__(**data)
         validate_feller_condition(self.kappa, self.theta, self.sigma, "CIR")
     
     @property
     def dimension(self) -> ProcessDimension:
-        return ProcessDimension(1)
+        return ProcessDimension(value=1)
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(r) = κθ - κr, so α=κθ, β=-κ."""
@@ -165,7 +205,6 @@ class CoxIngersollRoss(AffineProcess):
             return result
 
 
-@dataclass
 class HestonModel(AffineProcess):
     """Heston stochastic volatility model.
     
@@ -197,13 +236,20 @@ class HestonModel(AffineProcess):
     rho: float
     dividend_yield: float = 0.0
     
-    def __post_init__(self) -> None:
+    class Config:
+        """Pydantic configuration."""
+        allow_mutation = False  # Make it immutable like a dataclass
+        extra = "forbid"  # Prevent extra fields
+    
+    def __init__(self, **data):
+        """Initialize and validate Heston parameters."""
+        super().__init__(**data)
         validate_heston_parameters(self.kappa, self.theta, self.sigma, self.rho)
         validate_non_negative(self.dividend_yield, "dividend_yield")
     
     @property
     def dimension(self) -> ProcessDimension:
-        return ProcessDimension(2)
+        return ProcessDimension(value=2)
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Heston drift coefficients."""
