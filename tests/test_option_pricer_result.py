@@ -1,6 +1,6 @@
 from src.option_pricer import OptionPricer, GridResult
-from src.models import GeometricBrownianMotion
-from src.options import EuropeanCall, EuropeanPut
+from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall, EuropeanPut
 
 
 def test_compute_grid_returns_namedtuple_and_shapes():
