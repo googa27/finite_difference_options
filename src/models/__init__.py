@@ -22,8 +22,6 @@ from ..processes import (
     create_sabr_model as create_sabr
 )
 
-# Import Market from the legacy models.py file
-from ..models import Market
 
 __all__ = [
     "StochasticProcess",
@@ -35,7 +33,6 @@ __all__ = [
     "HestonModel",
     "ConstantElasticityVariance",
     "SABRModel",
-    "Market",
     "create_gbm",
     "create_ou",
     "create_cir",

@@ -44,7 +44,7 @@ def test_call_matches_analytical():
     s = np.linspace(0.0, S_max, ns)
     t = np.linspace(0.0, T, nt)
 
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     instrument = EuropeanCall(strike=K, maturity=T, model=model)
 
     pricer = BlackScholesPDE(instrument=instrument)
@@ -69,7 +69,7 @@ def test_put_matches_analytical():
     s = np.linspace(0.0, S_max, ns)
     t = np.linspace(0.0, T, nt)
 
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     instrument = EuropeanPut(strike=K, maturity=T, model=model)
 
     pricer = BlackScholesPDE(instrument=instrument)
@@ -94,7 +94,7 @@ def test_call_matches_analytical_explicit_euler():
     s = np.linspace(0.0, S_max, ns)
     t = np.linspace(0.0, T, nt)
 
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     instrument = EuropeanCall(strike=K, maturity=T, model=model)
 
     pricer = BlackScholesPDE(

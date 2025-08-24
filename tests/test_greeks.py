@@ -40,7 +40,7 @@ def test_finite_difference_greeks_match_analytical():
     ns = 300
     nt = 300
 
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     instrument = EuropeanCall(strike=K, maturity=T, model=model)
     pricer = OptionPricer(instrument=instrument)
     s, t, values, delta, gamma, theta = pricer.compute_grid(

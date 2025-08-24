@@ -10,12 +10,13 @@ import numpy as np
 
 from src.option_pricer import OptionPricer
 from src.pde_pricer import CallableBondPDEModel
-from src.models import Market, GeometricBrownianMotion
+from src.market import Market
+from src.processes import GeometricBrownianMotion
 
 
 def test_callable_bond_grid_respects_call_price_and_face_value() -> None:
     market = Market(rate=0.03)
-    short_rate = GeometricBrownianMotion(rate=0.03, sigma=0.01)
+    short_rate = GeometricBrownianMotion(mu=0.03, sigma=0.01)
     bond_model = CallableBondPDEModel(
         face_value=100.0,
         call_price=105.0,

@@ -28,7 +28,8 @@ from src.plotting.config_manager import (
     line_figsize_from_height,
     PlottingConfigManager,
 )
-from src.models import GeometricBrownianMotion, Market # noqa: E402
+from src.market import Market # noqa: E402
+from src.processes import GeometricBrownianMotion # noqa: E402
 from src.options import EuropeanCall, EuropeanPut # noqa: E402
 from src.pde_pricer import CallableBondPDEModel # noqa: E402
 from src.instruments import Instrument # noqa: E402
@@ -159,12 +160,12 @@ def main() -> None:
     # Compute in real time (cached) when parameters change
     def maybe_compute() -> GridResult:
         if params["instrument_type"] == "European Option":
-            model = GeometricBrownianMotion(rate=params["rate"], sigma=params["sigma"])
+            model = GeometricBrownianMotion(mu=params["rate"], sigma=params["sigma"])
             option_cls = EuropeanCall if params["option_type"] == "Call" else EuropeanPut
             instrument = option_cls(strike=params["strike"], maturity=params["maturity"], model=model)
         elif params["instrument_type"] == "Callable Bond":
             market = Market(rate=params["rate"])
-            model = GeometricBrownianMotion(rate=params["rate"], sigma=params["sigma"])
+            model = GeometricBrownianMotion(mu=params["rate"], sigma=params["sigma"])
             instrument = CallableBondPDEModel(
                 face_value=params["face_value"],
                 call_price=params["call_price"],

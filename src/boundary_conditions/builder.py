@@ -14,7 +14,7 @@ from numpy.typing import NDArray
 from findiff import BoundaryConditions, FinDiff
 
 if TYPE_CHECKING:
-    from .options import EuropeanOption
+    from ..options import EuropeanOption
 
 
 @dataclass

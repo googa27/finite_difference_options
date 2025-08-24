@@ -14,7 +14,7 @@ from src.models import GeometricBrownianMotion
 
 def test_call_boundary_conditions():
     s = np.linspace(0.0, 1.0, 5)
-    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     option = EuropeanCall(strike=1.0, maturity=1.0, model=model)
     bc = BlackScholesBoundaryBuilder().build(s, option)
 
@@ -35,7 +35,7 @@ def test_call_boundary_conditions():
 def test_put_boundary_conditions():
     s = np.linspace(0.0, 1.0, 5)
     from src.models import GeometricBrownianMotion
-    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     option = EuropeanPut(strike=1.0, maturity=1.0, model=model)
     bc = BlackScholesBoundaryBuilder().build(s, option)
 

@@ -15,7 +15,8 @@ import numpy as np
 from numpy.typing import NDArray
 from findiff import BoundaryConditions, FinDiff
 
-from .models import GeometricBrownianMotion, Market
+from .processes import GeometricBrownianMotion
+from .market import Market
 from .options import EuropeanOption
 from .spatial_operator import SpatialOperator
 from .time_steppers import TimeStepper, ThetaMethod

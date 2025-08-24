@@ -4,7 +4,7 @@ from src.options import EuropeanCall, EuropeanPut
 
 
 def test_compute_grid_returns_namedtuple_and_shapes():
-    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     instrument = EuropeanCall(strike=1.0, maturity=1.0, model=model)
     pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(
@@ -23,7 +23,7 @@ def test_compute_grid_returns_namedtuple_and_shapes():
 
 
 def test_compute_grid_without_greeks_sets_none():
-    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     instrument = EuropeanPut(strike=1.0, maturity=0.5, model=model)
     pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(

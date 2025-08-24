@@ -66,7 +66,7 @@ def test_validate_model_parameters():
 
 def test_option_validation_in_constructor():
     """Test that option validation works in constructor."""
-    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     
     # Valid option should work
     call = EuropeanCall(strike=100.0, maturity=1.0, model=model)
@@ -81,6 +81,6 @@ def test_option_validation_in_constructor():
         EuropeanCall(strike=100.0, maturity=-1.0, model=model)
     
     # Invalid model parameters should raise
-    bad_model = GeometricBrownianMotion(rate=0.05, sigma=-0.2)
+    bad_model = GeometricBrownianMotion(mu=0.05, sigma=-0.2)
     with pytest.raises(ModelError):
         EuropeanCall(strike=100.0, maturity=1.0, model=bad_model)

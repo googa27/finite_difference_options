@@ -13,7 +13,7 @@ from src.models import GeometricBrownianMotion
 
 def test_base_class_is_abstract():
     """EuropeanOption cannot be instantiated directly."""
-    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     with pytest.raises(TypeError):
         EuropeanOption(strike=1.0, maturity=1.0, model=model)
 
@@ -21,7 +21,7 @@ def test_base_class_is_abstract():
 def test_subclasses_behave_correctly():
     """Subclasses inherit from EuropeanOption and compute correct payoffs."""
     s = np.array([0.5, 1.0, 1.5])
-    model = GeometricBrownianMotion(rate=0.05, sigma=0.2)
+    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     call = EuropeanCall(strike=1.0, maturity=1.0, model=model)
     put = EuropeanPut(strike=1.0, maturity=1.0, model=model)
 

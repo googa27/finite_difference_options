@@ -1,11 +1,11 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 import numpy as np
 from numpy.typing import NDArray
 from findiff import FinDiff, BoundaryConditions
 
 
-class Instrument(ABC):
+class Instrument:
     """Abstract base class for financial instruments that can be priced by PDE."""
 
     @abstractmethod

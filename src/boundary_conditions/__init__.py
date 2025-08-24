@@ -1,1 +1,8 @@
-\"\"\"Unified boundary conditions package.\n\nThis package contains implementations of various boundary conditions\nfor the unified pricing framework.\n\"\"\"\n# Currently this is a placeholder as we're consolidating boundary conditions\n# from various modules into this package
+"""Unified boundary conditions package.
+
+This package contains implementations of various boundary conditions
+for the unified pricing framework.
+"""
+from .builder import BlackScholesBoundaryBuilder
+
+__all__ = ["BlackScholesBoundaryBuilder"]

@@ -31,7 +31,7 @@ def test_compute_grid_shapes_and_price():
     ns = 40
     nt = 40
 
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     instrument = EuropeanCall(strike=K, maturity=T, model=model)
     pricer = OptionPricer(instrument=instrument)
     res = pricer.compute_grid(

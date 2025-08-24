@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 import findiff as fd
 
 if TYPE_CHECKING:  # pragma: no cover - runtime import only for typing
-    from .models import GeometricBrownianMotion
+    from .processes import GeometricBrownianMotion
 
 
 @dataclass
@@ -25,7 +25,7 @@ class SpatialOperator:
         d2 = fd.FinDiff(0, ds, 2)
         m = self.model
         return (
-            fd.Coef(m.diffusion * s ** 2) * d2
-            + fd.Coef(m.rate * s) * d1
-            - m.rate * fd.Identity()
+            fd.Coef(0.5 * m.sigma ** 2 * s ** 2) * d2
+            + fd.Coef(m.mu * s) * d1
+            - m.mu * fd.Identity()
         )
