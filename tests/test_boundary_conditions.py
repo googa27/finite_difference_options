@@ -8,8 +8,8 @@ sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 import numpy as np
 from findiff import FinDiff
 from src.boundary_conditions import BlackScholesBoundaryBuilder
-from src.options import EuropeanCall, EuropeanPut
-from src.models import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall, EuropeanPut
+from src.processes.affine import GeometricBrownianMotion
 
 
 def test_call_boundary_conditions():
@@ -34,7 +34,7 @@ def test_call_boundary_conditions():
 
 def test_put_boundary_conditions():
     s = np.linspace(0.0, 1.0, 5)
-    from src.models import GeometricBrownianMotion
+    from src.processes.affine import GeometricBrownianMotion
     model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
     option = EuropeanPut(strike=1.0, maturity=1.0, model=model)
     bc = BlackScholesBoundaryBuilder().build(s, option)
