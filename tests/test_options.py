@@ -7,8 +7,8 @@ sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import pytest
-from src.options import EuropeanOption, EuropeanCall, EuropeanPut
-from src.models import GeometricBrownianMotion
+from src.instruments.base import EuropeanOption, EuropeanCall, EuropeanPut
+from src.processes.affine import GeometricBrownianMotion
 
 
 def test_base_class_is_abstract():
