@@ -218,7 +218,7 @@ class TestConstantElasticityVariance:
     
     def test_cev_parameter_validation(self):
         """Test CEV parameter validation."""
-        with pytest.raises(ValidationError, match="Beta must be non-negative"):
+        with pytest.raises(ValidationError, match="CEV beta must be in \\[0, 1\\]"):
             ConstantElasticityVariance(mu=0.05, sigma=0.2, beta=-0.1)
     
     def test_cev_drift(self):
@@ -259,7 +259,7 @@ class TestHestonModel:
     def test_heston_parameter_validation(self):
         """Test Heston parameter validation."""
         # Invalid correlation
-        with pytest.raises(ValidationError, match="abs\\(rho\\)"):
+        with pytest.raises(ValidationError, match="rho must be in \\[-1, 1\\]"):
             HestonModel(kappa=2.0, theta=0.04, sigma=0.3, rho=-1.5,
                        risk_free_rate=0.05)
         
@@ -409,11 +409,11 @@ class TestSABRModel:
     def test_sabr_parameter_validation(self):
         """Test SABR parameter validation."""
         # Invalid beta
-        with pytest.raises(ValidationError, match="beta must be between 0 and 1"):
+        with pytest.raises(ValidationError, match="CEV beta must be in \\[0, 1\\]"):
             SABRModel(alpha=0.3, beta=1.5, rho=-0.3)
         
         # Invalid correlation
-        with pytest.raises(ValidationError, match="abs\\(rho\\)"):
+        with pytest.raises(ValidationError, match="rho must be in \\[-1, 1\\]"):
             SABRModel(alpha=0.3, beta=0.7, rho=-1.5)
     
     def test_sabr_drift(self):
