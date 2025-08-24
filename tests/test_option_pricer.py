@@ -9,8 +9,8 @@ import numpy as np
 from scipy.stats import norm
 
 from src.option_pricer import OptionPricer
-from src.models import GeometricBrownianMotion
-from src.options import EuropeanCall
+from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall
 
 
 def bs_call_price(s: float, k: float, r: float, sigma: float, T: float) -> float:
