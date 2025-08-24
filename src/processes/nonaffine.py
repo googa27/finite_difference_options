@@ -5,19 +5,18 @@ that don't fit the linear drift/affine covariance structure.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Tuple
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import BaseModel, field_validator, ConfigDict
 
 from .base import NonAffineProcess, ProcessDimension
-from ..utils.validation import validate_positive
+from ..validation import validate_positive
 from ..utils.process_validators import validate_cev_beta, validate_sabr_parameters
 from ..utils.state_handling import validate_positive_state_components
 
 
-@dataclass
-class ConstantElasticityVariance(NonAffineProcess):
+class ConstantElasticityVariance(NonAffineProcess, BaseModel):
     """Constant Elasticity of Variance (CEV) process.
     
     dS = μS dt + σS^β dW
@@ -36,13 +35,25 @@ class ConstantElasticityVariance(NonAffineProcess):
     sigma: float
     beta: float
     
-    def __post_init__(self) -> None:
-        validate_positive(self.sigma, "sigma")
-        validate_cev_beta(self.beta)
+    model_config = ConfigDict(frozen=True, extra='forbid')
+    
+    @field_validator('sigma')
+    @classmethod
+    def validate_sigma(cls, v):
+        """Validate sigma parameter."""
+        validate_positive(v, "sigma")
+        return v
+    
+    @field_validator('beta')
+    @classmethod
+    def validate_beta(cls, v):
+        """Validate beta parameter."""
+        validate_cev_beta(v)
+        return v
     
     @property
     def dimension(self) -> ProcessDimension:
-        return ProcessDimension(1)
+        return ProcessDimension(value=1)
     
     def drift(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """CEV drift μ(S) = μS."""
@@ -68,8 +79,7 @@ class ConstantElasticityVariance(NonAffineProcess):
             return result
 
 
-@dataclass
-class SABRModel(NonAffineProcess):
+class SABRModel(NonAffineProcess, BaseModel):
     """SABR (Stochastic Alpha Beta Rho) model.
     
     dF = σF^β dW₁
@@ -91,12 +101,16 @@ class SABRModel(NonAffineProcess):
     beta: float
     rho: float
     
-    def __post_init__(self) -> None:
+    model_config = ConfigDict(frozen=True, extra='forbid')
+    
+    def __init__(self, **data):
+        """Initialize and validate SABR parameters."""
+        super().__init__(**data)
         validate_sabr_parameters(self.alpha, self.beta, self.rho)
     
     @property
     def dimension(self) -> ProcessDimension:
-        return ProcessDimension(2)
+        return ProcessDimension(value=2)
     
     def drift(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """SABR drift (zero drift for martingale processes)."""
