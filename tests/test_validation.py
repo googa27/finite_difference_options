@@ -12,8 +12,8 @@ from src.validation import (
     validate_positive, validate_non_negative, validate_probability,
     validate_grid_parameters, validate_option_parameters, validate_model_parameters
 )
-from src.models import GeometricBrownianMotion
-from src.options import EuropeanCall
+from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall
 
 
 def test_validate_positive():
