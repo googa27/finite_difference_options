@@ -9,8 +9,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .pde_pricer import BlackScholesPDE
-from .greeks import FiniteDifferenceGreeks
-from .instruments import Instrument
+from .instruments.base import Instrument
 
 
 class GridResult(NamedTuple):

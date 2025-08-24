@@ -15,12 +15,12 @@ import numpy as np
 from numpy.typing import NDArray
 from findiff import BoundaryConditions, FinDiff
 
-from .processes import GeometricBrownianMotion
+from .processes.affine import GeometricBrownianMotion
 from .market import Market
-from .options import EuropeanOption
+from .instruments.base import EuropeanOption
 from .spatial_operator import SpatialOperator
 from .time_steppers import TimeStepper, ThetaMethod
-from .instruments import Instrument
+from .instruments.base import Instrument
 from .pde_solver import FiniteDifferenceSolver
 
 
