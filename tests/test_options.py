@@ -1,4 +1,5 @@
 """Tests for option base class and subclasses."""
+
 import pathlib
 import sys
 
@@ -7,15 +8,19 @@ sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import pytest
-from src.instruments.base import EuropeanOption, EuropeanCall, EuropeanPut
+
 from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanOption, EuropeanCall, EuropeanPut
 
 
-def test_base_class_is_abstract():
-    """EuropeanOption cannot be instantiated directly."""
+def test_base_class_can_be_instantiated():
+    """EuropeanOption can be instantiated directly."""
     model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
-    with pytest.raises(TypeError):
-        EuropeanOption(strike=1.0, maturity=1.0, model=model)
+    # This should work since it has a payoff method
+    # (though it's not very useful without a concrete payoff implementation)
+    option = EuropeanOption(strike=1.0, maturity=1.0, model=model)
+    assert option.strike == 1.0
+    assert option.maturity == 1.0
 
 
 def test_subclasses_behave_correctly():

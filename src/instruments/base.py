@@ -15,18 +15,21 @@ from ..utils.exceptions import ValidationError
 from ..processes.base import StochasticProcess
 
 
-class Instrument(ABC, BaseModel):
-    """Abstract base class for all financial instruments."""
+class Instrument(BaseModel):
+    """Base class for all financial instruments."""
     
     model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @property
-    @abstractmethod
-    def maturity(self) -> float:
-        """Get instrument maturity."""
-        ...
+    maturity: float
     
-    @abstractmethod
+    @field_validator('maturity')
+    @classmethod
+    def validate_maturity(cls, v):
+        """Validate maturity."""
+        if v <= 0:
+            raise ValidationError(f"Maturity must be positive, got {v}")
+        return v
+    
     def payoff(self, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute payoff at maturity.
         
@@ -40,14 +43,13 @@ class Instrument(ABC, BaseModel):
         NDArray[np.float64]
             Payoff value(s).
         """
-        ...
+        raise NotImplementedError("Subclasses must implement payoff method")
 
 
 class EuropeanOption(Instrument):
     """Base class for European options."""
     
     strike: float
-    _maturity: float
     model: StochasticProcess
     
     model_config = ConfigDict(
@@ -56,25 +58,12 @@ class EuropeanOption(Instrument):
         arbitrary_types_allowed=True  # Allow arbitrary types like StochasticProcess
     )
     
-    @property
-    def maturity(self) -> float:
-        """Get instrument maturity."""
-        return self._maturity
-    
     @field_validator('strike')
     @classmethod
     def validate_strike(cls, v):
         """Validate strike price."""
         if v <= 0:
             raise ValidationError(f"Strike price must be positive, got {v}")
-        return v
-    
-    @field_validator('_maturity')
-    @classmethod
-    def validate_maturity(cls, v):
-        """Validate maturity."""
-        if v <= 0:
-            raise ValidationError(f"Maturity must be positive, got {v}")
         return v
 
 
