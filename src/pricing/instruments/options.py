@@ -5,54 +5,47 @@ for the unified pricing framework.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from .base import UnifiedInstrument
 from .payoff_calculators import PayoffCalculatorFactory
-from ...utils.validation import validate_positive
+from ...validation import validate_positive
 from ...utils.process_validators import validate_weights_sum_to_one
 from ...utils.exceptions import ValidationError
 
 
-@dataclass
-class UnifiedEuropeanOption(UnifiedInstrument):
+class UnifiedEuropeanOption(UnifiedInstrument, BaseModel):
     """European option for unified pricing framework."""
     
     strike: float
-    _maturity: float
+    maturity: float
     option_type: str  # 'call' or 'put'
     
-    def __init__(self, strike: float, maturity: float, option_type: str = 'call'):
-        """Initialize European option.
-        
-        Parameters
-        ----------
-        strike : float
-            Strike price.
-        maturity : float
-            Time to maturity.
-        option_type : str
-            Option type ('call' or 'put').
-        """
-        self.strike = strike
-        self._maturity = maturity
-        self.option_type = option_type
-        self.__post_init__()
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @property
-    def maturity(self) -> float:
-        """Get instrument maturity."""
-        return self._maturity
+    @field_validator('strike')
+    @classmethod
+    def validate_strike(cls, v):
+        """Validate strike price."""
+        validate_positive(v, "strike")
+        return v
     
-    def __post_init__(self) -> None:
-        """Validate option parameters."""
-        validate_positive(self.strike, "strike")
-        validate_positive(self.maturity, "maturity")
-        
-        if self.option_type not in ['call', 'put']:
-            raise ValidationError(f"option_type must be 'call' or 'put', got {self.option_type}")
+    @field_validator('maturity')
+    @classmethod
+    def validate_maturity(cls, v):
+        """Validate maturity."""
+        validate_positive(v, "maturity")
+        return v
+    
+    @field_validator('option_type')
+    @classmethod
+    def validate_option_type(cls, v):
+        """Validate option type."""
+        if v not in ['call', 'put']:
+            raise ValidationError(f"option_type must be 'call' or 'put', got {v}")
+        return v
     
     def payoff(self, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute European option payoff."""
@@ -60,58 +53,46 @@ class UnifiedEuropeanOption(UnifiedInstrument):
         return calculator.calculate_payoff(self, *grids)
 
 
-@dataclass
-class UnifiedBasketOption(UnifiedInstrument):
+class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     """Basket option for unified pricing framework."""
     
     strikes: NDArray[np.float64]
     weights: NDArray[np.float64]
-    _maturity: float
+    maturity: float
     option_type: str  # 'call' or 'put'
     
-    def __init__(
-        self, 
-        strikes: NDArray[np.float64], 
-        weights: NDArray[np.float64], 
-        maturity: float, 
-        option_type: str = 'call'
-    ):
-        """Initialize basket option.
-        
-        Parameters
-        ----------
-        strikes : NDArray[np.float64]
-            Strike prices for each asset.
-        weights : NDArray[np.float64]
-            Weights for each asset in the basket.
-        maturity : float
-            Time to maturity.
-        option_type : str
-            Option type ('call' or 'put').
-        """
-        self.strikes = strikes
-        self.weights = weights
-        self._maturity = maturity
-        self.option_type = option_type
-        self.__post_init__()
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @property
-    def maturity(self) -> float:
-        """Get instrument maturity."""
-        return self._maturity
+    @field_validator('maturity')
+    @classmethod
+    def validate_maturity(cls, v):
+        """Validate maturity."""
+        validate_positive(v, "maturity")
+        return v
     
-    def __post_init__(self) -> None:
-        """Validate basket option parameters."""
-        validate_positive(self.maturity, "maturity")
+    @field_validator('strikes')
+    @classmethod
+    def validate_strikes(cls, v):
+        """Validate strikes."""
+        if not np.all(v > 0):
+            raise ValidationError("All strikes must be positive")
+        return v
+    
+    @field_validator('option_type')
+    @classmethod
+    def validate_option_type(cls, v):
+        """Validate option type."""
+        if v not in ['call', 'put']:
+            raise ValidationError(f"option_type must be 'call' or 'put', got {v}")
+        return v
+    
+    def __init__(self, **data):
+        """Initialize and validate basket option parameters."""
+        super().__init__(**data)
         
+        # Additional validation that requires multiple fields
         if len(self.strikes) != len(self.weights):
             raise ValidationError("strikes and weights must have same length")
-        
-        if self.option_type not in ['call', 'put']:
-            raise ValidationError(f"option_type must be 'call' or 'put', got {self.option_type}")
-        
-        if not np.all(self.strikes > 0):
-            raise ValidationError("All strikes must be positive")
         
         validate_weights_sum_to_one(self.weights)
     
@@ -124,12 +105,12 @@ class UnifiedBasketOption(UnifiedInstrument):
 # Convenience functions
 def create_unified_european_call(strike: float, maturity: float) -> UnifiedEuropeanOption:
     """Create European call option."""
-    return UnifiedEuropeanOption(strike, maturity, 'call')
+    return UnifiedEuropeanOption(strike=strike, maturity=maturity, option_type='call')
 
 
 def create_unified_european_put(strike: float, maturity: float) -> UnifiedEuropeanOption:
     """Create European put option."""
-    return UnifiedEuropeanOption(strike, maturity, 'put')
+    return UnifiedEuropeanOption(strike=strike, maturity=maturity, option_type='put')
 
 
 def create_unified_basket_call(
@@ -138,7 +119,7 @@ def create_unified_basket_call(
     maturity: float
 ) -> UnifiedBasketOption:
     """Create basket call option."""
-    return UnifiedBasketOption(strikes, weights, maturity, 'call')
+    return UnifiedBasketOption(strikes=strikes, weights=weights, maturity=maturity, option_type='call')
 
 
 def create_unified_basket_put(
@@ -147,4 +128,4 @@ def create_unified_basket_put(
     maturity: float
 ) -> UnifiedBasketOption:
     """Create basket put option."""
-    return UnifiedBasketOption(strikes, weights, maturity, 'put')
+    return UnifiedBasketOption(strikes=strikes, weights=weights, maturity=maturity, option_type='put')
