@@ -7,7 +7,7 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 
-from .validation import validate_positive, validate_non_negative, validate_probability
+from ..validation import validate_positive, validate_non_negative, validate_probability
 from .exceptions import ValidationError
 
 
