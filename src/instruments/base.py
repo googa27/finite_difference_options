@@ -5,7 +5,6 @@ for all financial instruments in the unified framework.
 """
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
@@ -14,16 +13,17 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from ..utils.exceptions import ValidationError
 
 
-class Instrument(ABC):
-    """Abstract base class for all financial instruments."""
+class Instrument(BaseModel):
+    """Base class for all financial instruments."""
+    
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
     @property
-    @abstractmethod
     def maturity(self) -> float:
         """Get instrument maturity."""
-        ...
+        # This will be overridden by subclasses that have a maturity field
+        raise NotImplementedError("Subclasses must implement maturity property or have a maturity field")
     
-    @abstractmethod
     def payoff(self, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute payoff at maturity.
         
@@ -37,16 +37,14 @@ class Instrument(ABC):
         NDArray[np.float64]
             Payoff value(s).
         """
-        ...
+        raise NotImplementedError("Subclasses must implement payoff method")
 
 
-class EuropeanOption(Instrument, BaseModel):
+class EuropeanOption(Instrument):
     """Base class for European options."""
     
     strike: float
     maturity: float
-    
-    model_config = ConfigDict(frozen=True, extra='forbid')
     
     @field_validator('strike')
     @classmethod
