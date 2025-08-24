@@ -24,7 +24,7 @@ app = FastAPI(title="Finite Difference Option Pricing")
 # Allow browser applications from the specified domain to access the API.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://your-domain.com"],
+    allow_origins=["http://localhost:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,10 +33,9 @@ app.add_middleware(
 class OptionRequest(BaseModel):
     """Input parameters for option pricing."""
 
-    option_type: str
+    option_type: str = "Call"
     strike: float
     maturity: float
-    s0: float
     rate: float
     sigma: float
     s_max: Optional[float] = None
@@ -47,7 +46,9 @@ class OptionRequest(BaseModel):
 class PriceResponse(BaseModel):
     """Option price at the initial asset price."""
 
-    price: float
+    s: list[float]
+    t: list[float]
+    values: list[list[float]]
 
 
 class GreeksResponse(BaseModel):
@@ -58,10 +59,21 @@ class GreeksResponse(BaseModel):
     theta: float
 
 
+class FullPDEResponse(BaseModel):
+    """Full 2D grids for PDE solution and Greeks for visualization."""
+    
+    s: list[float]
+    t: list[float]
+    prices: list[list[float]]
+    delta: list[list[float]]
+    gamma: list[list[float]]
+    theta: list[list[float]]
+
+
 @app.post("/price", response_model=PriceResponse)
 def price(request: OptionRequest) -> PriceResponse:
     """Return option price for the given parameters."""
-    s_max = request.s_max or request.s0 * 3
+    s_max = request.s_max or request.strike * 3
     model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
     option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
@@ -71,14 +83,17 @@ def price(request: OptionRequest) -> PriceResponse:
         s_steps=request.s_steps,
         t_steps=request.t_steps,
     )
-    s_idx = int(np.searchsorted(res.s, request.s0))
-    return PriceResponse(price=float(res.values[-1, s_idx]))
+    return PriceResponse(
+        s=res.s.tolist(),
+        t=res.t.tolist(),
+        values=res.values.tolist(),
+    )
 
 
 @app.post("/greeks", response_model=GreeksResponse)
 def greeks(request: OptionRequest) -> GreeksResponse:
     """Return Delta, Gamma and Theta for the given parameters."""
-    s_max = request.s_max or request.s0 * 3
+    s_max = request.s_max or request.strike * 3
     model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
     option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
@@ -89,11 +104,39 @@ def greeks(request: OptionRequest) -> GreeksResponse:
         t_steps=request.t_steps,
         return_greeks=True,
     )
-    s_idx = int(np.searchsorted(res.s, request.s0))
+    s_idx = int(np.searchsorted(res.s, request.strike))
     return GreeksResponse(
         delta=float(res.delta[-1, s_idx]),
         gamma=float(res.gamma[-1, s_idx]),
         theta=float(res.theta[-1, s_idx]),
+    )
+
+
+@app.post("/pde_solution", response_model=FullPDEResponse)
+def pde_solution(request: OptionRequest) -> FullPDEResponse:
+    """Return full 2D grids for PDE solution and Greeks for visualization.
+    
+    Returns the complete solution grids that enable frontend plotting
+    of option prices and Greeks over time and asset price dimensions.
+    """
+    s_max = request.s_max or request.strike * 3
+    model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
+    option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
+    instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
+    pricer = OptionPricer(instrument=instrument)
+    res = pricer.compute_grid(
+        s_max=s_max,
+        s_steps=request.s_steps,
+        t_steps=request.t_steps,
+        return_greeks=True,
+    )
+    return FullPDEResponse(
+        s=res.s.tolist(),
+        t=res.t.tolist(),
+        prices=res.values.tolist(),
+        delta=res.delta.tolist(),
+        gamma=res.gamma.tolist(),
+        theta=res.theta.tolist(),
     )
 
 

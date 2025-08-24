@@ -1,6 +1,10 @@
-"""Pricing package for financial instruments."""
+"""Unified pricing package.
 
-# Instruments
+This package contains the unified pricing framework for financial instruments.
+"""
+from .engines.unified import UnifiedPricingEngine, create_unified_pricing_engine, create_log_grid, create_linear_grid
+
+# Backward compatibility imports
 from .instruments.base import UnifiedInstrument
 from .instruments.options import (
     UnifiedEuropeanOption,
@@ -8,27 +12,19 @@ from .instruments.options import (
     create_unified_european_call,
     create_unified_european_put,
     create_unified_basket_call,
-    create_unified_basket_put
-)
-
-# Engines
-from .engines.unified import (
-    UnifiedPricingEngine,
-    create_unified_pricing_engine,
-    create_log_grid,
-    create_linear_grid
 )
 
 __all__ = [
-    # Base classes
-    'UnifiedInstrument',
+    "UnifiedPricingEngine",
+    "create_unified_pricing_engine",
+    "create_log_grid",
+    "create_linear_grid",
     
-    # Instruments
-    'UnifiedEuropeanOption', 'UnifiedBasketOption',
-    'create_unified_european_call', 'create_unified_european_put',
-    'create_unified_basket_call', 'create_unified_basket_put',
-    
-    # Engines
-    'UnifiedPricingEngine', 'create_unified_pricing_engine',
-    'create_log_grid', 'create_linear_grid'
+    # Backward compatibility
+    "UnifiedInstrument",
+    "UnifiedEuropeanOption",
+    "UnifiedBasketOption",
+    "create_unified_european_call",
+    "create_unified_european_put",
+    "create_unified_basket_call",
 ]

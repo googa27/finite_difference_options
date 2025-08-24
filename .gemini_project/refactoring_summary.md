@@ -1,7 +1,7 @@
 # Finite Difference Options Pricing - Refactoring Summary
 
 ## Overview
-Successfully completed comprehensive refactoring of the finite difference options pricing codebase to improve maintainability, extensibility, and robustness.
+Successfully completed comprehensive refactoring of the finite difference options pricing codebase, culminating in a unified multi-dimensional PDE pricing framework that improves maintainability, extensibility, and robustness.
 
 ## Completed Refactors
 
@@ -47,6 +47,30 @@ Successfully completed comprehensive refactoring of the finite difference option
 - **Testing**: Added comprehensive validation tests (`tests/test_validation.py`)
 - **Result**: All 26 tests passing, robust error handling
 
+### Refactor 4: Unified Multi-Dimensional Framework ✅
+- **Objective**: Create unified interface for 1D and multi-dimensional processes
+- **New Architecture**:
+  - **Domain-Focused Packages**: Organized by mathematical/financial domain
+    - `src/processes/`: All stochastic process implementations
+    - `src/pricing/`: Financial instruments and pricing engines  
+    - `src/solvers/`: PDE solving algorithms
+    - `src/utils/`: Shared utilities and validation
+  - **Unified Process Interface**: Single API for all process dimensions
+  - **Covariance Parameterization**: Uses covariance matrices for PDE formulation
+  - **Automatic Solver Selection**: Engine selects appropriate solver by dimension
+- **Process Implementations**:
+  - **Affine Models**: GBM, OU, CIR, Heston with factory functions
+  - **Non-Affine Models**: CEV, SABR with factory functions
+  - **Multi-Dimensional Support**: Heston stochastic volatility, basket options
+- **Benefits**:
+  - Single API for all process types regardless of dimension
+  - Clean domain separation improves maintainability
+  - Extensible framework ready for new models and instruments
+  - Vectorized computations for performance
+  - Comprehensive validation and error handling
+- **Legacy Cleanup**: Removed superseded files after systematic testing
+- **Result**: Unified framework with preserved functionality
+
 ## Architecture Improvements
 
 ### Before Refactoring
@@ -60,12 +84,20 @@ PDEModel (monolithic)
 
 ### After Refactoring
 ```
-PricingEngine (coordination)
-├── PDESolver (solving logic)
-│   └── FiniteDifferenceSolver
-├── Instrument (financial logic)
-│   └── EuropeanOption (with validation)
-└── Validation & Exceptions (robustness)
+Unified Framework (domain-focused)
+├── processes/
+│   ├── base.py (StochasticProcess, AffineProcess, NonAffineProcess)
+│   ├── affine.py (GBM, OU, CIR, Heston)
+│   └── nonaffine.py (CEV, SABR)
+├── pricing/
+│   ├── instruments/ (UnifiedEuropeanOption, UnifiedBasketOption)
+│   └── engines/ (UnifiedPricingEngine with auto-solver selection)
+├── solvers/
+│   └── adi.py (ADI solver for multi-dimensional PDEs)
+└── utils/
+    ├── process_validators.py (parameter validation)
+    ├── covariance_utils.py (matrix operations)
+    └── state_handling.py (array processing)
 ```
 
 ## Key Benefits Achieved

@@ -1,0 +1,1 @@
+\"\"\"Unified boundary conditions package.\n\nThis package contains implementations of various boundary conditions\nfor the unified pricing framework.\n\"\"\"\n# Currently this is a placeholder as we're consolidating boundary conditions\n# from various modules into this package

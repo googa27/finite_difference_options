@@ -10,6 +10,8 @@
 - Use a virtual environment.
 - Use type hints.
 - Prefer composition over inheritance.
+- Before coding or reading anything else, you need to know the contents of 'README.md' and '.agent_workspace/README.md' for the project status, past refactors and future tasks.
+- When writing python code, follow PEP8 standards.
 
 ## Project Structure & Module Organization
 - `src/`: Core library (PDE models, pricer, Greeks, plotting, risk). Examples: `pde_pricer.py`, `option_pricer.py`, `greeks.py`, `plotting/`, `risk/`.

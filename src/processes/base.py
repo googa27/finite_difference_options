@@ -197,10 +197,14 @@ class AffineProcess(StochasticProcess):
         alpha, beta = self.affine_drift_coefficients(time)
         
         if state.ndim == 1:
-            return alpha + beta * state
+            # For single state, alpha is (d,) and beta is (d, d)
+            # Return alpha + beta @ state
+            return alpha + beta @ state
         else:
-            # Vectorized computation
-            return alpha[None, :] + beta[None, :] * state
+            # Vectorized computation for multiple states
+            # state is (n, d), alpha is (d,), beta is (d, d)
+            # Result should be (n, d)
+            return alpha[None, :] + (state @ beta.T)
     
     def covariance(
         self,

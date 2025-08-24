@@ -1,7 +1,9 @@
-"""Risk data models and converters for regulatory reporting."""
+"""Unified risk package.
 
-from .models import Exposure, RiskFactor, Trade
-from .converters import (
+This package contains risk calculation functionality for the unified pricing framework.
+"""
+from ..risk.models import Exposure, RiskFactor, Trade
+from ..risk.converters import (
     exposures_to_crif,
     calculate_cuso,
     calculate_basel,
