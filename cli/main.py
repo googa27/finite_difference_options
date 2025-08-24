@@ -9,8 +9,9 @@ import typer
 
 from src.option_pricer import OptionPricer
 from src.plotting.base import MatplotlibSeabornPlotter, PlotOptions
-from src.models import GeometricBrownianMotion
-from src.options import EuropeanCall, EuropeanPut
+from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall, EuropeanPut
+from src.plotting.config_manager import PlottingConfigManager
 
 app = typer.Typer(help="Command-line tools for option pricing.")
 
@@ -29,7 +30,7 @@ def price(
     greeks: bool = typer.Option(False, help="Also compute Delta, Gamma and Theta."),
 ) -> None:
     """Compute option price at ``s0`` and optionally Greeks."""
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=strike, maturity=maturity, model=model)
     pricer = OptionPricer(instrument=instrument)
@@ -67,7 +68,7 @@ def plot(
         None, help="Optional path to save the plot."),
 ) -> None:
     """Render option value grid as a heatmap or surface plot."""
-    model = GeometricBrownianMotion(rate=rate, sigma=sigma)
+    model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=strike, maturity=maturity, model=model)
     pricer = OptionPricer(instrument=instrument)
