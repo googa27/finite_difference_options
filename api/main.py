@@ -16,8 +16,8 @@ from src.risk import (
     Trade,
 )
 from src.risk.reporting_strategies import ReportFactory
-from src.models import GeometricBrownianMotion
-from src.options import EuropeanCall, EuropeanPut
+from src.processes.affine import GeometricBrownianMotion
+from src.instruments.base import EuropeanCall, EuropeanPut
 
 app = FastAPI(title="Finite Difference Option Pricing")
 
@@ -74,7 +74,7 @@ class FullPDEResponse(BaseModel):
 def price(request: OptionRequest) -> PriceResponse:
     """Return option price for the given parameters."""
     s_max = request.s_max or request.strike * 3
-    model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
+    model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
     option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
     pricer = OptionPricer(instrument=instrument)
@@ -94,7 +94,7 @@ def price(request: OptionRequest) -> PriceResponse:
 def greeks(request: OptionRequest) -> GreeksResponse:
     """Return Delta, Gamma and Theta for the given parameters."""
     s_max = request.s_max or request.strike * 3
-    model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
+    model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
     option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
     pricer = OptionPricer(instrument=instrument)
@@ -120,7 +120,7 @@ def pde_solution(request: OptionRequest) -> FullPDEResponse:
     of option prices and Greeks over time and asset price dimensions.
     """
     s_max = request.s_max or request.strike * 3
-    model = GeometricBrownianMotion(rate=request.rate, sigma=request.sigma)
+    model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
     option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=request.strike, maturity=request.maturity, model=model)
     pricer = OptionPricer(instrument=instrument)
