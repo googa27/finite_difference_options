@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from ..utils.exceptions import ValidationError
 
@@ -46,19 +46,18 @@ class EuropeanOption(Instrument, BaseModel):
     strike: float
     maturity: float
     
-    class Config:
-        """Pydantic configuration."""
-        frozen = True  # Make it immutable like a dataclass
-        extra = "forbid"  # Prevent extra fields
+    model_config = ConfigDict(frozen=True, extra='forbid')
     
-    @validator('strike')
+    @field_validator('strike')
+    @classmethod
     def validate_strike(cls, v):
         """Validate strike price."""
         if v <= 0:
             raise ValidationError(f"Strike price must be positive, got {v}")
         return v
     
-    @validator('maturity')
+    @field_validator('maturity')
+    @classmethod
     def validate_maturity(cls, v):
         """Validate maturity."""
         if v <= 0:

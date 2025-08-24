@@ -11,7 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from .base import AffineProcess, ProcessDimension
-from ..utils.validation import validate_positive, validate_non_negative
+from ..validation import validate_positive, validate_non_negative
 from ..utils.process_validators import (
     validate_feller_condition, 
     validate_correlation_parameter,
