@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 from ..utils.exceptions import ValidationError
+from ..processes.base import StochasticProcess
 
 
 class Instrument(BaseModel):
@@ -45,6 +46,13 @@ class EuropeanOption(Instrument):
     
     strike: float
     maturity: float
+    model: StochasticProcess
+    
+    model_config = ConfigDict(
+        frozen=True, 
+        extra='forbid',
+        arbitrary_types_allowed=True  # Allow arbitrary types like StochasticProcess
+    )
     
     @field_validator('strike')
     @classmethod
