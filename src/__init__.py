@@ -20,7 +20,7 @@ from .processes.affine import (
 from .processes.nonaffine import ConstantElasticityVariance, SABRModel, create_cev_process, create_sabr_model
 from .pricing.engines.unified import UnifiedPricingEngine, create_unified_pricing_engine, create_log_grid
 from .solvers.adi import ADISolver, create_adi_solver
-from .utils.validation import validate_positive, validate_non_negative, validate_probability
+from .validation import validate_positive, validate_non_negative, validate_probability
 
 # Backward compatibility imports
 from .pricing.instruments.base import UnifiedInstrument
