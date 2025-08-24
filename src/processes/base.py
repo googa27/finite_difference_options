@@ -21,6 +21,8 @@ class ProcessDimension(BaseModel):
     
     value: int
     
+    model_config = ConfigDict(frozen=True, extra='forbid')
+    
     @field_validator('value')
     @classmethod
     def validate_value(cls, v):
