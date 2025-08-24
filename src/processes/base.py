@@ -210,8 +210,12 @@ class AffineProcess(StochasticProcess):
         else:
             # Vectorized computation for multiple states
             # state is (n, d), alpha is (d,), beta is (d, d)
-            # Result should be (n, d)
-            return alpha[None, :] + (state @ beta.T)
+            # For each row of state, compute alpha + beta @ state[i]
+            n_states = state.shape[0]
+            result = np.zeros((n_states, self.dimension.value))
+            for i in range(n_states):
+                result[i] = alpha + beta @ state[i]
+            return result
     
     def covariance(
         self,
