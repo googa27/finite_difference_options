@@ -10,9 +10,11 @@ from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+from findiff import FinDiff, BoundaryConditions
 
 from ..utils.exceptions import ValidationError
 from ..processes.base import StochasticProcess
+from ..spatial_operator import SpatialOperator
 
 
 class Instrument(BaseModel):
@@ -44,6 +46,40 @@ class Instrument(BaseModel):
             Payoff value(s).
         """
         raise NotImplementedError("Subclasses must implement payoff method")
+    
+    def generator(self, s: NDArray[np.float64]) -> FinDiff:
+        """Return the discretised infinitesimal generator on the spatial grid.
+        
+        This method is used by the PDE solver to construct the spatial operator.
+        
+        Parameters
+        ----------
+        s : NDArray[np.float64]
+            Spatial grid for the underlying asset price.
+            
+        Returns
+        -------
+        FinDiff
+            Discretised infinitesimal generator.
+        """
+        raise NotImplementedError("Subclasses must implement generator method")
+    
+    def boundary_conditions(self, s: NDArray[np.float64]) -> BoundaryConditions:
+        """Return boundary conditions for the spatial grid.
+        
+        This method is used by the PDE solver to construct the boundary conditions.
+        
+        Parameters
+        ----------
+        s : NDArray[np.float64]
+            Spatial grid for the underlying asset price.
+            
+        Returns
+        -------
+        BoundaryConditions
+            Boundary conditions for the spatial grid.
+        """
+        raise NotImplementedError("Subclasses must implement boundary_conditions method")
 
 
 class EuropeanOption(Instrument):
@@ -65,6 +101,16 @@ class EuropeanOption(Instrument):
         if v <= 0:
             raise ValidationError(f"Strike price must be positive, got {v}")
         return v
+    
+    def generator(self, s: NDArray[np.float64]) -> FinDiff:
+        """Return the discretised infinitesimal generator on the spatial grid."""
+        operator = SpatialOperator(self.model)
+        return operator.build(s)
+    
+    def boundary_conditions(self, s: NDArray[np.float64]) -> BoundaryConditions:
+        """Return boundary conditions for the spatial grid."""
+        # This will be implemented by subclasses
+        raise NotImplementedError("Subclasses must implement boundary_conditions method")
 
 
 class EuropeanCall(EuropeanOption):
@@ -73,6 +119,12 @@ class EuropeanCall(EuropeanOption):
     def payoff(self, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute call option payoff."""
         return np.maximum(state - self.strike, 0.0)
+    
+    def boundary_conditions(self, s: NDArray[np.float64]) -> BoundaryConditions:
+        """Return boundary conditions for the spatial grid."""
+        from ..boundary_conditions.builder import BlackScholesBoundaryBuilder
+        builder = BlackScholesBoundaryBuilder()
+        return builder.build(s, self)
 
 
 class EuropeanPut(EuropeanOption):
@@ -81,3 +133,9 @@ class EuropeanPut(EuropeanOption):
     def payoff(self, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute put option payoff."""
         return np.maximum(self.strike - state, 0.0)
+    
+    def boundary_conditions(self, s: NDArray[np.float64]) -> BoundaryConditions:
+        """Return boundary conditions for the spatial grid."""
+        from ..boundary_conditions.builder import BlackScholesBoundaryBuilder
+        builder = BlackScholesBoundaryBuilder()
+        return builder.build(s, self)
