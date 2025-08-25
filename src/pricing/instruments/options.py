@@ -22,7 +22,7 @@ class UnifiedEuropeanOption(UnifiedInstrument, BaseModel):
     
     strike: float
     maturity: float
-    option_type: str  # 'call' or 'put'
+    option_type: str = 'call'  # Default to 'call'
     
     model_config = ConfigDict(frozen=True, extra='forbid')
     
@@ -60,7 +60,7 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     strikes: Any  # Using Any to avoid Pydantic issues with NDArray
     weights: Any  # Using Any to avoid Pydantic issues with NDArray
     maturity: float
-    option_type: str  # 'call' or 'put'
+    option_type: str = 'call'  # Default to 'call'
     
     model_config = ConfigDict(frozen=True, extra='forbid', arbitrary_types_allowed=True)
     

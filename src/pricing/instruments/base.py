@@ -29,8 +29,6 @@ class UnifiedInstrument(ABC):
         """
         ...
     
-    @property
-    @abstractmethod
-    def maturity(self) -> float:
-        """Get instrument maturity."""
-        ...
+    # Define maturity as a regular field that subclasses must implement
+    # This will be implemented as a Pydantic field in subclasses
+    maturity: float
