@@ -12,6 +12,7 @@ from .engines import (
     create_log_grid,
     create_unified_pricing_engine,
 )
+from .workflows import GridResult, OptionPricer
 
 # Backward compatibility imports
 from .instruments.base import UnifiedInstrument
@@ -32,6 +33,8 @@ __all__ = [
     "create_linear_grid",
     "create_log_grid",
     "create_unified_pricing_engine",
+    "GridResult",
+    "OptionPricer",
 
     # Backward compatibility
     "UnifiedInstrument",

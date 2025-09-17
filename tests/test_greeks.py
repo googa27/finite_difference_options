@@ -8,7 +8,7 @@ sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 import numpy as np
 from scipy.stats import norm
 
-from src.option_pricer import OptionPricer
+from src.pricing import OptionPricer
 from src.processes.affine import GeometricBrownianMotion
 from src.instruments.base import EuropeanCall
 

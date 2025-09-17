@@ -73,8 +73,6 @@ class FiniteDifferenceGreeks(GreeksCalculator):
         self, grid: NDArray[np.float64], s: NDArray[np.float64]
     ) -> NDArray[np.float64]:
         """Return Gamma of the option across the grid."""
-        AXIS_ASSET = 1 if grid.ndim > 1 else 0
-        return self._first_derivative(grid, s, axis=AXIS_ASSET)
         self._validate_price_grid(grid)
         self._validate_asset_grid_for_gamma(s)
         axis = 1 if grid.ndim > 1 else 0
@@ -83,14 +81,7 @@ class FiniteDifferenceGreeks(GreeksCalculator):
     def theta(
         self, grid: NDArray[np.float64], t: NDArray[np.float64]
     ) -> NDArray[np.float64]:
-        AXIS_ASSET = 1 if grid.ndim > 1 else 0
-        return self._second_derivative(grid, s, axis=AXIS_ASSET)
-
-        The grid is defined with the time to maturity as the first axis.  Theta
-        (the derivative with respect to calendar time) is therefore the negative
-        derivative with respect to time to maturity.
-        """
-
+        """Return Theta (time decay) across the grid."""
         self._validate_price_grid(grid)
         self._validate_time_grid(t)
         if grid.shape[0] != t.shape[0]:

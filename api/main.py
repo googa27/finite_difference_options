@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from src.option_pricer import OptionPricer
+from src.pricing import OptionPricer
 from src.risk import (
     Exposure,
     RiskFactor,

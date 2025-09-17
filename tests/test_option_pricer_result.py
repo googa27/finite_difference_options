@@ -1,4 +1,4 @@
-from src.option_pricer import OptionPricer, GridResult
+from src.pricing import OptionPricer, GridResult
 from src.processes.affine import GeometricBrownianMotion
 from src.instruments.base import EuropeanCall, EuropeanPut
 
