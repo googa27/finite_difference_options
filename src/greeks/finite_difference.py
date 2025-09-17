@@ -83,7 +83,8 @@ class FiniteDifferenceGreeks(GreeksCalculator):
     def theta(
         self, grid: NDArray[np.float64], t: NDArray[np.float64]
     ) -> NDArray[np.float64]:
-        """Return Theta of the option across the grid.
+        AXIS_ASSET = 1 if grid.ndim > 1 else 0
+        return self._second_derivative(grid, s, axis=AXIS_ASSET)
 
         The grid is defined with the time to maturity as the first axis.  Theta
         (the derivative with respect to calendar time) is therefore the negative
