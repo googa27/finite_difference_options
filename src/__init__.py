@@ -24,7 +24,10 @@ from .processes.nonaffine import (
     create_sabr_model,
 )
 from .pricing.engines import (
+    BlackScholesPDE,
+    CallableBondPDEModel,
     GridParameters,
+    PDEModel,
     PricingEngine,
     PricingResult,
     UnifiedPricingEngine,
@@ -89,6 +92,7 @@ __all__ = [
     "create_sabr_model",
 
     # Pricing
+    "PDEModel",
     "GridParameters",
     "PricingEngine",
     "PricingResult",
@@ -99,6 +103,8 @@ __all__ = [
     "create_unified_pricing_engine",
     "GridResult",
     "OptionPricer",
+    "BlackScholesPDE",
+    "CallableBondPDEModel",
 
     # Backward compatibility
     "UnifiedInstrument",

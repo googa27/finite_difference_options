@@ -3,7 +3,10 @@
 This package contains the unified pricing framework for financial instruments.
 """
 from .engines import (
+    BlackScholesPDE,
+    CallableBondPDEModel,
     GridParameters,
+    PDEModel,
     PricingEngine,
     PricingResult,
     UnifiedPricingEngine,
@@ -26,6 +29,7 @@ from .instruments.options import (
 
 __all__ = [
     "GridParameters",
+    "PDEModel",
     "PricingEngine",
     "PricingResult",
     "UnifiedPricingEngine",
@@ -43,4 +47,6 @@ __all__ = [
     "create_unified_european_call",
     "create_unified_european_put",
     "create_unified_basket_call",
+    "BlackScholesPDE",
+    "CallableBondPDEModel",
 ]
