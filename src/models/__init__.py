@@ -1,8 +1,13 @@
 """Unified models package.
 
-This package contains implementations of various stochastic processes
-for the unified pricing framework.
+This package contains data models such as market descriptions and
+implementations of various stochastic processes for the pricing
+framework.
 """
+
+# Market data models
+from .market import Market
+
 # Re-export key components from the processes package for backward compatibility
 from ..processes import (
     StochasticProcess,
@@ -24,6 +29,7 @@ from ..processes import (
 
 
 __all__ = [
+    "Market",
     "StochasticProcess",
     "AffineProcess",
     "NonAffineProcess",

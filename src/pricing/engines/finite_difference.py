@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 
 from src.exceptions import PricingError
 from src.instruments.base import EuropeanOption, Instrument
-from src.market import Market
+from src.models import Market
 from src.solvers.finite_difference import (
     FiniteDifferenceSolver,
     PDESolver,
