@@ -8,9 +8,9 @@ sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 
+from src.models import Market
 from src.pricing import OptionPricer
 from src.pricing.engines import CallableBondPDEModel
-from src.market import Market
 from src.processes import GeometricBrownianMotion
 
 
