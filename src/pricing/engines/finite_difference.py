@@ -1,22 +1,29 @@
-"""Pricing engine that coordinates PDE solving with financial instruments.
+"""Finite difference pricing engines and legacy PDE models.
 
-This module provides the high-level interface for pricing financial instruments
-using PDE methods, coordinating between instruments, solvers, and grid generation.
+This module contains both the modern pricing engine used throughout the
+unified codebase and the legacy ``PDEModel`` abstractions that older callers
+still depend on. Keeping these implementations co-located simplifies import
+paths and avoids duplicating functionality while ensuring backward
+compatibility.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, NamedTuple
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+from typing import NamedTuple, Optional
 
 import numpy as np
+from findiff import BoundaryConditions, FinDiff
 from numpy.typing import NDArray
 
 from src.exceptions import PricingError
+from src.instruments.base import EuropeanOption, Instrument
+from src.market import Market
+from src.pde_solver import FiniteDifferenceSolver, PDESolver
+from src.processes.affine import GeometricBrownianMotion
+from src.spatial_operator import SpatialOperator
+from src.time_steppers import ThetaMethod, TimeStepper
 from src.validation import validate_grid_parameters, validate_spot_price
-
-if TYPE_CHECKING:
-    from src.instruments import Instrument
-    from src.pde_solver import PDESolver
 
 
 class PricingResult(NamedTuple):
@@ -193,9 +200,145 @@ def create_default_pricing_engine() -> PricingEngine:
     return PricingEngine(solver=create_default_solver())
 
 
+# ---------------------------------------------------------------------------
+# Legacy PDE abstractions
+# ---------------------------------------------------------------------------
+
+
+class PDEModel(ABC):
+    """Abstract base class for PDE pricing models."""
+
+    time_stepper: TimeStepper
+
+    @abstractmethod
+    def generator(self, s: NDArray[np.float64]) -> FinDiff:
+        """Return the discretised generator on the spatial grid."""
+
+    @abstractmethod
+    def payoff(
+        self, s: NDArray[np.float64], option: Optional[EuropeanOption]
+    ) -> NDArray[np.float64]:
+        """Return payoff at maturity for the spatial grid."""
+
+    @abstractmethod
+    def boundary_conditions(
+        self, s: NDArray[np.float64], option: Optional[EuropeanOption]
+    ) -> BoundaryConditions:
+        """Return boundary conditions for the spatial grid."""
+
+    def price(
+        self,
+        option: Optional[EuropeanOption],
+        s: NDArray[np.float64],
+        t: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Return grid with instrument values."""
+
+        solver = FiniteDifferenceSolver(time_stepper=self.time_stepper)
+
+        generator = self.generator(s)
+        boundary_conditions = self.boundary_conditions(s, option)
+        initial_conditions = self.payoff(s, option)
+
+        return solver.solve(
+            generator=generator,
+            boundary_conditions=boundary_conditions,
+            initial_conditions=initial_conditions,
+            time_grid=t,
+        )
+
+
+@dataclass
+class BlackScholesPDE(PDEModel):
+    """Price European options by solving the Black--Scholes PDE."""
+
+    instrument: Instrument
+    theta: float = 0.5  # retained for backward compatibility
+    time_stepper: TimeStepper | None = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.time_stepper is None:
+            self.time_stepper = ThetaMethod(self.theta)
+        else:  # keep ``theta`` in sync for backward compatibility
+            self.theta = getattr(self.time_stepper, "theta", self.theta)
+
+    def generator(self, s: NDArray[np.float64]) -> FinDiff:
+        return self.instrument.generator(s)
+
+    def payoff(
+        self, s: NDArray[np.float64], option: Optional[EuropeanOption] = None
+    ) -> NDArray[np.float64]:
+        return self.instrument.payoff(s)
+
+    def boundary_conditions(
+        self, s: NDArray[np.float64], option: Optional[EuropeanOption] = None
+    ) -> BoundaryConditions:
+        return self.instrument.boundary_conditions(s)
+
+
+@dataclass
+class CallableBondPDEModel(PDEModel):
+    """PDE model for pricing simple callable bonds."""
+
+    face_value: float
+    call_price: float
+    market: Market
+    model: GeometricBrownianMotion
+    _maturity: float
+    time_stepper: TimeStepper = field(default_factory=lambda: ThetaMethod(0.5))
+
+    @property
+    def maturity(self) -> float:
+        return self._maturity
+
+    @property
+    def strike(self) -> Optional[float]:
+        return None
+
+    def generator(self, s: NDArray[np.float64]) -> FinDiff:
+        return SpatialOperator(self.model).build(s)
+
+    def payoff(
+        self, s: NDArray[np.float64], option: Optional[EuropeanOption] = None
+    ) -> NDArray[np.float64]:
+        return np.full_like(s, min(self.face_value, self.call_price))
+
+    def boundary_conditions(
+        self, s: NDArray[np.float64], option: Optional[EuropeanOption] = None
+    ) -> BoundaryConditions:
+        bc = BoundaryConditions(s.shape)
+        bc[0] = 0.0
+        bc[-1] = self.call_price
+        return bc
+
+    def price(
+        self,
+        s: NDArray[np.float64],
+        t: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Return grid of callable bond prices respecting the call cap."""
+        solver = FiniteDifferenceSolver(time_stepper=self.time_stepper)
+
+        generator = self.generator(s)
+        boundary_conditions = self.boundary_conditions(s)
+        initial_conditions = self.payoff(s)
+
+        values = solver.solve(
+            generator=generator,
+            boundary_conditions=boundary_conditions,
+            initial_conditions=initial_conditions,
+            time_grid=t,
+        )
+
+        return np.minimum(values, self.call_price)
+
+
 __all__ = [
+    "CallableBondPDEModel",
     "GridParameters",
+    "PDEModel",
     "PricingEngine",
     "PricingResult",
+    "BlackScholesPDE",
     "create_default_pricing_engine",
 ]
