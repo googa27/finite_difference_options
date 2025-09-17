@@ -51,3 +51,6 @@
 - **Task Management:** All active tasks are managed via the `project_tasks.sqlite` database within `.gemini_project/`.
 - **Long-Term Memory:** Semantic search for project history and code context should utilize the vector store located in `.gemini_project/project_memory/`.
 - **User Instructions:** For detailed guidance on project setup and context recovery, consult `.gemini_project/INSTRUCTIONS.md`.
+
+## Project Specific Guidelines
+- The numerical PDE formulation to be numerically solved should be a PDE initial value problem. Since the Black-Scholes equation is a backward parabolic PDE, it should be transformed into a forward parabolic PDE by a change of variables (e.g., `tau = T - t`), then solved, and then transformed back to the original variables.
