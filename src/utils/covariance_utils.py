@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Tuple
 
-from .exceptions import ValidationError
+from src.exceptions import ValidationError
 
 
 def validate_covariance_matrix(matrix: NDArray[np.float64]) -> None:

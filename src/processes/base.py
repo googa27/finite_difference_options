@@ -12,7 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, field_validator, ConfigDict
 
-from ..utils.exceptions import ValidationError
+from src.exceptions import ValidationError
 from ..utils.state_handling import ensure_state_array, validate_state_dimensions
 
 

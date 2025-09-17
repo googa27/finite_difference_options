@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 
 from ..pricing.instruments.base import UnifiedInstrument
 from ..processes.base import StochasticProcess
-from ..utils.exceptions import ValidationError
+from src.exceptions import ValidationError
 
 
 class Solver(ABC):

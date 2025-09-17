@@ -12,7 +12,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from findiff import FinDiff, BoundaryConditions
 
-from ..utils.exceptions import ValidationError
+from src.exceptions import ValidationError
 from ..processes.base import StochasticProcess
 from ..spatial_operator import SpatialOperator
 

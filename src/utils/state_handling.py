@@ -7,7 +7,7 @@ import numpy as np
 from numpy.typing import NDArray
 from typing import Union
 
-from .exceptions import ValidationError
+from src.exceptions import ValidationError
 
 
 def ensure_state_array(state: Union[float, NDArray[np.float64]]) -> NDArray[np.float64]:

@@ -14,7 +14,7 @@ from .base import UnifiedInstrument
 from .payoff_calculators import PayoffCalculatorFactory
 from ...validation import validate_positive
 from ...utils.process_validators import validate_weights_sum_to_one
-from ...utils.exceptions import ValidationError
+from src.exceptions import ValidationError
 
 
 class UnifiedEuropeanOption(UnifiedInstrument, BaseModel):

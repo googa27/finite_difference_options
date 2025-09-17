@@ -10,7 +10,7 @@ from typing import Tuple, Optional, Dict, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from ..utils.exceptions import ValidationError
+from src.exceptions import ValidationError
 
 
 @dataclass

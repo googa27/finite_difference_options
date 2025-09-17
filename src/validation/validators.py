@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 from numpy.typing import NDArray
 
-from ..exceptions import ValidationError, GridError, ModelError, InstrumentError
+from src.exceptions import ValidationError, GridError, ModelError, InstrumentError
 
 
 def validate_positive(value: float, name: str) -> None:

@@ -12,7 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .validation import validate_grid_parameters, validate_spot_price
-from .exceptions import PricingError
+from src.exceptions import PricingError
 
 if TYPE_CHECKING:
     from .instruments import Instrument

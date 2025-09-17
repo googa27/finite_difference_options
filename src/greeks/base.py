@@ -12,7 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..processes.base import StochasticProcess
-from ..utils.exceptions import ValidationError
+from src.exceptions import ValidationError
 
 
 class GreeksCalculator(ABC):

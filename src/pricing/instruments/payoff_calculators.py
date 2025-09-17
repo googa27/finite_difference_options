@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .base import UnifiedInstrument
-from ...utils.exceptions import ValidationError
+from src.exceptions import ValidationError
 
 
 class PayoffCalculator(ABC):

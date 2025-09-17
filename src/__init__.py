@@ -38,7 +38,7 @@ from .utils.covariance_utils import matrix_sqrt
 from .utils.state_handling import ensure_state_array, validate_state_dimensions
 
 # Exceptions
-from .utils.exceptions import (
+from src.exceptions import (
     FiniteDifferenceError,
     ValidationError,
     GridError,
