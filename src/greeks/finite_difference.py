@@ -73,7 +73,8 @@ class FiniteDifferenceGreeks(GreeksCalculator):
         self, grid: NDArray[np.float64], s: NDArray[np.float64]
     ) -> NDArray[np.float64]:
         """Return Gamma of the option across the grid."""
-
+        AXIS_ASSET = 1 if grid.ndim > 1 else 0
+        return self._first_derivative(grid, s, axis=AXIS_ASSET)
         self._validate_price_grid(grid)
         self._validate_asset_grid_for_gamma(s)
         axis = 1 if grid.ndim > 1 else 0
