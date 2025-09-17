@@ -17,8 +17,22 @@ from .processes.affine import (
     create_cir_process,
     create_standard_heston,
 )
-from .processes.nonaffine import ConstantElasticityVariance, SABRModel, create_cev_process, create_sabr_model
-from .pricing.engines.unified import UnifiedPricingEngine, create_unified_pricing_engine, create_log_grid
+from .processes.nonaffine import (
+    ConstantElasticityVariance,
+    SABRModel,
+    create_cev_process,
+    create_sabr_model,
+)
+from .pricing.engines import (
+    GridParameters,
+    PricingEngine,
+    PricingResult,
+    UnifiedPricingEngine,
+    create_default_pricing_engine,
+    create_linear_grid,
+    create_log_grid,
+    create_unified_pricing_engine,
+)
 from .solvers.adi import ADISolver, create_adi_solver
 from .validation import validate_positive, validate_non_negative, validate_probability
 
@@ -55,7 +69,7 @@ __all__ = [
     "EuropeanCall",
     "EuropeanPut",
     "EuropeanOption",
-    
+
     # Processes
     "StochasticProcess",
     "AffineProcess",
@@ -72,12 +86,17 @@ __all__ = [
     "create_standard_heston",
     "create_cev_process",
     "create_sabr_model",
-    
+
     # Pricing
+    "GridParameters",
+    "PricingEngine",
+    "PricingResult",
     "UnifiedPricingEngine",
-    "create_unified_pricing_engine",
+    "create_default_pricing_engine",
+    "create_linear_grid",
     "create_log_grid",
-    
+    "create_unified_pricing_engine",
+
     # Backward compatibility
     "UnifiedInstrument",
     "UnifiedEuropeanOption",
@@ -85,22 +104,22 @@ __all__ = [
     "create_unified_european_call",
     "create_unified_european_put",
     "create_unified_basket_call",
-    
+
     # Solvers
     "ADISolver",
     "create_adi_solver",
-    
+
     # Validation
     "validate_positive",
     "validate_non_negative",
     "validate_probability",
     "validate_weights_sum_to_one",
-    
+
     # Utilities
     "matrix_sqrt",
     "ensure_state_array",
     "validate_state_dimensions",
-    
+
     # Exceptions
     "FiniteDifferenceError",
     "ValidationError",
