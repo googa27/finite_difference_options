@@ -1,11 +1,24 @@
-"""Unified solvers package.
+"""Unified solvers package."""
 
-This package contains implementations of various PDE solvers
-for the unified pricing framework.
-"""
 from .adi import ADISolver, create_adi_solver
+from .finite_difference import (
+    CrankNicolson,
+    ExplicitEuler,
+    FiniteDifferenceSolver,
+    PDESolver,
+    ThetaMethod,
+    TimeStepper,
+    create_default_solver,
+)
 
 __all__ = [
     "ADISolver",
+    "CrankNicolson",
+    "ExplicitEuler",
+    "FiniteDifferenceSolver",
+    "PDESolver",
+    "ThetaMethod",
+    "TimeStepper",
     "create_adi_solver",
+    "create_default_solver",
 ]

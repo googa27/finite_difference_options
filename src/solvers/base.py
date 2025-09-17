@@ -6,13 +6,22 @@ in the unified pricing framework.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import Optional
+
 import numpy as np
+from findiff import BoundaryConditions, FinDiff
 from numpy.typing import NDArray
 
 from ..pricing.instruments.base import UnifiedInstrument
 from ..processes.base import StochasticProcess
+from ..spatial_operator import SpatialOperator
 from src.exceptions import ValidationError
+
+from .finite_difference import (
+    FiniteDifferenceSolver,
+    ThetaMethod,
+    TimeStepper,
+)
 
 
 class Solver(ABC):
@@ -47,9 +56,23 @@ class Solver(ABC):
         ...
 
 
-class FDSolver1D(Solver):
-    """Finite difference solver for 1D PDEs."""
-    
+class FiniteDifferenceSolverAdapter(Solver):
+    """Adapter exposing the finite difference solver through the unified API."""
+
+    def __init__(
+        self,
+        process: StochasticProcess,
+        *,
+        time_stepper: TimeStepper | None = None,
+        theta: float = 0.5,
+    ) -> None:
+        if time_stepper is None:
+            time_stepper = ThetaMethod(theta)
+
+        self._process = process
+        self._time_stepper = time_stepper
+        self._solver = FiniteDifferenceSolver(time_stepper=time_stepper)
+
     def solve(
         self,
         initial_condition: NDArray[np.float64],
@@ -57,10 +80,53 @@ class FDSolver1D(Solver):
         *grids: NDArray[np.float64],
         time_grid: Optional[NDArray[np.float64]] = None,
     ) -> NDArray[np.float64]:
-        """Solve 1D PDE using finite difference method."""
-        # For now, just return the initial condition as a placeholder
-        # In a real implementation, this would solve the 1D PDE
-        return initial_condition
+        if len(grids) != 1:
+            raise ValidationError("1D finite difference solver expects a single spatial grid")
+
+        if time_grid is None:
+            raise ValidationError("time_grid must be provided for 1D finite difference solver")
+
+        spatial_grid = grids[0]
+        generator = self._build_generator(spatial_grid)
+        boundary_conditions = self._build_boundary_conditions(spatial_grid, instrument)
+
+        return self._solver.solve(
+            generator=generator,
+            boundary_conditions=boundary_conditions,
+            initial_conditions=initial_condition,
+            time_grid=time_grid,
+        )
+
+    def _build_generator(self, spatial_grid: NDArray[np.float64]) -> FinDiff:
+        operator = SpatialOperator(self._process)
+        return operator.build(spatial_grid)
+
+    def _build_boundary_conditions(
+        self,
+        spatial_grid: NDArray[np.float64],
+        instrument: UnifiedInstrument,
+    ) -> BoundaryConditions:
+        if hasattr(instrument, "boundary_conditions"):
+            candidate = instrument.boundary_conditions(spatial_grid)  # type: ignore[attr-defined]
+            if isinstance(candidate, BoundaryConditions):
+                return candidate
+
+        ds = spatial_grid[1] - spatial_grid[0] if len(spatial_grid) > 1 else 1.0
+        bc = BoundaryConditions(spatial_grid.shape)
+        d1 = FinDiff(0, ds, 1)
+        d2 = FinDiff(0, ds, 2)
+
+        bc[0] = d2, 0.0
+
+        option_type = getattr(instrument, "option_type", "").lower()
+        if option_type == "call":
+            bc[-1] = d1, 1.0
+        elif option_type == "put":
+            bc[-1] = d1, 0.0
+        else:
+            bc[-1] = d2, 0.0
+
+        return bc
 
 
 class ADISolverWrapper(Solver):
@@ -126,7 +192,11 @@ class SolverFactory:
     """Factory for creating appropriate solvers."""
     
     @staticmethod
-    def create_solver(process: StochasticProcess, theta: float = 0.5) -> Solver:
+    def create_solver(
+        process: StochasticProcess,
+        theta: float = 0.5,
+        time_stepper: TimeStepper | None = None,
+    ) -> Solver:
         """Create appropriate solver for process.
         
         Parameters
@@ -144,7 +214,11 @@ class SolverFactory:
         from ..solvers.adi import ADISolver
         
         if process.dimension.is_univariate:
-            return FDSolver1D()
+            return FiniteDifferenceSolverAdapter(
+                process,
+                time_stepper=time_stepper,
+                theta=theta,
+            )
         else:
             adi_solver = ADISolver(theta=theta)
             return ADISolverWrapper(adi_solver)
