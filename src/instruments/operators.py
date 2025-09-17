@@ -1,15 +1,15 @@
-"""Construction of spatial differential operators."""
+"""Construction of spatial differential operators for instruments."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import findiff as fd
 import numpy as np
 from numpy.typing import NDArray
-import findiff as fd
 
 if TYPE_CHECKING:  # pragma: no cover - runtime import only for typing
-    from .processes import GeometricBrownianMotion
+    from src.processes import GeometricBrownianMotion
 
 
 @dataclass

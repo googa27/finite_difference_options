@@ -12,9 +12,9 @@ import numpy as np
 from findiff import BoundaryConditions, FinDiff
 from numpy.typing import NDArray
 
+from ..instruments.operators import SpatialOperator
 from ..pricing.instruments.base import UnifiedInstrument
 from ..processes.base import StochasticProcess
-from ..spatial_operator import SpatialOperator
 from src.exceptions import ValidationError
 
 from .finite_difference import (

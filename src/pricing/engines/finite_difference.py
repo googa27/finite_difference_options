@@ -27,7 +27,7 @@ from src.solvers.finite_difference import (
     create_default_solver,
 )
 from src.processes.affine import GeometricBrownianMotion
-from src.spatial_operator import SpatialOperator
+from src.instruments.operators import SpatialOperator
 from src.validation import validate_grid_parameters, validate_spot_price
 
 
