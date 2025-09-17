@@ -14,7 +14,7 @@ from findiff import FinDiff, BoundaryConditions
 
 from src.exceptions import ValidationError
 from ..processes.base import StochasticProcess
-from ..spatial_operator import SpatialOperator
+from .operators import SpatialOperator
 
 
 class Instrument(BaseModel):
