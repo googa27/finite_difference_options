@@ -33,6 +33,7 @@ from .pricing.engines import (
     create_log_grid,
     create_unified_pricing_engine,
 )
+from .pricing.workflows import GridResult, OptionPricer
 from .solvers.adi import ADISolver, create_adi_solver
 from .validation import validate_positive, validate_non_negative, validate_probability
 
@@ -96,6 +97,8 @@ __all__ = [
     "create_linear_grid",
     "create_log_grid",
     "create_unified_pricing_engine",
+    "GridResult",
+    "OptionPricer",
 
     # Backward compatibility
     "UnifiedInstrument",

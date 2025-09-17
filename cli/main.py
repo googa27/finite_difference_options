@@ -7,8 +7,8 @@ from typing import Optional
 import numpy as np
 import typer
 
-from src.option_pricer import OptionPricer
-from src.plotting.base import MatplotlibSeabornPlotter, PlotOptions
+from src.pricing import OptionPricer
+from src.plotting.base import MatplotlibSeabornPlotter
 from src.processes.affine import GeometricBrownianMotion
 from src.instruments.base import EuropeanCall, EuropeanPut
 from src.plotting.config_manager import PlottingConfigManager
