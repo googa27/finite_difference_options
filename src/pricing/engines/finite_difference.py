@@ -11,17 +11,17 @@ from typing import TYPE_CHECKING, NamedTuple
 import numpy as np
 from numpy.typing import NDArray
 
-from .validation import validate_grid_parameters, validate_spot_price
 from src.exceptions import PricingError
+from src.validation import validate_grid_parameters, validate_spot_price
 
 if TYPE_CHECKING:
-    from .instruments import Instrument
-    from .pde_solver import PDESolver
+    from src.instruments import Instrument
+    from src.pde_solver import PDESolver
 
 
 class PricingResult(NamedTuple):
     """Result of pricing computation with grids and values.
-    
+
     Attributes
     ----------
     spatial_grid : NDArray[np.float64]
@@ -31,6 +31,7 @@ class PricingResult(NamedTuple):
     values : NDArray[np.float64]
         Option values with shape (len(time_grid), len(spatial_grid)).
     """
+
     spatial_grid: NDArray[np.float64]
     time_grid: NDArray[np.float64]
     values: NDArray[np.float64]
@@ -39,7 +40,7 @@ class PricingResult(NamedTuple):
 @dataclass
 class GridParameters:
     """Parameters for grid generation.
-    
+
     Parameters
     ----------
     s_max : float
@@ -49,6 +50,7 @@ class GridParameters:
     t_steps : int
         Number of time steps.
     """
+
     s_max: float
     s_steps: int
     t_steps: int
@@ -57,16 +59,16 @@ class GridParameters:
 @dataclass
 class PricingEngine:
     """High-level pricing engine for financial instruments.
-    
+
     This engine coordinates between instruments, PDE solvers, and grid generation
     to provide a clean interface for pricing financial derivatives.
-    
+
     Parameters
     ----------
     solver : PDESolver
         The PDE solver to use for numerical computation.
     """
-    
+
     solver: PDESolver
 
     def price_instrument(
@@ -75,19 +77,19 @@ class PricingEngine:
         grid_params: GridParameters,
     ) -> PricingResult:
         """Price a financial instrument using PDE methods.
-        
+
         Parameters
         ----------
         instrument : Instrument
             The financial instrument to price (e.g., EuropeanCall).
         grid_params : GridParameters
             Grid generation parameters.
-            
+
         Returns
         -------
         PricingResult
             Pricing result with grids and computed values.
-            
+
         Raises
         ------
         GridError
@@ -95,23 +97,24 @@ class PricingEngine:
         PricingError
             If pricing computation fails.
         """
+
         # Validate grid parameters
         validate_grid_parameters(
-            grid_params.s_max, 
-            grid_params.s_steps, 
-            grid_params.t_steps
+            grid_params.s_max,
+            grid_params.s_steps,
+            grid_params.t_steps,
         )
-        
+
         try:
             # Generate grids
             s = np.linspace(0, grid_params.s_max, grid_params.s_steps)
             t = np.linspace(0, instrument.maturity, grid_params.t_steps)
-        
+
             # Get PDE components from instrument
             generator = instrument.generator(s)
             boundary_conditions = instrument.boundary_conditions(s)
             initial_conditions = instrument.payoff(s)
-            
+
             # Solve PDE
             values = self.solver.solve(
                 generator=generator,
@@ -119,14 +122,14 @@ class PricingEngine:
                 initial_conditions=initial_conditions,
                 time_grid=t,
             )
-            
+
             return PricingResult(
                 spatial_grid=s,
                 time_grid=t,
                 values=values,
             )
-        except Exception as e:
-            raise PricingError(f"Failed to price instrument: {e}") from e
+        except Exception as exc:  # pragma: no cover - defensive programming
+            raise PricingError(f"Failed to price instrument: {exc}") from exc
 
     def compute_spot_price(
         self,
@@ -135,7 +138,7 @@ class PricingEngine:
         grid_params: GridParameters,
     ) -> float:
         """Compute option value at a specific spot price.
-        
+
         Parameters
         ----------
         instrument : Instrument
@@ -144,42 +147,55 @@ class PricingEngine:
             Current asset price.
         grid_params : GridParameters
             Grid generation parameters.
-            
+
         Returns
         -------
         float
             Option value at the spot price and current time (t=0).
-            
+
         Raises
         ------
         ValidationError
             If spot price is invalid or outside grid range.
         """
+
         result = self.price_instrument(instrument, grid_params)
-        
+
         # Validate spot price is within grid range
         validate_spot_price(spot_price, result.spatial_grid)
-        
+
         # Find closest grid point to spot price
         idx = np.searchsorted(result.spatial_grid, spot_price)
         if idx >= len(result.spatial_grid):
             idx = len(result.spatial_grid) - 1
         elif idx > 0:
             # Choose closer of the two adjacent points
-            if abs(result.spatial_grid[idx-1] - spot_price) < abs(result.spatial_grid[idx] - spot_price):
+            if abs(result.spatial_grid[idx - 1] - spot_price) < abs(
+                result.spatial_grid[idx] - spot_price
+            ):
                 idx = idx - 1
-        
+
         # Return value at t=0 (present time)
         return result.values[-1, idx]
 
 
 def create_default_pricing_engine() -> PricingEngine:
     """Create a default pricing engine with standard solver.
-    
+
     Returns
     -------
     PricingEngine
         A PricingEngine with FiniteDifferenceSolver using Crank-Nicolson method.
     """
-    from .pde_solver import create_default_solver
+
+    from src.pde_solver import create_default_solver
+
     return PricingEngine(solver=create_default_solver())
+
+
+__all__ = [
+    "GridParameters",
+    "PricingEngine",
+    "PricingResult",
+    "create_default_pricing_engine",
+]

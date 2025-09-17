@@ -2,7 +2,16 @@
 
 This package contains the unified pricing framework for financial instruments.
 """
-from .engines.unified import UnifiedPricingEngine, create_unified_pricing_engine, create_log_grid, create_linear_grid
+from .engines import (
+    GridParameters,
+    PricingEngine,
+    PricingResult,
+    UnifiedPricingEngine,
+    create_default_pricing_engine,
+    create_linear_grid,
+    create_log_grid,
+    create_unified_pricing_engine,
+)
 
 # Backward compatibility imports
 from .instruments.base import UnifiedInstrument
@@ -15,11 +24,15 @@ from .instruments.options import (
 )
 
 __all__ = [
+    "GridParameters",
+    "PricingEngine",
+    "PricingResult",
     "UnifiedPricingEngine",
-    "create_unified_pricing_engine",
-    "create_log_grid",
+    "create_default_pricing_engine",
     "create_linear_grid",
-    
+    "create_log_grid",
+    "create_unified_pricing_engine",
+
     # Backward compatibility
     "UnifiedInstrument",
     "UnifiedEuropeanOption",
