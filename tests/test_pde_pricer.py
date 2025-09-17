@@ -9,7 +9,7 @@ import numpy as np
 from src.processes.affine import GeometricBrownianMotion
 from src.instruments.base import EuropeanCall, EuropeanPut
 from src.pricing.engines import BlackScholesPDE
-from src.time_steppers import ExplicitEuler
+from src.solvers.finite_difference import ExplicitEuler
 
 
 def black_scholes_call(s, k, r, sigma, T):

@@ -19,10 +19,15 @@ from numpy.typing import NDArray
 from src.exceptions import PricingError
 from src.instruments.base import EuropeanOption, Instrument
 from src.market import Market
-from src.pde_solver import FiniteDifferenceSolver, PDESolver
+from src.solvers.finite_difference import (
+    FiniteDifferenceSolver,
+    PDESolver,
+    ThetaMethod,
+    TimeStepper,
+    create_default_solver,
+)
 from src.processes.affine import GeometricBrownianMotion
 from src.spatial_operator import SpatialOperator
-from src.time_steppers import ThetaMethod, TimeStepper
 from src.validation import validate_grid_parameters, validate_spot_price
 
 
@@ -194,8 +199,6 @@ def create_default_pricing_engine() -> PricingEngine:
     PricingEngine
         A PricingEngine with FiniteDifferenceSolver using Crank-Nicolson method.
     """
-
-    from src.pde_solver import create_default_solver
 
     return PricingEngine(solver=create_default_solver())
 

@@ -12,7 +12,7 @@ from src.exceptions import ValidationError
 from src.greeks import FiniteDifferenceGreeks
 from src.pricing.engines import UnifiedPricingEngine
 from src.pricing.instruments.base import UnifiedInstrument
-from src.pde_solver import PDESolver, create_default_solver
+from src.solvers.finite_difference import PDESolver, create_default_solver
 from src.solvers.base import Solver
 
 
