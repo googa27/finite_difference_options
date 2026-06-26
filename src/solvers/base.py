@@ -212,6 +212,12 @@ class ADISolverWrapper(Solver):
             raise ValidationError("process covariance contains non-finite values on the ADI state grid")
         if not np.allclose(covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12):
             raise ValidationError("process covariance must be symmetric on the ADI state grid")
+        min_eigenvalue = float(np.min(np.linalg.eigvalsh(covariance)))
+        if min_eigenvalue < -1e-10:
+            raise ValidationError(
+                "process covariance must be positive semi-definite on the ADI state grid; "
+                f"minimum eigenvalue is {min_eigenvalue:.2e}"
+            )
 
         return (
             drift.reshape(*grid_shape, dimension),
