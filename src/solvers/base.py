@@ -83,19 +83,20 @@ class FiniteDifferenceSolverAdapter(Solver):
         if len(grids) != 1:
             raise ValidationError("1D finite difference solver expects a single spatial grid")
 
-        if time_grid is None:
-            raise ValidationError("time_grid must be provided for 1D finite difference solver")
+        if time_grid is None or len(time_grid) == 0:
+            time_grid = np.linspace(0.0, instrument.maturity, 50)
 
         spatial_grid = grids[0]
         generator = self._build_generator(spatial_grid)
         boundary_conditions = self._build_boundary_conditions(spatial_grid, instrument)
 
-        return self._solver.solve(
+        solution = self._solver.solve(
             generator=generator,
             boundary_conditions=boundary_conditions,
             initial_conditions=initial_condition,
             time_grid=time_grid,
         )
+        return solution[::-1]
 
     def _build_generator(self, spatial_grid: NDArray[np.float64]) -> FinDiff:
         operator = SpatialOperator(self._process)

@@ -242,10 +242,12 @@ class TestUnifiedPricingEngine:
         # Check that prices are non-negative
         assert np.all(prices >= 0)
         
-        # Check terminal condition
-        s_mesh, v_mesh = np.meshgrid(s_grid, v_grid, indexing='ij')
-        terminal_payoff = option.payoff(s_grid, v_grid)
-        assert_allclose(prices[-1], terminal_payoff, rtol=1e-10)
+        # Check terminal condition.  European options depend only on the first
+        # state coordinate, so the engine broadcasts the first-grid payoff over
+        # variance/non-underlying dimensions before passing it to ADI.
+        terminal_payoff = option.payoff(s_grid).reshape(-1, 1)
+        expected_terminal = np.broadcast_to(terminal_payoff, (len(s_grid), len(v_grid)))
+        assert_allclose(prices[-1], expected_terminal, rtol=1e-10)
     
     def test_price_option_wrong_dimensions(self):
         """Test error with wrong number of grids."""
@@ -448,6 +450,13 @@ class TestPricingEngineIntegration:
         assert 0.2 <= delta_atm <= 0.8
         assert vega_atm >= 0  # Vega should be positive for calls
     
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "#45/#62: Heston's second state is variance, not a second basket asset; "
+            "the route must fail closed before this integration can be promoted"
+        ),
+    )
     def test_basket_option_pricing_integration(self):
         """Test basket option pricing with 2D process."""
         # Use simple 2D process (could be extended to proper multi-asset model)

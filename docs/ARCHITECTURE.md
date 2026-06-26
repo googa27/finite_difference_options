@@ -71,6 +71,7 @@ Cross-repository integration uses versioned wheels, contracts and parity fixture
 | SciPy is only in development requirements | Runtime metadata does not match numerical implementation needs | Put actual numerical runtime dependencies in core metadata |
 | CI and contributor guidance rely on repository-root state and `.gemini_project` | Non-durable architecture/task source and weak wheel confidence | GitHub/docs/tests authoritative; clean-wheel CI |
 | Next.js client shares repository without explicit product boundary | Frontend lifecycle can couple numerical release | Independent app lock/API contract and optional CI |
+| `tests/test_unified_pricing_engine.py` was excluded from blocking CI while known regressions existed | Green main could hide unified-engine time-orientation, payoff-broadcasting or incompatible-route debt | Reintroduced under #72 with explicit calendar-time semantics, multidimensional European payoff-broadcast tests and strict issue-linked xfail quarantine for #45/#62 |
 
 ## 4. Architectural principles
 
