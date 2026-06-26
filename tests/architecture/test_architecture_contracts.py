@@ -63,6 +63,8 @@ FORBIDDEN_EXTERNAL_STACKS = {
 }
 
 FORBIDDEN_INTERNAL_APP_PACKAGES = {
+    "api",
+    "cli",
     "plotting",
 }
 
@@ -168,13 +170,34 @@ def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
         "from src import plotting\n"
         "from src.plotting import plot_surface\n"
         "from ..plotting import Plotter\n"
+        "from api import main\n"
+        "from cli.main import app\n"
         "import matplotlib.pyplot\n"
     )
     imports = _imports_from_tree(tree, SRC_ROOT / "pricing" / "example.py")
-    assert {"src.plotting", "src.plotting.plot_surface", "plotting", "plotting.Plotter"} <= imports
+    assert {
+        "src.plotting",
+        "src.plotting.plot_surface",
+        "plotting",
+        "plotting.Plotter",
+        "api",
+        "api.main",
+        "cli.main",
+        "cli.main.app",
+    } <= imports
     assert all(
         _is_forbidden_core_import(name)
-        for name in ["src.plotting", "src.plotting.plot_surface", "plotting", "plotting.Plotter", "matplotlib.pyplot"]
+        for name in [
+            "src.plotting",
+            "src.plotting.plot_surface",
+            "plotting",
+            "plotting.Plotter",
+            "api",
+            "api.main",
+            "cli.main",
+            "cli.main.app",
+            "matplotlib.pyplot",
+        ]
     )
 
 
