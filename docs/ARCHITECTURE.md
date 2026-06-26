@@ -392,7 +392,11 @@ Benchmark metadata includes problem/grid/config hash, dimensions and node counts
 
 Default tests are deterministic and offline. Frontend and service tests are separate from numerical-core tests.
 
-## 22. CI and release topology
+## 22. Architecture fitness gates and CI release topology
+
+The baseline gate for #60 is `pytest -q tests/architecture`. It is intentionally ratcheted: it records the current transitional `src/*` surface, enforces the rule **No new root package under `src/`** unless `docs/ARCHITECTURE.md` and the gate baseline are updated, and prevents numerical-core modules from importing API, CLI, UI or plotting stacks.
+
+After package foundation #51 lands, the architecture gate must add the hard `src.*` import ban, package install/import smoke tests, and `deptry` or equivalent dependency-drift checks against PEP 621 metadata. Those follow-on checks are not optional; they are sequenced because the repository does not yet publish runtime metadata.
 
 | Job | Purpose | Policy |
 |---|---|---|
@@ -410,7 +414,9 @@ Default tests are deterministic and offline. Frontend and service tests are sepa
 
 One Python version and one all-application environment do not establish library support.
 
-## 23. Compatibility and deprecation
+## 23. Compatibility and deprecation policy
+
+No compatibility shim may become a second implementation. The policy below is the issue #60 successor/predecessor map for package migration: #51 introduces the replacement namespace, #52 consolidates predecessor imports into one canonical implementation per capability, and #59 connects the Haircut backend only through the replacement public API.
 
 - Distribution API and Haircut solver-contract versions are independent.
 - The compatibility matrix is owned by `googa27/haircut-engine#65` and referenced in release notes.
