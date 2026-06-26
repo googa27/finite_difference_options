@@ -65,7 +65,7 @@ Cross-repository integration uses versioned wheels, contracts and parity fixture
 | Public examples import `src.*`; code mixes relative and `src.*` imports | Checkout behavior masks broken installation and split identity | Real package namespace and import cleanup under #51/#52 |
 | Legacy and newer processes, pricers, Greeks, boundaries and solvers coexist | Divergent semantics and duplicated fixes | One canonical implementation per capability under #52 |
 | `SolverFactory` routes primarily by process dimension | Dimension does not prove coefficient, BC, obstacle or scheme support | Capability predicates and explicit problem contracts |
-| `ADISolverWrapper` constructs dummy drift and hard-coded covariance | Numerically plausible but model-incorrect output | Remove from selectable routes; explicit coefficients under #59 |
+| `ADISolverWrapper` used to construct dummy drift and hard-coded covariance | Numerically plausible but model-incorrect output | Removed from selectable multidimensional routes under #43; complete ADI splitting and explicit result diagnostics continue under #46/#59 |
 | Generic 1D adapter guesses boundary conditions from `option_type` | Product assumptions hidden in numerical core | Typed BCs supplied by problem adapter |
 | Core requirements include FastAPI, Typer, Streamlit and plotting | Numerical consumers install unrelated application stacks | Separate published extras |
 | SciPy is only in development requirements | Runtime metadata does not match numerical implementation needs | Put actual numerical runtime dependencies in core metadata |
