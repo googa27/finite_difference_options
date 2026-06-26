@@ -225,6 +225,11 @@ def test_numerical_core_does_not_import_optional_app_or_visualization_stacks() -
     assert not violations, "Numerical core imported optional app/UI/visualization stacks: " + repr(violations)
 
 
+def test_base_package_import_surface_does_not_import_app_or_visualization_stacks() -> None:
+    forbidden = sorted(name for name in _imports(SRC_ROOT / "__init__.py") if _is_forbidden_core_import(name))
+    assert not forbidden, "Transitional src package initializer imported app/UI/reporting stacks: " + repr(forbidden)
+
+
 def test_ci_exposes_architecture_gate() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
     assert "tests/architecture" in workflow, "CI must run the architecture gate from tests/architecture."
