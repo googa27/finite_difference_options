@@ -66,6 +66,7 @@ FORBIDDEN_INTERNAL_APP_PACKAGES = {
     "api",
     "cli",
     "plotting",
+    "risk",
 }
 
 REQUIRED_ARCHITECTURE_PHRASES = {
@@ -159,9 +160,14 @@ def test_current_src_packages_are_declared_transition_baseline() -> None:
         if path.is_dir() and not path.name.startswith("__") and any(path.rglob("*.py"))
     }
     unexpected = actual - TRANSITIONAL_SRC_PACKAGES
+    missing = TRANSITIONAL_SRC_PACKAGES - actual
     assert not unexpected, (
         "New top-level src packages must be added to docs/ARCHITECTURE.md and the architecture "
         f"baseline before code lands. Unexpected packages: {sorted(unexpected)}"
+    )
+    assert not missing, (
+        "Removed top-level src packages must shrink docs/ARCHITECTURE.md and the architecture "
+        f"baseline in the same PR. Missing packages: {sorted(missing)}"
     )
 
 
@@ -172,6 +178,7 @@ def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
         "from ..plotting import Plotter\n"
         "from api import main\n"
         "from cli.main import app\n"
+        "from src.risk.reporting_strategies import ReportFactory\n"
         "import matplotlib.pyplot\n"
     )
     imports = _imports_from_tree(tree, SRC_ROOT / "pricing" / "example.py")
@@ -184,6 +191,8 @@ def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
         "api.main",
         "cli.main",
         "cli.main.app",
+        "src.risk.reporting_strategies",
+        "src.risk.reporting_strategies.ReportFactory",
     } <= imports
     assert all(
         _is_forbidden_core_import(name)
@@ -196,6 +205,8 @@ def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
             "api.main",
             "cli.main",
             "cli.main.app",
+            "src.risk.reporting_strategies",
+            "src.risk.reporting_strategies.ReportFactory",
             "matplotlib.pyplot",
         ]
     )
