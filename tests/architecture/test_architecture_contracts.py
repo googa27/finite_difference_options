@@ -135,6 +135,9 @@ def _without_src_prefix(import_name: str) -> str:
 
 
 def _is_forbidden_core_import(import_name: str) -> bool:
+    if import_name == "src":
+        return True
+
     top_level = import_name.split(".")[0]
     if top_level in FORBIDDEN_EXTERNAL_STACKS:
         return True
@@ -183,6 +186,7 @@ def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
     )
     imports = _imports_from_tree(tree, SRC_ROOT / "pricing" / "example.py")
     assert {
+        "src",
         "src.plotting",
         "src.plotting.plot_surface",
         "plotting",
@@ -197,6 +201,7 @@ def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
     assert all(
         _is_forbidden_core_import(name)
         for name in [
+            "src",
             "src.plotting",
             "src.plotting.plot_surface",
             "plotting",
