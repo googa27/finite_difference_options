@@ -72,6 +72,7 @@ Cross-repository integration uses versioned wheels, contracts and parity fixture
 | CI and contributor guidance rely on repository-root state and `.gemini_project` | Non-durable architecture/task source and weak wheel confidence | GitHub/docs/tests authoritative; clean-wheel CI |
 | Next.js client shares repository without explicit product boundary | Frontend lifecycle can couple numerical release | Independent app lock/API contract and optional CI |
 | `tests/test_unified_pricing_engine.py` was excluded from blocking CI while known regressions existed | Green main could hide unified-engine time-orientation, payoff-broadcasting or incompatible-route debt | Reintroduced under #72 with explicit calendar-time semantics, multidimensional European payoff-broadcast tests and strict issue-linked xfail quarantine for #45/#62 |
+| CI and Gemini automation were ambiguous about blocking vs advisory failures | External review quota/auth/tool failures could masquerade as package or numerical failures | `docs/CI_POLICY.md` defines the blocking `CI` workflow, optional Node profile, and advisory Gemini failure classification under #69 |
 
 ## 4. Architectural principles
 

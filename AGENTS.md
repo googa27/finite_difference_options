@@ -224,6 +224,8 @@ mypy .
 pytest -q
 ```
 
+The blocking pull-request/push baseline is documented in [`docs/CI_POLICY.md`](docs/CI_POLICY.md). That policy separates the fast stable Python regression suite, optional Node application profile, and advisory Gemini automation so documentation-only or narrowly-scoped numerical PRs are not forced to repay unrelated repository-wide debt.
+
 After package modernization, also require lock validation, `python -m build`, `twine check`, clean-wheel import tests and the Haircut backend conformance suite.
 
 Do not report an unconfigured or unrun gate as passing. Record the gap and owner issue.
