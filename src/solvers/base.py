@@ -130,12 +130,19 @@ class FiniteDifferenceSolverAdapter(Solver):
 
 
 class ADISolverWrapper(Solver):
-    """Wrapper for ADI solver to conform to Solver interface."""
-    
-    def __init__(self, adi_solver):
-        """Initialize wrapper with ADI solver."""
+    """Wrapper for ADI solver to conform to Solver interface.
+
+    The wrapper owns coefficient evaluation for the selected stochastic process.
+    It deliberately does not invent placeholder drift or covariance arrays: if a
+    process cannot provide coefficients with the expected shape, the route fails
+    before calling the ADI solver.
+    """
+
+    def __init__(self, adi_solver, *, process: StochasticProcess) -> None:
+        """Initialize wrapper with ADI solver and selected process."""
         self._adi_solver = adi_solver
-    
+        self._process = process
+
     def solve(
         self,
         initial_condition: NDArray[np.float64],
@@ -143,49 +150,73 @@ class ADISolverWrapper(Solver):
         *grids: NDArray[np.float64],
         time_grid: Optional[NDArray[np.float64]] = None,
     ) -> NDArray[np.float64]:
-        """Solve multi-dimensional PDE using ADI method."""
-        if time_grid is None:
+        """Solve a multi-dimensional PDE using process-derived coefficients."""
+        if time_grid is None or len(time_grid) == 0:
             n_time_steps = 100
             time_grid = np.linspace(0, instrument.maturity, n_time_steps + 1)
-        
-        # For this example, we'll use the existing ADI solver methods
-        if len(grids) == 2:
-            # Create dummy drift and covariance for 2D
-            grid_shape = np.meshgrid(*grids, indexing='ij')[0].shape
-            drift = np.zeros(grid_shape + (2,))
-            covariance = np.zeros(grid_shape + (2, 2))
-            # Set some basic values to make it work
-            covariance[..., 0, 0] = 0.04  # sigma^2 for first dimension
-            covariance[..., 1, 1] = 0.01  # sigma^2 for second dimension
-            
-            solution = self._adi_solver.solve_2d(
+
+        dimension = self._process.dimension.value
+        if dimension not in {2, 3}:
+            raise ValidationError(f"ADI wrapper supports only 2D and 3D processes, got {dimension}D")
+        if len(grids) != dimension:
+            raise ValidationError(f"Expected {dimension} grids for ADI solve, got {len(grids)}")
+
+        drift, covariance = self._build_process_coefficients(float(time_grid[-1]), grids)
+
+        if dimension == 2:
+            return self._adi_solver.solve_2d(
                 initial_condition=initial_condition,
                 drift=drift,
                 covariance=covariance,
                 time_grid=time_grid,
                 spatial_grids=grids,
             )
-            return solution
-        elif len(grids) == 3:
-            # Create dummy drift and covariance for 3D
-            grid_shape = np.meshgrid(*grids, indexing='ij')[0].shape
-            drift = np.zeros(grid_shape + (3,))
-            covariance = np.zeros(grid_shape + (3, 3))
-            # Set some basic values to make it work
-            covariance[..., 0, 0] = 0.04  # sigma^2 for first dimension
-            covariance[..., 1, 1] = 0.01  # sigma^2 for second dimension
-            covariance[..., 2, 2] = 0.005  # sigma^2 for third dimension
-            
-            solution = self._adi_solver.solve_3d(
-                initial_condition=initial_condition,
-                drift=drift,
-                covariance=covariance,
-                time_grid=time_grid,
-                spatial_grids=grids,
+
+        return self._adi_solver.solve_3d(
+            initial_condition=initial_condition,
+            drift=drift,
+            covariance=covariance,
+            time_grid=time_grid,
+            spatial_grids=grids,
+        )
+
+    def _build_process_coefficients(
+        self,
+        time: float,
+        grids: tuple[NDArray[np.float64], ...],
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        """Evaluate drift and covariance on the full tensor product grid."""
+        dimension = self._process.dimension.value
+        grid_shape = tuple(len(grid) for grid in grids)
+        mesh = np.meshgrid(*grids, indexing="ij")
+        states = np.stack([axis.reshape(-1) for axis in mesh], axis=-1)
+
+        drift = np.asarray(self._process.drift(time, states), dtype=float)
+        covariance = np.asarray(self._process.covariance(time, states), dtype=float)
+
+        expected_drift_shape = (states.shape[0], dimension)
+        expected_covariance_shape = (states.shape[0], dimension, dimension)
+        if drift.shape != expected_drift_shape:
+            raise ValidationError(
+                "process drift must have shape "
+                f"{expected_drift_shape} on the ADI state grid, got {drift.shape}"
             )
-            return solution
-        else:
-            raise ValidationError(f"Unsupported dimension: {len(grids)}")
+        if covariance.shape != expected_covariance_shape:
+            raise ValidationError(
+                "process covariance must have shape "
+                f"{expected_covariance_shape} on the ADI state grid, got {covariance.shape}"
+            )
+        if not np.all(np.isfinite(drift)):
+            raise ValidationError("process drift contains non-finite values on the ADI state grid")
+        if not np.all(np.isfinite(covariance)):
+            raise ValidationError("process covariance contains non-finite values on the ADI state grid")
+        if not np.allclose(covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12):
+            raise ValidationError("process covariance must be symmetric on the ADI state grid")
+
+        return (
+            drift.reshape(*grid_shape, dimension),
+            covariance.reshape(*grid_shape, dimension, dimension),
+        )
 
 
 class SolverFactory:
@@ -221,4 +252,4 @@ class SolverFactory:
             )
         else:
             adi_solver = ADISolver(theta=theta)
-            return ADISolverWrapper(adi_solver)
+            return ADISolverWrapper(adi_solver, process=process)
