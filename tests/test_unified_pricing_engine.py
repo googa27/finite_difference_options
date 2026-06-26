@@ -242,10 +242,12 @@ class TestUnifiedPricingEngine:
         # Check that prices are non-negative
         assert np.all(prices >= 0)
         
-        # Check terminal condition
-        s_mesh, v_mesh = np.meshgrid(s_grid, v_grid, indexing='ij')
-        terminal_payoff = option.payoff(s_grid, v_grid)
-        assert_allclose(prices[-1], terminal_payoff, rtol=1e-10)
+        # Check terminal condition.  European options depend only on the first
+        # state coordinate, so the engine broadcasts the first-grid payoff over
+        # variance/non-underlying dimensions before passing it to ADI.
+        terminal_payoff = option.payoff(s_grid).reshape(-1, 1)
+        expected_terminal = np.broadcast_to(terminal_payoff, (len(s_grid), len(v_grid)))
+        assert_allclose(prices[-1], expected_terminal, rtol=1e-10)
     
     def test_price_option_wrong_dimensions(self):
         """Test error with wrong number of grids."""
@@ -369,6 +371,14 @@ class TestConvenienceFunctions:
         # Should be roughly centered around 100
         center_idx = len(grid) // 2
         assert 90.0 <= grid[center_idx] <= 110.0
+
+    def test_create_log_grid_centered_stays_monotone_when_bounds_are_asymmetric(self):
+        """Centered log grids must not clamp after overshooting a bound."""
+        grid = create_log_grid(50.0, 150.0, 21, center=100.0)
+
+        assert grid[0] == 50.0
+        assert grid[-1] == 150.0
+        assert np.all(np.diff(grid) > 0)
     
     def test_create_linear_grid(self):
         """Test linear grid creation."""
@@ -448,6 +458,13 @@ class TestPricingEngineIntegration:
         assert 0.2 <= delta_atm <= 0.8
         assert vega_atm >= 0  # Vega should be positive for calls
     
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "#45/#62: Heston's second state is variance, not a second basket asset; "
+            "the route must fail closed before this integration can be promoted"
+        ),
+    )
     def test_basket_option_pricing_integration(self):
         """Test basket option pricing with 2D process."""
         # Use simple 2D process (could be extended to proper multi-asset model)
@@ -495,6 +512,16 @@ class TestErrorHandling:
         # Empty time grid should use default
         prices = engine.price_option(option, s_grid, time_grid=np.array([]))
         assert prices.shape[0] > 0  # Should create default time grid
+
+    def test_custom_time_grid_must_span_instrument_maturity(self):
+        """Custom grids must cover the full valuation-to-maturity horizon."""
+        process = create_black_scholes_process(0.05, 0.2)
+        engine = create_unified_pricing_engine(process)
+        option = create_unified_european_call(100.0, 0.25)
+        s_grid = create_log_grid(50.0, 150.0, 11)
+
+        with pytest.raises(ValidationError, match="span"):
+            engine.price_option(option, s_grid, time_grid=np.array([0.0, 0.10]))
     
     def test_boundary_condition_defaults(self):
         """Test that default boundary conditions are created."""

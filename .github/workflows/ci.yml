@@ -41,6 +41,7 @@ jobs:
             tests/test_plot_api.py \
             tests/test_plot_backends.py \
             tests/test_pricing_engine_imports.py \
+            tests/test_unified_pricing_engine.py \
             tests/test_unified_processes.py
 
   node:

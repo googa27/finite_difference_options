@@ -207,6 +207,13 @@ A benchmark records problem/grid/config hash, dimensions, nodes, nonzeros, time 
 
 Required layers are architecture, contract, unit, numerical, integration, shared parity, performance and packaging. Default numerical tests are deterministic and offline; API/UI/frontend tests are separate profiles.
 
+Unified-engine regression policy:
+
+- `tests/test_unified_pricing_engine.py` is part of the blocking stable regression suite.
+- Public unified-engine solutions are in calendar-time order: `prices[0]` is valuation time and `prices[-1]` is maturity/terminal payoff.
+- European options on multidimensional process grids use the first state coordinate as the underlying; terminal payoff broadcasting across non-underlying dimensions must be explicit in tests.
+- Any remaining unified-engine quarantine must use `pytest.mark.xfail(strict=True, reason="#<issue>: ...")` with a removal condition. Silent file-level exclusion is not allowed.
+
 Current repository commands include:
 
 ```bash
