@@ -4,7 +4,7 @@
 - **Template Version**: 1.0
 - **Project Type**: Quantitative Finance Library
 - **AI Maintenance**: Enabled
-- **Last Updated**: 2025-08-22T14:00:00-04:00
+- **Last Updated**: 2026-06-26T18:41:56-04:00
 
 ## Project Overview
 Unified multi-dimensional PDE pricing framework for financial derivatives using finite difference methods. Supports both 1D and multi-dimensional stochastic processes with automatic solver selection and comprehensive validation.
@@ -79,8 +79,8 @@ Unified multi-dimensional PDE pricing framework for financial derivatives using 
 - **Optional**: plotly (enhanced plotting)
 
 ## Testing Strategy
-- Unit tests for all process implementations
-- Integration tests for complete pricing workflows
-- Validation against analytical Black-Scholes solutions
-- Performance benchmarks for large grids
-- Regression tests for API stability
+- Blocking GitHub `CI` is documented in `docs/CI_POLICY.md` and currently consists of Python static smoke, architecture fitness, stable regression tests, and a presence-gated optional Node application profile.
+- Unit tests for process implementations and pricing workflows remain the near-term correctness baseline.
+- Validation against analytical Black-Scholes solutions is preferred where applicable.
+- Performance benchmarks and clean-wheel/package profiles are successor hardening work, not implicit requirements of every narrow PR.
+- Regression tests cover API stability and the unified pricing engine's calendar-time orientation.

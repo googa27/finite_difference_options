@@ -155,6 +155,7 @@ jobs:
       - name: 'Run Gemini PR Review'
         uses: 'google-github-actions/run-gemini-cli@v0'
         id: 'gemini_pr_review'
+        continue-on-error: true
         env:
           GITHUB_TOKEN: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
           GEMINI_CLI_TRUST_WORKSPACE: 'true'
@@ -456,16 +457,13 @@ jobs:
             Remember, you are running in a VM and no one reviewing your output. Your review must be posted to GitHub using the MCP tools to create a pending review, add comments to the pending review, and submit the pending review.
 
 
-      - name: 'Post PR review failure comment'
+      - name: 'Classify unavailable Gemini PR review as advisory'
         if: |-
-          ${{ failure() && steps.gemini_pr_review.outcome == 'failure' }}
-        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
-        with:
-          github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |-
-            github.rest.issues.createComment({
-              owner: '${{ github.repository }}'.split('/')[0],
-              repo: '${{ github.repository }}'.split('/')[1],
-              issue_number: '${{ steps.get_pr.outputs.pr_number || steps.get_pr_comment.outputs.pr_number }}',
-              body: 'There is a problem with the Gemini CLI PR review. Please check the [action logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
-            })
+          ${{ steps.gemini_pr_review.outcome == 'failure' }}
+        run: |-
+          cat >> "${GITHUB_STEP_SUMMARY}" <<'EOF'
+          ## Gemini PR review unavailable
+
+          The advisory Gemini PR review failed before producing repository findings. This workflow treats Gemini outages, authentication failures, quota exhaustion, and tool failures as advisory review-service events, not as Python/Node/package validation failures. Blocking repository validation remains owned by the `CI` workflow.
+          EOF
+          echo "::warning title=Gemini PR review unavailable::Advisory review failed before producing repository findings; inspect logs for quota/auth/config/tool details."

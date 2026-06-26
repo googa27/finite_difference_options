@@ -72,6 +72,7 @@ jobs:
       - name: 'Run Gemini Issue Analysis'
         uses: 'google-github-actions/run-gemini-cli@v0'
         id: 'gemini_issue_analysis'
+        continue-on-error: true
         env:
           GITHUB_TOKEN: '' # Do not pass any auth token here since this runs on untrusted inputs
           ISSUE_TITLE: '${{ github.event.issue.title }}'
@@ -133,7 +134,7 @@ jobs:
 
       - name: 'Apply Labels to Issue'
         if: |-
-          ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
+          ${{ steps.gemini_issue_analysis.outcome == 'success' && steps.gemini_issue_analysis.outputs.summary != '' }}
         env:
           REPOSITORY: '${{ github.repository }}'
           ISSUE_NUMBER: '${{ github.event.issue.number }}'
@@ -151,7 +152,7 @@ jobs:
               parsedLabels = JSON.parse(trimmedLabels);
               core.info(`Parsed labels JSON: ${JSON.stringify(parsedLabels)}`);
             } catch (err) {
-              core.setFailed(`Failed to parse labels JSON from Gemini output: ${err.message}\nRaw output: ${rawLabels}`);
+              core.warning(`Failed to parse labels JSON from Gemini output: ${err.message}. Leaving labels unchanged. Raw output: ${rawLabels}`);
               return;
             }
 
@@ -173,19 +174,13 @@ jobs:
               core.info(`No labels to set for #${issueNumber}, leaving as is${explanation}`);
             }
 
-      - name: 'Post Issue Analysis Failure Comment'
+      - name: 'Classify unavailable Gemini issue triage as advisory'
         if: |-
-          ${{ failure() && steps.gemini_issue_analysis.outcome == 'failure' }}
-        env:
-          ISSUE_NUMBER: '${{ github.event.issue.number }}'
-          RUN_URL: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}'
-        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
-        with:
-          github-token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
-          script: |-
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: parseInt(process.env.ISSUE_NUMBER),
-              body: 'There is a problem with the Gemini CLI issue triaging. Please check the [action logs](${process.env.RUN_URL}) for details.'
-            })
+          ${{ steps.gemini_issue_analysis.outcome == 'failure' }}
+        run: |-
+          cat >> "${GITHUB_STEP_SUMMARY}" <<'EOF'
+          ## Gemini issue triage unavailable
+
+          The advisory Gemini issue triage failed before producing trustworthy labels. Labels were left unchanged. Quota, authentication, configuration, and tool failures are review-service events, not repository validation failures.
+          EOF
+          echo "::warning title=Gemini issue triage unavailable::Advisory triage failed before producing labels; labels left unchanged."
