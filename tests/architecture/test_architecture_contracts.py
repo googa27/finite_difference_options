@@ -52,7 +52,7 @@ NUMERICAL_CORE_PACKAGES = {
     "validation",
 }
 
-FORBIDDEN_CORE_IMPORTS = {
+FORBIDDEN_EXTERNAL_STACKS = {
     "fastapi",
     "typer",
     "uvicorn",
@@ -60,6 +60,10 @@ FORBIDDEN_CORE_IMPORTS = {
     "matplotlib",
     "seaborn",
     "plotly",
+}
+
+FORBIDDEN_INTERNAL_APP_PACKAGES = {
+    "plotting",
 }
 
 REQUIRED_ARCHITECTURE_PHRASES = {
@@ -82,15 +86,61 @@ def _python_files(root: Path) -> list[Path]:
     )
 
 
-def _imports(path: Path) -> set[str]:
-    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+def _package_parts(path: Path) -> list[str]:
+    relative_module = path.relative_to(SRC_ROOT).with_suffix("")
+    parts = list(relative_module.parts)
+    if parts and parts[-1] == "__init__":
+        return parts[:-1]
+    return parts[:-1]
+
+
+def _resolve_import_from_base(path: Path, node: ast.ImportFrom) -> str:
+    module_parts = node.module.split(".") if node.module else []
+    if node.level == 0:
+        return ".".join(module_parts)
+
+    package_parts = _package_parts(path)
+    keep = max(0, len(package_parts) - node.level + 1)
+    return ".".join([*package_parts[:keep], *module_parts])
+
+
+def _imports_from_tree(tree: ast.AST, path: Path) -> set[str]:
     imports: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            imports.update(alias.name.split(".")[0] for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            imports.add(node.module.split(".")[0])
+            for alias in node.names:
+                imports.add(alias.name)
+                imports.add(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            base = _resolve_import_from_base(path, node)
+            if base:
+                imports.add(base)
+            for alias in node.names:
+                if alias.name == "*":
+                    continue
+                imports.add(f"{base}.{alias.name}" if base else alias.name)
     return imports
+
+
+def _imports(path: Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return _imports_from_tree(tree, path)
+
+
+def _without_src_prefix(import_name: str) -> str:
+    return import_name.removeprefix("src.")
+
+
+def _is_forbidden_core_import(import_name: str) -> bool:
+    top_level = import_name.split(".")[0]
+    if top_level in FORBIDDEN_EXTERNAL_STACKS:
+        return True
+
+    normalized = _without_src_prefix(import_name)
+    return any(
+        normalized == package or normalized.startswith(f"{package}.")
+        for package in FORBIDDEN_INTERNAL_APP_PACKAGES
+    )
 
 
 def test_architecture_document_exists_and_covers_required_transition_rules() -> None:
@@ -113,6 +163,21 @@ def test_current_src_packages_are_declared_transition_baseline() -> None:
     )
 
 
+def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
+    tree = ast.parse(
+        "from src import plotting\n"
+        "from src.plotting import plot_surface\n"
+        "from ..plotting import Plotter\n"
+        "import matplotlib.pyplot\n"
+    )
+    imports = _imports_from_tree(tree, SRC_ROOT / "pricing" / "example.py")
+    assert {"src.plotting", "src.plotting.plot_surface", "plotting", "plotting.Plotter"} <= imports
+    assert all(
+        _is_forbidden_core_import(name)
+        for name in ["src.plotting", "src.plotting.plot_surface", "plotting", "plotting.Plotter", "matplotlib.pyplot"]
+    )
+
+
 def test_numerical_core_does_not_import_optional_app_or_visualization_stacks() -> None:
     violations: dict[str, list[str]] = {}
     for package in sorted(NUMERICAL_CORE_PACKAGES):
@@ -120,7 +185,7 @@ def test_numerical_core_does_not_import_optional_app_or_visualization_stacks() -
         if not package_root.exists():
             continue
         for path in _python_files(package_root):
-            forbidden = sorted(_imports(path).intersection(FORBIDDEN_CORE_IMPORTS))
+            forbidden = sorted(name for name in _imports(path) if _is_forbidden_core_import(name))
             if forbidden:
                 violations[str(path.relative_to(ROOT))] = forbidden
     assert not violations, "Numerical core imported optional app/UI/visualization stacks: " + repr(violations)
