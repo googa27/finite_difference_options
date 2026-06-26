@@ -120,6 +120,10 @@ class UnifiedPricingEngine:
             raise ValidationError("time_grid must contain only finite values")
         if not np.all(np.diff(normalised) > 0):
             raise ValidationError("time_grid must be strictly increasing")
+        if not np.isclose(normalised[0], 0.0, rtol=0.0, atol=1e-12) or not np.isclose(
+            normalised[-1], maturity, rtol=1e-12, atol=1e-12
+        ):
+            raise ValidationError("time_grid must span [0, maturity]")
         return normalised
     
     def compute_greeks(
@@ -187,13 +191,17 @@ def create_log_grid(s_min: float, s_max: float, n_points: int, center: Optional[
         log_grid = np.linspace(log_min, log_max, n_points)
         grid = np.exp(log_grid)
     else:
-        # Create grid centered around center point
-        log_center = np.log(center)
-        log_range = max(np.log(center) - np.log(s_min), np.log(s_max) - np.log(center))
-        log_min = log_center - log_range
-        log_max = log_center + log_range
-        log_grid = np.linspace(log_min, log_max, n_points)
-        grid = np.exp(log_grid)
+        if not s_min < center < s_max:
+            raise ValidationError("center must lie strictly between s_min and s_max")
+
+        # Put the requested center at the middle node without ever extending
+        # past the supplied bounds.  A post-hoc endpoint clamp can make the
+        # last interval negative for asymmetric bounds such as [50, 150] around
+        # center=100, corrupting finite-difference stencils downstream.
+        center_idx = n_points // 2
+        left = np.exp(np.linspace(np.log(s_min), np.log(center), center_idx + 1))
+        right = np.exp(np.linspace(np.log(center), np.log(s_max), n_points - center_idx))
+        grid = np.concatenate([left[:-1], right])
 
     grid[0] = s_min
     grid[-1] = s_max

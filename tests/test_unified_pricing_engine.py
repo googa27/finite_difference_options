@@ -371,6 +371,14 @@ class TestConvenienceFunctions:
         # Should be roughly centered around 100
         center_idx = len(grid) // 2
         assert 90.0 <= grid[center_idx] <= 110.0
+
+    def test_create_log_grid_centered_stays_monotone_when_bounds_are_asymmetric(self):
+        """Centered log grids must not clamp after overshooting a bound."""
+        grid = create_log_grid(50.0, 150.0, 21, center=100.0)
+
+        assert grid[0] == 50.0
+        assert grid[-1] == 150.0
+        assert np.all(np.diff(grid) > 0)
     
     def test_create_linear_grid(self):
         """Test linear grid creation."""
@@ -504,6 +512,16 @@ class TestErrorHandling:
         # Empty time grid should use default
         prices = engine.price_option(option, s_grid, time_grid=np.array([]))
         assert prices.shape[0] > 0  # Should create default time grid
+
+    def test_custom_time_grid_must_span_instrument_maturity(self):
+        """Custom grids must cover the full valuation-to-maturity horizon."""
+        process = create_black_scholes_process(0.05, 0.2)
+        engine = create_unified_pricing_engine(process)
+        option = create_unified_european_call(100.0, 0.25)
+        s_grid = create_log_grid(50.0, 150.0, 11)
+
+        with pytest.raises(ValidationError, match="span"):
+            engine.price_option(option, s_grid, time_grid=np.array([0.0, 0.10]))
     
     def test_boundary_condition_defaults(self):
         """Test that default boundary conditions are created."""
