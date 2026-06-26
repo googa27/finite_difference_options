@@ -386,7 +386,7 @@ Benchmark metadata includes problem/grid/config hash, dimensions and node counts
 | Unit | Grids, stencil coefficients, boundary algebra, step matrices and failure paths |
 | Numerical | Manufactured/analytical solutions, convergence, invariants, ADI and Greeks |
 | Integration | End-to-end problem→operator→solve→result and optional apps |
-| Parity | Shared Haircut backend fixtures from #64 |
+| Parity | Shared Haircut backend fixtures from `googa27/haircut-engine#64` |
 | Performance | Accuracy-adjusted stage/memory regressions |
 | Packaging | sdist/wheel content, clean install and missing-extra behavior |
 
@@ -413,7 +413,7 @@ One Python version and one all-application environment do not establish library 
 ## 23. Compatibility and deprecation
 
 - Distribution API and Haircut solver-contract versions are independent.
-- The compatibility matrix is owned by Haircut #65 and referenced in release notes.
+- The compatibility matrix is owned by `googa27/haircut-engine#65` and referenced in release notes.
 - Unknown combinations are unsupported.
 - Public deprecations name replacement, warning version, removal version/date and migration example.
 - Shims contain no new numerical behavior.
