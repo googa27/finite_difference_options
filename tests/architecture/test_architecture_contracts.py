@@ -26,6 +26,7 @@ CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 # reflected in docs/ARCHITECTURE.md before code lands.
 TRANSITIONAL_SRC_PACKAGES = {
     "boundary_conditions",
+    "contracts",
     "exceptions",
     "greeks",
     "instruments",
@@ -41,6 +42,7 @@ TRANSITIONAL_SRC_PACKAGES = {
 
 NUMERICAL_CORE_PACKAGES = {
     "boundary_conditions",
+    "contracts",
     "exceptions",
     "greeks",
     "instruments",
