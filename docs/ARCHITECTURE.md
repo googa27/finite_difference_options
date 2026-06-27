@@ -326,6 +326,8 @@ Issue #79 adds the transitional `src/contracts/backend_capabilities.py` module a
 
 Unsupported dimensions, jump/PIDE or HJB/control terms, free-boundary/American exercise, unsupported Greeks, unsupported stability controls, and missing measure/numeraire/units/date conventions produce explicit unsupported-route diagnostics. They must not fall through to placeholder coefficients, guessed boundaries, or plausible-looking downgraded outputs.
 
+Issue #80 adds the public-synthetic Black-Scholes call parity fixture in `src/validation/black_scholes_parity.py`. The fixture defines its analytical oracle, convergence table, tolerance, boundary assumptions, resource controls, and `SolverEvidence` payload with route/backend/code/config/seed/convention fields. It uses only synthetic parameters and is part of the blocking CI stable suite so adapter/router evidence cannot drift silently.
+
 ## 17. Canonical implementation consolidation
 
 For every duplicated capability, choose one canonical path based on correctness evidence, API clarity and maintainability. The other path becomes:

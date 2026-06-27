@@ -20,6 +20,8 @@ The Python job uses Python 3.12 and reports failures by command group:
 4. stable regression suite:
    - boundary conditions;
    - callable bond;
+   - FD backend capability manifest;
+   - public-synthetic Black-Scholes parity/evidence fixture;
    - finite-difference Greeks;
    - Greeks;
    - multidimensional adapter coefficients;

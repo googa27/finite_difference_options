@@ -11,6 +11,7 @@ from .backend_capabilities import (
     diagnose_unsupported_route,
     ensure_route_supported,
 )
+from .solver_evidence import SolverEvidence
 
 __all__ = [
     "CapabilityStatus",
@@ -20,6 +21,7 @@ __all__ = [
     "UnsupportedReason",
     "UnsupportedRouteDiagnostic",
     "UnsupportedRouteError",
+    "SolverEvidence",
     "diagnose_unsupported_route",
     "ensure_route_supported",
 ]
