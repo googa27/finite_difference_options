@@ -322,6 +322,10 @@ Adapter lifecycle:
 
 The adapter imports no Haircut domain/application, PDP or delivery modules and advertises only tested capabilities.
 
+Issue #79 adds the transitional `src/contracts/backend_capabilities.py` module as the first executable FD adapter contract. It owns the data-only `FDCapabilityManifest`, `FDRouteRequest`, and `UnsupportedRouteDiagnostic` records used to screen QuantProblemSpec-style payloads before grid, operator, or ADI allocation. The default manifest intentionally advertises only validated FD/ADI capabilities: 1D/2D/3D uniform or log-uniform parabolic routes, drift/diffusion/reaction/source/mixed-derivative terms, Dirichlet/Neumann/Robin/second-derivative boundaries, European exercise, value/Delta/Gamma outputs, and theta/Crank-Nicolson/explicit/ADI controls.
+
+Unsupported dimensions, jump/PIDE or HJB/control terms, free-boundary/American exercise, unsupported Greeks, unsupported stability controls, and missing measure/numeraire/units/date conventions produce explicit unsupported-route diagnostics. They must not fall through to placeholder coefficients, guessed boundaries, or plausible-looking downgraded outputs.
+
 ## 17. Canonical implementation consolidation
 
 For every duplicated capability, choose one canonical path based on correctness evidence, API clarity and maintainability. The other path becomes:
@@ -396,7 +400,7 @@ Default tests are deterministic and offline. Frontend and service tests are sepa
 
 ## 22. Architecture fitness gates and CI release topology
 
-The baseline gate for #60 is `pytest -q tests/architecture`. It is intentionally ratcheted: it records the current transitional `src/*` surface, enforces the rule **No new root package under `src/`** unless `docs/ARCHITECTURE.md` and the gate baseline are updated, and prevents numerical-core modules from importing API, CLI, UI or plotting stacks.
+The baseline gate for #60 is `pytest -q tests/architecture`. It is intentionally ratcheted: it records the current transitional `src/*` surface, including the issue #79 `contracts` root for domain-neutral capability metadata, enforces the rule **No new root package under `src/`** unless `docs/ARCHITECTURE.md` and the gate baseline are updated, and prevents numerical-core modules from importing API, CLI, UI or plotting stacks.
 
 After package foundation #51 lands, the architecture gate must add the hard `src.*` import ban, package install/import smoke tests, and `deptry` or equivalent dependency-drift checks against PEP 621 metadata. Those follow-on checks are not optional; they are sequenced because the repository does not yet publish runtime metadata.
 
