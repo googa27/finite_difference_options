@@ -36,8 +36,10 @@ def test_docstring_example_heston_price_smoke() -> None:
     s_grid = create_log_grid(40.0, 220.0, 17, center=100.0)
     v_grid = np.linspace(0.01, 0.30, 8)
 
-    prices = engine.price_option(option, s_grid, v_grid)
-    assert prices.shape == (50, len(s_grid), len(v_grid))
+    time_grid = np.linspace(0.0, option.maturity, 10)
+
+    prices = engine.price_option(option, s_grid, v_grid, time_grid=time_grid)
+    assert prices.shape == (len(time_grid), len(s_grid), len(v_grid))
     assert np.all(np.isfinite(prices))
     assert np.all(prices >= 0.0)
 
