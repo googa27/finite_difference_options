@@ -31,6 +31,8 @@ jobs:
           pytest -q \
             tests/test_boundary_conditions.py \
             tests/test_callable_bond.py \
+            tests/test_fd_backend_capabilities.py \
+            tests/test_fd_black_scholes_parity_fixture.py \
             tests/test_finite_difference_greeks.py \
             tests/test_greeks.py \
             tests/test_multidimensional_adapter_coefficients.py \
