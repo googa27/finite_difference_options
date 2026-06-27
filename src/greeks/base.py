@@ -1,7 +1,8 @@
 """Greeks calculator interface for PDE pricing.
 
-This module defines the abstract interface for Greeks calculators
-in the unified pricing framework.
+The module exposes a small strategy surface that maps a computed price surface
+into first-order and second-order sensitivities (Delta/Gamma/Theta/Vega, where
+supported).
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from src.exceptions import ValidationError
 
 
 class GreeksCalculator(ABC):
-    """Abstract base class for computing option Greeks."""
+    """Abstract base class for computing option Greeks from price grids."""
 
     def calculate(
         self,
@@ -62,7 +63,11 @@ class GreeksCalculator(ABC):
 
 
 class FDCalculator1D(GreeksCalculator):
-    """Finite difference Greeks calculator for 1D processes."""
+    """Finite-difference Greeks calculator for one-dimensional processes.
+
+    Returns spatial Greeks with shape ``(n_s,)`` for Delta/Gamma and
+    ``(n_t, n_s)`` for Theta.
+    """
 
     def __init__(self) -> None:
         """Initialize calculator."""
@@ -123,7 +128,11 @@ class FDCalculator1D(GreeksCalculator):
 
 
 class FDCalculator2D(GreeksCalculator):
-    """Finite difference Greeks calculator for 2D processes."""
+    """Finite-difference Greeks calculator for two-dimensional processes.
+
+    The implementation returns Delta/Gamma/Vega as first-time-step spatial
+    slices (``(n_x, n_y)``) and Theta on the full time grid.
+    """
 
     def __init__(self) -> None:
         """Initialize calculator."""

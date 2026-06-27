@@ -1,4 +1,9 @@
-"""Typer-based command line interface for option pricing and plotting."""
+"""Typer-based command line interface for option pricing and plotting.
+
+The CLI is intentionally small and primarily serves smoke-test and manual
+exploration workflows. It wires together process construction, pricer execution,
+optionally computes Greeks, and can render heatmap/surface plots.
+"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -29,7 +34,15 @@ def price(
     t_steps: int = typer.Option(100, help="Number of time steps."),
     greeks: bool = typer.Option(False, help="Also compute Delta, Gamma and Theta."),
 ) -> None:
-    """Compute option price at ``s0`` and optionally Greeks."""
+    """Compute Black--Scholes option price (and optional Greeks) on an asset grid.
+
+    The command prints the interpolated spot price at ``s0``.
+
+    Notes
+    -----
+    Greeks, when requested, are extracted from the model grid result using the
+    same index as the price output.
+    """
     model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=strike, maturity=maturity, model=model)
@@ -67,7 +80,11 @@ def plot(
     output: Optional[Path] = typer.Option(  # noqa: B008
         None, help="Optional path to save the plot."),
 ) -> None:
-    """Render option value grid as a heatmap or surface plot."""
+    """Render option value grid as heatmap or 3D surface.
+
+    Output target: if ``--output`` is given, saves image to the path and returns
+    without interactive display.
+    """
     model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     option_cls = EuropeanCall if option_type == "Call" else EuropeanPut
     instrument = option_cls(strike=strike, maturity=maturity, model=model)

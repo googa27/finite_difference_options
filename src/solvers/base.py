@@ -1,7 +1,8 @@
 """Solver interface for PDE pricing.
 
-This module defines the abstract interface for PDE solvers
-in the unified pricing framework.
+This module defines the unified solver abstraction and concrete adapters used by
+pricing engines. Adapters translate the generic ":class:`Solver`" contract into
+underlying numerical implementations for finite differences and ADI.
 """
 from __future__ import annotations
 
@@ -25,7 +26,11 @@ from .finite_difference import (
 
 
 class Solver(ABC):
-    """Abstract base class for PDE solvers."""
+    """Abstract base class for PDE solvers.
+
+    Implementations should accept a terminal/initial payoff and return a full time
+    profile in the canonical orientation used by the rest of the stack.
+    """
     
     @abstractmethod
     def solve(
@@ -57,7 +62,12 @@ class Solver(ABC):
 
 
 class FiniteDifferenceSolverAdapter(Solver):
-    """Adapter exposing the finite difference solver through the unified API."""
+    """Adapter exposing the finite-difference solver through the unified API.
+
+    This adapter is intentionally conservative: only univariate (1D) spatial
+    problems are supported in this path. A :class:`ValidationError` is raised for
+    other dimensions rather than silently degrading behavior.
+    """
 
     def __init__(
         self,
@@ -66,6 +76,18 @@ class FiniteDifferenceSolverAdapter(Solver):
         time_stepper: TimeStepper | None = None,
         theta: float = 0.5,
     ) -> None:
+        """Create the 1D finite-difference adapter.
+
+        Parameters
+        ----------
+        process : StochasticProcess
+            Underlying model. It is used to build the spatial generator.
+        time_stepper : TimeStepper, optional
+            Optional custom time stepper. If omitted, defaults to
+            ``ThetaMethod(theta)``.
+        theta : float
+            Theta parameter used when ``time_stepper`` is not supplied.
+        """
         if time_stepper is None:
             time_stepper = ThetaMethod(theta)
 
@@ -80,6 +102,12 @@ class FiniteDifferenceSolverAdapter(Solver):
         *grids: NDArray[np.float64],
         time_grid: Optional[NDArray[np.float64]] = None,
     ) -> NDArray[np.float64]:
+        """Solve a 1D PDE and return solution ordered by valuation to maturity.
+
+        The wrapped :class:`FiniteDifferenceSolver` emits values in forward time,
+        so this adapter reverses the axis to keep ``prices[0]`` at valuation time
+        and ``prices[-1]`` at maturity, consistent with unified API docs.
+        """
         if len(grids) != 1:
             raise ValidationError("1D finite difference solver expects a single spatial grid")
 
@@ -131,16 +159,22 @@ class FiniteDifferenceSolverAdapter(Solver):
 
 
 class ADISolverWrapper(Solver):
-    """Wrapper for ADI solver to conform to Solver interface.
+    """Wrapper for ADI solvers to conform to the unified :class:`Solver` interface.
 
-    The wrapper owns coefficient evaluation for the selected stochastic process.
-    It deliberately does not invent placeholder drift or covariance arrays: if a
-    process cannot provide coefficients with the expected shape, the route fails
-    before calling the ADI solver.
+    Supported dimensions are 2D/3D. The wrapper validates shape consistency and
+    covariance definiteness before dispatching to the underlying ADI implementation.
     """
 
     def __init__(self, adi_solver, *, process: StochasticProcess) -> None:
-        """Initialize wrapper with ADI solver and selected process."""
+        """Initialize wrapper with ADI solver and selected process.
+
+        Parameters
+        ----------
+        adi_solver
+            Concrete ADI implementation.
+        process
+            Multi-dimensional stochastic process providing drift and covariance.
+        """
         self._adi_solver = adi_solver
         self._process = process
 
@@ -227,7 +261,13 @@ class ADISolverWrapper(Solver):
 
 
 class SolverFactory:
-    """Factory for creating appropriate solvers."""
+    """Factory for creating appropriate solvers.
+
+    Current production recommendation:
+    - 1D processes use the finite-difference adapter.
+    - 2D/3D processes route to ADI.
+    - Any unsupported dimension intentionally fails with a typed validation error.
+    """
     
     @staticmethod
     def create_solver(
@@ -235,15 +275,17 @@ class SolverFactory:
         theta: float = 0.5,
         time_stepper: TimeStepper | None = None,
     ) -> Solver:
-        """Create appropriate solver for process.
-        
+        """Create an appropriate solver for the supplied process.
+
         Parameters
         ----------
         process : StochasticProcess
             Stochastic process for the underlying asset(s).
         theta : float, optional
             Implicitness parameter for finite difference methods.
-            
+        time_stepper : TimeStepper | None
+            Optional time stepper override for the 1D finite-difference adapter.
+
         Returns
         -------
         Solver

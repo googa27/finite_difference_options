@@ -1,12 +1,22 @@
 """Unified pricing engine for multi-dimensional option pricing.
 
-This module provides a unified framework for pricing options using various
-stochastic processes through a dimension-agnostic interface.
+The unified engine handles one- to three-dimensional processes via a single
+interface and normalises time/space input before dispatching to the selected
+solver.
+
+Current production guidance
+--------------------------
+
+- Univariate problems route to the finite-difference adapter.
+- Multi-dimensional problems route to ADI implementations where available.
+- Solver output is in calendar-time order where index 0 is valuation time.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -19,94 +29,142 @@ from ...solvers.base import Solver, SolverFactory
 @dataclass
 class UnifiedPricingEngine:
     """Unified pricing engine for multi-dimensional processes.
-    
-    This engine automatically selects appropriate solvers based on
-    the process dimension and provides a consistent interface for
-    pricing various financial instruments.
-    
+
+    The engine performs lightweight input normalisation and delegates numerical
+    work to a concrete solver from :mod:`src.solvers.base`.
+
+    Notes
+    -----
+    The returned price arrays are in calendar-time order:
+
+    - index 0: valuation time (time 0)
+    - index -1: maturity/terminal time
+
+    Use ``create_unified_pricing_engine`` to obtain a default engine configured
+    with the auto-selected solver.
+
     Parameters
     ----------
     process : StochasticProcess
         Stochastic process for the underlying asset(s).
-    solver : Optional
-        PDE solver (auto-selected if None).
+    solver : Optional[Solver]
+        PDE solver to use (defaults to auto-selection by process dimension).
     """
-    
+
     process: StochasticProcess
     solver: Optional[Solver] = None
-    
+
     def __post_init__(self) -> None:
-        """Initialize pricing engine."""
+        """Initialise engine and auto-select the solver if missing."""
         if self.solver is None:
             self.solver = SolverFactory.create_solver(self.process)
-    
+
     def price_option(
         self,
         instrument: UnifiedInstrument,
         *grids: NDArray[np.float64],
         time_grid: Optional[NDArray[np.float64]] = None,
     ) -> NDArray[np.float64]:
-        """Price option using unified framework.
-        
+        """Price an option via the configured solver.
+
+        Examples
+        --------
+        Price a Black--Scholes call with a default grid:
+
+        >>> from src.processes.affine import create_black_scholes_process
+        >>> from src.pricing.engines.unified import (
+        ...     create_unified_pricing_engine,
+        ...     create_log_grid,
+        ... )
+        >>> from src.pricing.instruments.options import create_unified_european_call
+        >>> process = create_black_scholes_process(mu=0.03, sigma=0.2)
+        >>> engine = create_unified_pricing_engine(process)
+        >>> option = create_unified_european_call(strike=100.0, maturity=1.0)
+        >>> grid = create_log_grid(20.0, 200.0, 51)
+        >>> times = np.linspace(0, 1.0, 8)
+        >>> value_slice = engine.price_option(option, grid, time_grid=times)[-1]
+
         Parameters
         ----------
         instrument : UnifiedInstrument
-            Financial instrument to price.
+            Option contract to price.
         *grids : NDArray[np.float64]
-            Spatial grids for each dimension.
+            One spatial grid per process dimension.
         time_grid : NDArray[np.float64], optional
-            Time grid for evolution.
-            
+            Monotone calendar-time grid on ``[0, maturity]``.
+
         Returns
         -------
         NDArray[np.float64]
-            Option prices on the spatial grid.
+            Prices on all time slices (calendar-time order).
         """
         if len(grids) == 0:
             raise ValidationError("At least one spatial grid required")
 
         time_grid = self._normalise_time_grid(time_grid, instrument.maturity)
-        
-        # Validate grid dimensions match process dimension
+
         if len(grids) != self.process.dimension.value:
             raise ValidationError(
                 f"Expected {self.process.dimension.value} grids, got {len(grids)}"
             )
-        
-        # Get initial condition (payoff at maturity)
-        # For multi-dimensional case, we need to create a meshgrid
+
         if len(grids) == 1:
             initial_condition = instrument.payoff(grids[0])
         else:
-            mesh_grids = np.meshgrid(*grids, indexing='ij')
-            # Flatten the meshgrid to pass to payoff function
+            mesh_grids = np.meshgrid(*grids, indexing="ij")
             flattened_grids = [grid.flatten() for grid in mesh_grids]
-            # Reshape back to grid shape
             grid_shape = mesh_grids[0].shape
             initial_condition = instrument.payoff(*flattened_grids).reshape(grid_shape)
-        
-        # Solve PDE using the abstract solver interface
+
         solution = self.solver.solve(
             initial_condition,
             instrument,
             *grids,
-            time_grid=time_grid
+            time_grid=time_grid,
         )
-        
+
         return solution
+
+    def compute_greeks(
+        self,
+        prices: NDArray[np.float64],
+        *grids: NDArray[np.float64],
+        time_grid: Optional[NDArray[np.float64]] = None,
+    ) -> Dict[str, NDArray[np.float64]]:
+        """Compute option Greeks from a precomputed price surface.
+
+        Parameters
+        ----------
+        prices : NDArray[np.float64]
+            Option prices on the corresponding spatial/time grid.
+        *grids : NDArray[np.float64]
+            Spatial grids used for pricing.
+        time_grid : NDArray[np.float64], optional
+            Calendar-time grid. If omitted, defaults to the default solver grid.
+
+        Returns
+        -------
+        Dict[str, NDArray[np.float64]]
+            Mapping with common Greeks ``delta``, ``gamma``, ``theta`` etc.
+        """
+        from ...greeks.base import GreeksCalculatorFactory
+
+        calculator = GreeksCalculatorFactory.create_calculator(self.process)
+        return calculator.calculate(prices, *grids, time_grid=time_grid)
 
     @staticmethod
     def _normalise_time_grid(
         time_grid: Optional[NDArray[np.float64]],
         maturity: float,
     ) -> NDArray[np.float64]:
-        """Return a governed increasing calendar-time grid over ``[0, maturity]``.
+        """Normalise an optional user-supplied time grid.
 
-        Public unified-engine solutions are in calendar-time order: index 0 is
-        valuation time and index -1 is maturity/terminal payoff. Solver
-        adapters may internally use forward time-to-maturity, but the engine
-        passes an explicit validated grid so default handling is not hidden in
-        adapter-specific branches.
+        The helper enforces
+
+        - one-dimensional input,
+        - finite values,
+        - strict monotonicity,
+        - boundaries ``0`` and ``maturity``.
         """
         if time_grid is None or len(time_grid) == 0:
             return np.linspace(0.0, maturity, 50)
@@ -125,66 +183,44 @@ class UnifiedPricingEngine:
         ):
             raise ValidationError("time_grid must span [0, maturity]")
         return normalised
-    
-    def compute_greeks(
-        self,
-        prices: NDArray[np.float64],
-        *grids: NDArray[np.float64],
-        time_grid: Optional[NDArray[np.float64]] = None,
-    ) -> Dict[str, NDArray[np.float64]]:
-        """Compute option Greeks using finite differences.
-        
-        Parameters
-        ----------
-        prices : NDArray[np.float64]
-            Option prices on the grid.
-        *grids : NDArray[np.float64]
-            Spatial grids.
-        time_grid : NDArray[np.float64], optional
-            Time grid.
-            
-        Returns
-        -------
-        Dict[str, NDArray[np.float64]]
-            Dictionary of Greeks.
-        """
-        from ...greeks.base import GreeksCalculatorFactory
-        
-        # Create appropriate Greeks calculator
-        calculator = GreeksCalculatorFactory.create_calculator(self.process)
-        
-        # Calculate Greeks
-        greeks = calculator.calculate(prices, *grids, time_grid=time_grid)
-        
-        return greeks
 
 
 # Convenience functions
+
 def create_unified_pricing_engine(process: StochasticProcess) -> UnifiedPricingEngine:
-    """Create unified pricing engine with auto-selected solver."""
+    """Create a unified pricing engine with auto-selected solver."""
+
     return UnifiedPricingEngine(process=process)
 
 
-# Grid utility functions
-def create_log_grid(s_min: float, s_max: float, n_points: int, center: Optional[float] = None) -> NDArray[np.float64]:
-    """Create logarithmically spaced grid.
-    
+def create_log_grid(
+    s_min: float, s_max: float, n_points: int, center: Optional[float] = None
+) -> NDArray[np.float64]:
+    """Create a logarithmically spaced positive grid.
+
     Parameters
     ----------
     s_min : float
-        Minimum value of the grid.
+        Lower grid bound, must be positive.
     s_max : float
-        Maximum value of the grid.
+        Upper grid bound, greater than ``s_min``.
     n_points : int
-        Number of points in the grid.
+        Number of grid points.
     center : float, optional
-        Center point for the grid. If provided, the grid will be centered around this point.
-        
+        Optional central point inserted at the midpoint index.
+
     Returns
     -------
     NDArray[np.float64]
-        Logarithmically spaced grid.
+        Monotone log-spaced grid.
     """
+    if s_min <= 0:
+        raise ValidationError("s_min must be positive")
+    if s_max <= s_min:
+        raise ValidationError("s_max must be greater than s_min")
+    if n_points < 2:
+        raise ValidationError("n_points must be at least 2")
+
     if center is None:
         log_min = np.log(s_min)
         log_max = np.log(s_max)
@@ -194,10 +230,6 @@ def create_log_grid(s_min: float, s_max: float, n_points: int, center: Optional[
         if not s_min < center < s_max:
             raise ValidationError("center must lie strictly between s_min and s_max")
 
-        # Put the requested center at the middle node without ever extending
-        # past the supplied bounds.  A post-hoc endpoint clamp can make the
-        # last interval negative for asymmetric bounds such as [50, 150] around
-        # center=100, corrupting finite-difference stencils downstream.
         center_idx = n_points // 2
         left = np.exp(np.linspace(np.log(s_min), np.log(center), center_idx + 1))
         right = np.exp(np.linspace(np.log(center), np.log(s_max), n_points - center_idx))
@@ -209,5 +241,24 @@ def create_log_grid(s_min: float, s_max: float, n_points: int, center: Optional[
 
 
 def create_linear_grid(x_min: float, x_max: float, n_points: int) -> NDArray[np.float64]:
-    """Create linearly spaced grid."""
+    """Create a linearly spaced grid.
+
+    Parameters
+    ----------
+    x_min : float
+        Lower bound.
+    x_max : float
+        Upper bound.
+    n_points : int
+        Number of points.
+
+    Returns
+    -------
+    NDArray[np.float64]
+        Uniformly spaced values between ``x_min`` and ``x_max``.
+    """
+    if n_points < 2:
+        raise ValidationError("n_points must be at least 2")
+    if x_max <= x_min:
+        raise ValidationError("x_max must be greater than x_min")
     return np.linspace(x_min, x_max, n_points)

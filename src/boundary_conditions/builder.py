@@ -1,8 +1,11 @@
 """Utilities for constructing boundary conditions.
 
 This module provides helpers to build boundary conditions for the
-Black--Scholes PDE solver.  The implementation lives in its own module to
-respect the single responsibility principle.
+Black--Scholes PDE solver.  The implementation is separated from core
+solver code to keep BC policy explicit and testable.
+
+These builders currently cover univariate spatial boundaries only and are not a
+full taxonomy of generic multidimensional boundary strategies.
 """
 from __future__ import annotations
 
@@ -19,13 +22,15 @@ if TYPE_CHECKING:
 
 @dataclass
 class BlackScholesBoundaryBuilder:
-    """Factory for boundary conditions in the Black--Scholes model.
+    """Build boundary conditions for standard univariate Black--Scholes grids.
 
-    The builder creates first- or second-order boundary conditions depending
-    on the option type:
+    The convention used is:
 
-    * Left boundary: gamma equals zero.
-    * Right boundary: delta tends to +1 for calls and 0 for puts.
+    * Left boundary (``s=0``): second derivative (gamma) set to zero.
+    * Right boundary: first derivative (delta) equals 1 for calls, 0 for puts.
+
+    Unknown option contract types are defaulted to second-derivative zero at the
+    right boundary (Neumann-like fallback).
     """
 
     def build(
@@ -41,6 +46,11 @@ class BlackScholesBoundaryBuilder:
             Spatial grid for the underlying asset price.
         option:
             Option contract whose payoff determines the boundary behaviour.
+
+        Returns
+        -------
+        BoundaryConditions
+            Findiff boundary-condition container configured for the chosen option.
         """
         ds = s[1] - s[0]
         bc = BoundaryConditions(s.shape)

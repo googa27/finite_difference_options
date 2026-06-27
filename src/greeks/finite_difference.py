@@ -9,12 +9,15 @@ from .base import GreeksCalculator
 
 
 class FiniteDifferenceGreeks(GreeksCalculator):
-    """Compute option Greeks using finite difference approximations.
+    """Compute option Greeks using finite-difference approximations.
 
-    The price grid is assumed to have shape ``(len(t), len(s))`` where the first
-    axis represents time to maturity and the second axis the underlying asset
-    price.  Central differences are used in the interior of the grid and
-    one–sided second order approximations are applied at the boundaries.
+    The price grid is assumed to have shape ``(n_t, n_s[, n_v])`` where axis 0 is
+    time and the remaining axes are spatial dimensions.
+
+    Notes
+    -----
+    These methods are intentionally generic; they do not assume a specific
+    diffusion model and therefore operate purely on the provided numeric grids.
     """
 
     def _validate_price_grid(self, grid: NDArray[np.float64]) -> None:
