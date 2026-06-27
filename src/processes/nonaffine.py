@@ -1,7 +1,11 @@
-"""Non-affine stochastic processes implementation.
+"""Non-affine stochastic process models.
 
-This module contains implementations of non-affine stochastic processes
-that don't fit the linear drift/affine covariance structure.
+This module provides two-factor and one-factor process implementations with
+state-dependent coefficients that are not representable as globally affine forms.
+
+These models are primarily used when closed-form affine drift/covariance
+factorisations are unavailable but finite-difference numerics can still be
+constructed.
 """
 from __future__ import annotations
 
@@ -17,18 +21,16 @@ from ..utils.state_handling import validate_positive_state_components
 
 
 class ConstantElasticityVariance(NonAffineProcess, BaseModel):
-    """Constant Elasticity of Variance (CEV) process.
-    
-    dS = μS dt + σS^β dW
-    
-    Parameters
-    ----------
-    mu : float
-        Drift parameter.
-    sigma : float
-        Volatility parameter.
-    beta : float
-        Elasticity parameter (0 ≤ β ≤ 1).
+    r"""Constant Elasticity of Variance (CEV) process.
+
+    .. math::
+
+       dS_t = \mu S_t dt + \sigma S_t^{\beta} dW_t
+
+    Notes
+    -----
+    ``beta=1`` recovers geometric Brownian motion; ``beta<1`` increases leverage
+    in the diffusion term as spot decreases.
     """
     
     mu: float
@@ -56,7 +58,7 @@ class ConstantElasticityVariance(NonAffineProcess, BaseModel):
         return ProcessDimension(value=1)
     
     def drift(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
-        """CEV drift μ(S) = μS."""
+        r"""Compute CEV drift :math:`\mu S_t` for each input state point."""
         self.validate_state(state)
         
         if state.ndim == 1:
@@ -65,7 +67,13 @@ class ConstantElasticityVariance(NonAffineProcess, BaseModel):
             return self.mu * state[:, 0:1]
     
     def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
-        """CEV covariance Σ(S) = σ²S^(2β)."""
+        r"""Compute CEV covariance :math:`\sigma^2 S_t^{2\beta}`.
+
+        Returns
+        -------
+        NDArray[np.float64]
+            Matrix of shape ``(1,1)`` or ``(n, 1, 1)``.
+        """
         self.validate_state(state)
         
         if state.ndim == 1:
@@ -80,21 +88,20 @@ class ConstantElasticityVariance(NonAffineProcess, BaseModel):
 
 
 class SABRModel(NonAffineProcess, BaseModel):
-    """SABR (Stochastic Alpha Beta Rho) model.
-    
-    dF = σF^β dW₁
-    dσ = ασ dW₂
-    
-    with correlation ρ between W₁ and W₂.
-    
-    Parameters
-    ----------
-    alpha : float
-        Volatility of volatility.
-    beta : float
-        CEV exponent (0 ≤ β ≤ 1).
-    rho : float
-        Correlation between forward and volatility.
+    r"""SABR (Stochastic Alpha Beta Rho) model.
+
+    In two-factor form with state ``(F, sigma)``:
+
+    .. math::
+
+       dF_t = \sigma_t F_t^{\beta} dW_t^{(1)}
+       d\sigma_t = \alpha \sigma_t dW_t^{(2)}
+       dW_t^{(1)} dW_t^{(2)} = \rho dt
+
+    Notes
+    -----
+    The implementation assumes risk-neutral forward drift for the chosen
+    convention and validates ``alpha``, ``beta`` and ``rho`` at construction.
     """
     
     alpha: float
@@ -113,7 +120,11 @@ class SABRModel(NonAffineProcess, BaseModel):
         return ProcessDimension(value=2)
     
     def drift(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
-        """SABR drift (zero drift for martingale processes)."""
+        """Return SABR model drift vector.
+
+        In this simplified implementation, risk-neutral forward drift is assumed
+        to be zero for the two state coordinates.
+        """
         self.validate_state(state)
         
         if state.ndim == 1:
@@ -123,7 +134,7 @@ class SABRModel(NonAffineProcess, BaseModel):
             return np.zeros((batch_size, 2))
     
     def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
-        """SABR covariance matrix."""
+        """Compute SABR diffusion matrix for each state point."""
         self.validate_state(state)
         
         if state.ndim == 1:
@@ -159,10 +170,10 @@ class SABRModel(NonAffineProcess, BaseModel):
 
 # Convenience functions
 def create_cev_process(mu: float, sigma: float, beta: float) -> ConstantElasticityVariance:
-    """Create CEV process."""
+    """Create a single-factor CEV process instance."""
     return ConstantElasticityVariance(mu=mu, sigma=sigma, beta=beta)
 
 
 def create_sabr_model(alpha: float, beta: float, rho: float) -> SABRModel:
-    """Create SABR model."""
+    """Create a two-factor SABR model instance."""
     return SABRModel(alpha=alpha, beta=beta, rho=rho)

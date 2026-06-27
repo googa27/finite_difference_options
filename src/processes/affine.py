@@ -1,7 +1,14 @@
-"""Affine stochastic processes implementation.
+"""Affine stochastic process models.
 
-This module contains implementations of common affine stochastic processes
-used in quantitative finance, utilizing the new validation utilities.
+The classes and helpers in this module define common affine SDE models used by
+pricing solvers.  All models expose dimensioned drift and covariance terms that
+are compatible with the finite-difference operator builders.
+
+Each model follows the ``StochasticProcess`` contract:
+
+- ``drift`` and ``covariance`` use the shared calendar-time convention
+- state is ``(d,)`` for a single point or ``(n, d)`` for a batch
+- validated parameters are stored immutably (Pydantic ``frozen`` models)
 """
 from __future__ import annotations
 
@@ -22,16 +29,24 @@ from ..utils.state_handling import validate_positive_state_components
 
 
 class GeometricBrownianMotion(AffineProcess, BaseModel):
-    """Geometric Brownian Motion process.
-    
-    dS = μS dt + σS dW
-    
-    Parameters
-    ----------
-    mu : float
-        Drift parameter.
-    sigma : float
-        Volatility parameter.
+    r"""Geometric Brownian Motion:
+
+    .. math::
+
+       dS_t = \mu S_t dt + \sigma S_t dW_t
+
+    Notes
+    -----
+    This is the Black--Scholes process used for vanilla equity dynamics.
+
+    Examples
+    --------
+    >>> from src.processes.affine import GeometricBrownianMotion
+    >>> gbm = GeometricBrownianMotion(mu=0.03, sigma=0.2)
+    >>> gbm.dimension.value
+    1
+    >>> gbm.drift(0.0, [100.0]).shape
+    (1,)
     """
     
     mu: float
@@ -71,18 +86,15 @@ class GeometricBrownianMotion(AffineProcess, BaseModel):
 
 
 class OrnsteinUhlenbeck(AffineProcess, BaseModel):
-    """Ornstein-Uhlenbeck process.
-    
-    dr = κ(θ - r) dt + σ dW
-    
-    Parameters
-    ----------
-    kappa : float
-        Mean reversion speed.
-    theta : float
-        Long-term mean.
-    sigma : float
-        Volatility parameter.
+    r"""Ornstein--Uhlenbeck (Vasicek) process.
+
+    .. math::
+
+       dr_t = \kappa(\theta - r_t)dt + \sigma dW_t
+
+    Notes
+    -----
+    The state is interpreted as short rate in calendar time.
     """
     
     kappa: float
@@ -129,18 +141,14 @@ class OrnsteinUhlenbeck(AffineProcess, BaseModel):
 
 
 class CoxIngersollRoss(AffineProcess, BaseModel):
-    """Cox-Ingersoll-Ross process.
-    
-    dr = κ(θ - r) dt + σ√r dW
-    
-    Parameters
-    ----------
-    kappa : float
-        Mean reversion speed.
-    theta : float
-        Long-term mean.
-    sigma : float
-        Volatility parameter.
+    r"""Cox--Ingersoll--Ross (CIR) short-rate model.
+
+    .. math::
+
+       dr_t = \kappa(\theta-r_t)dt + \sigma\sqrt{r_t} dW_t
+
+    The Feller condition is validated at construction time to avoid negative
+    variance under idealized analytical assumptions.
     """
     
     kappa: float
@@ -203,27 +211,21 @@ class CoxIngersollRoss(AffineProcess, BaseModel):
 
 
 class HestonModel(AffineProcess, BaseModel):
-    """Heston stochastic volatility model.
-    
-    dS = rS dt + √V S dW₁
-    dV = κ(θ - V) dt + σ√V dW₂
-    
-    with correlation ρ between W₁ and W₂.
-    
-    Parameters
-    ----------
-    risk_free_rate : float
-        Risk-free interest rate.
-    kappa : float
-        Mean reversion speed of variance.
-    theta : float
-        Long-term variance.
-    sigma : float
-        Volatility of volatility.
-    rho : float
-        Correlation between asset and variance.
-    dividend_yield : float, optional
-        Dividend yield.
+    r"""Two-factor Heston stochastic-volatility model.
+
+    Equations
+    ---------
+
+    .. math::
+
+       dS_t = (r - q)S_t dt + \sqrt{v_t} S_t dW_t^{(1)}
+       dv_t = \kappa(\theta-v_t)dt + \sigma\sqrt{v_t} dW_t^{(2)}
+       dW_t^{(1)} dW_t^{(2)} = \rho dt
+
+    Notes
+    -----
+    The state vector is ``(S, v)`` and both coordinates are validated for
+    non-negativity where applicable.
     """
     
     risk_free_rate: float
@@ -300,17 +302,38 @@ class HestonModel(AffineProcess, BaseModel):
 
 # Convenience functions for creating common processes
 def create_black_scholes_process(mu: float, sigma: float) -> GeometricBrownianMotion:
-    """Create Black-Scholes (GBM) process."""
+    """Create a one-factor Black--Scholes process.
+
+    Parameters
+    ----------
+    mu : float
+        Drift under pricing measure.
+    sigma : float
+        Spot volatility.
+
+    Returns
+    -------
+    GeometricBrownianMotion
+        Configured process instance.
+    """
     return GeometricBrownianMotion(mu=mu, sigma=sigma)
 
 
 def create_vasicek_process(kappa: float, theta: float, sigma: float) -> OrnsteinUhlenbeck:
-    """Create Vasicek (OU) process."""
+    """Create a Vasicek short-rate process.
+
+    This is the canonical one-factor affine short-rate configuration used for
+    simple fixed-income sanity checks.
+    """
     return OrnsteinUhlenbeck(kappa=kappa, theta=theta, sigma=sigma)
 
 
 def create_cir_process(kappa: float, theta: float, sigma: float) -> CoxIngersollRoss:
-    """Create CIR process."""
+    """Create a CIR short-rate process.
+
+    Parameters are validated against the Feller condition; the caller receives an
+    exception early if positivity constraints are not satisfied.
+    """
     return CoxIngersollRoss(kappa=kappa, theta=theta, sigma=sigma)
 
 
@@ -322,7 +345,11 @@ def create_standard_heston(
     rho: float = -0.7,
     dividend_yield: float = 0.0
 ) -> HestonModel:
-    """Create standard Heston model with typical parameters."""
+    """Create a standard Heston model with conservative defaults.
+
+    The defaults are a common starting point for regression tests and documentation
+    examples, not a calibrated production set.
+    """
     return HestonModel(
         risk_free_rate=r,
         kappa=kappa,

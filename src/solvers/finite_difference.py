@@ -1,5 +1,9 @@
-"""Finite difference solvers and time-stepping schemes."""
+"""Finite difference solvers and time-stepping schemes.
+
+Core PDE stepping primitives used by :mod:`src.solvers.base`.
+"""
 from __future__ import annotations
+
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -10,7 +14,7 @@ from numpy.typing import NDArray
 
 
 class TimeStepper(ABC):
-    """Abstract base class for time stepping schemes."""
+    """Abstract base class for one-step time integration schemes."""
 
     @abstractmethod
     def step(
@@ -25,7 +29,11 @@ class TimeStepper(ABC):
 
 @dataclass
 class ThetaMethod(TimeStepper):
-    """Generic :math:`\theta`-method time integrator."""
+    """Generic :math:`\theta`-method time integrator.
+
+    ``theta=0`` gives explicit Euler, ``theta=0.5`` Crank--Nicolson,
+    ``theta=1`` implicit Euler.
+    """
 
     theta: float
 
@@ -58,7 +66,11 @@ class CrankNicolson(ThetaMethod):
 
 
 class PDESolver(ABC):
-    """Abstract base class for PDE solving engines."""
+    """Abstract base class for finite-difference PDE engines.
+
+    Concrete solvers should map a generator and boundary-condition object into an
+    array of temporal solutions.
+    """
 
     @abstractmethod
     def solve(
@@ -69,12 +81,28 @@ class PDESolver(ABC):
         initial_conditions: NDArray[np.float64],
         time_grid: NDArray[np.float64],
     ) -> NDArray[np.float64]:
-        """Solve the PDE with given conditions."""
+        """Solve PDE coefficients starting from ``initial_conditions``.
+
+        Parameters
+        ----------
+        generator
+            Spatial differential operator from ``findiff``.
+        boundary_conditions
+            Boundary condition container.
+        initial_conditions
+            Values at the first time slice.
+        time_grid
+            Monotone time grid in calendar time.
+        """
 
 
 @dataclass
 class FiniteDifferenceSolver(PDESolver):
-    """Finite difference PDE solver using a supplied time-stepper."""
+    """Finite difference PDE solver using a supplied time-stepper.
+
+    The implementation assumes a single spatial axis and fixed time-step size in
+    ``time_grid``.
+    """
 
     time_stepper: TimeStepper
 
@@ -102,7 +130,10 @@ class FiniteDifferenceSolver(PDESolver):
 
 
 def create_default_solver() -> PDESolver:
-    """Return a Crank--Nicolson finite difference solver."""
+    """Return a default Crank--Nicolson finite difference solver.
+
+    Equivalent to ``FiniteDifferenceSolver(theta=0.5)``.
+    """
 
     return FiniteDifferenceSolver(time_stepper=ThetaMethod(theta=0.5))
 

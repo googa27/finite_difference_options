@@ -1,4 +1,8 @@
-"""FastAPI service for option pricing and Greek calculations."""
+"""FastAPI service for option pricing and reporting examples.
+
+Endpoints are intentionally minimal and are designed as reference API shapes for
+front-end integrations and smoke testing.
+"""
 
 from __future__ import annotations
 
@@ -31,7 +35,14 @@ app.add_middleware(
 
 
 class OptionRequest(BaseModel):
-    """Input parameters for option pricing."""
+    """Request payload for option pricing endpoints.
+
+    Units follow model conventions:
+
+    - rates in annual decimal units,
+    - maturities in years,
+    - ``s_steps`` and ``t_steps`` are integer grid resolutions.
+    """
 
     option_type: str = "Call"
     strike: float
@@ -44,7 +55,10 @@ class OptionRequest(BaseModel):
 
 
 class PriceResponse(BaseModel):
-    """Option price at the initial asset price."""
+    """Response containing dense price grid for a requested option.
+
+    The full surface is returned to simplify downstream plotting and debugging.
+    """
 
     s: list[float]
     t: list[float]
@@ -52,7 +66,7 @@ class PriceResponse(BaseModel):
 
 
 class GreeksResponse(BaseModel):
-    """Greeks at the initial asset price."""
+    """Scalar Greeks sampled at spot for backward-compatible API consumers."""
 
     delta: float
     gamma: float
@@ -60,7 +74,10 @@ class GreeksResponse(BaseModel):
 
 
 class FullPDEResponse(BaseModel):
-    """Full 2D grids for PDE solution and Greeks for visualization."""
+    """Full PDE grid and Greeks for visualisation.
+
+    All arrays are in nested list form to keep FastAPI/JSON serialization simple.
+    """
     
     s: list[float]
     t: list[float]
@@ -72,7 +89,10 @@ class FullPDEResponse(BaseModel):
 
 @app.post("/price", response_model=PriceResponse)
 def price(request: OptionRequest) -> PriceResponse:
-    """Return option price for the given parameters."""
+    """Return full PDE-generated value grid for the requested option.
+
+    The endpoint uses default grid settings when ``s_max`` is omitted.
+    """
     s_max = request.s_max or request.strike * 3
     model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
     option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
@@ -92,7 +112,7 @@ def price(request: OptionRequest) -> PriceResponse:
 
 @app.post("/greeks", response_model=GreeksResponse)
 def greeks(request: OptionRequest) -> GreeksResponse:
-    """Return Delta, Gamma and Theta for the given parameters."""
+    """Return scalar Greeks at spot for the requested option contract."""
     s_max = request.s_max or request.strike * 3
     model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
     option_cls = EuropeanCall if request.option_type == "Call" else EuropeanPut
@@ -114,10 +134,9 @@ def greeks(request: OptionRequest) -> GreeksResponse:
 
 @app.post("/pde_solution", response_model=FullPDEResponse)
 def pde_solution(request: OptionRequest) -> FullPDEResponse:
-    """Return full 2D grids for PDE solution and Greeks for visualization.
-    
-    Returns the complete solution grids that enable frontend plotting
-    of option prices and Greeks over time and asset price dimensions.
+    """Return complete solution and Greeks grids.
+
+    This is the most visualization-friendly API endpoint for frontend charts.
     """
     s_max = request.s_max or request.strike * 3
     model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
@@ -141,7 +160,7 @@ def pde_solution(request: OptionRequest) -> FullPDEResponse:
 
 
 class TradeModel(BaseModel):
-    """Trade description used in regulatory reports."""
+    """Trade description used by the lightweight reporting endpoints."""
 
     trade_id: str
     product_type: str
@@ -151,7 +170,7 @@ class TradeModel(BaseModel):
 
 
 class RiskFactorModel(BaseModel):
-    """Risk factor affecting trades."""
+    """Single risk factor used to drive report exposures."""
 
     name: str
     value: float
@@ -159,7 +178,7 @@ class RiskFactorModel(BaseModel):
 
 
 class ExposureModel(BaseModel):
-    """Exposure of a trade to a risk factor."""
+    """Association of a trade and risk factor with an exposure amount."""
 
     trade: TradeModel
     risk_factor: RiskFactorModel
@@ -167,19 +186,19 @@ class ExposureModel(BaseModel):
 
 
 class CRIFResponse(BaseModel):
-    """CSV output representing the CRIF report."""
+    """String payload for CRIF report output."""
 
     crif: str
 
 
 class PlaceholderResponse(BaseModel):
-    """Generic placeholder response."""
+    """Generic response wrapper for non-production reporting stubs."""
 
     status: str
 
 
 def _convert_exposures(models: list[ExposureModel]) -> list[Exposure]:
-    """Convert API models to dataclass exposures."""
+    """Convert API request payloads into internal report domain objects."""
 
     return [
         Exposure(
@@ -193,7 +212,11 @@ def _convert_exposures(models: list[ExposureModel]) -> list[Exposure]:
 
 @app.post("/reports/crif", response_model=CRIFResponse)
 def crif_report(exposures: list[ExposureModel]) -> CRIFResponse:
-    """Generate a CRIF report for the provided exposures."""
+    """Generate a CRIF report for the provided exposures.
+
+    Inputs are converted from API models to internal domain objects before
+    invoking the configured report strategy.
+    """
 
     strategy = ReportFactory.get_strategy("crif")
     crif = strategy.generate_report(_convert_exposures(exposures))
@@ -202,7 +225,7 @@ def crif_report(exposures: list[ExposureModel]) -> CRIFResponse:
 
 @app.post("/reports/cuso", response_model=PlaceholderResponse)
 def cuso_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
-    """Placeholder CUSO report endpoint."""
+    """Return placeholder CUSO report from the active strategy adapter."""
 
     strategy = ReportFactory.get_strategy("cuso")
     data = strategy.generate_report(_convert_exposures(exposures))
@@ -211,7 +234,7 @@ def cuso_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
 
 @app.post("/reports/basel", response_model=PlaceholderResponse)
 def basel_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
-    """Placeholder Basel report endpoint."""
+    """Return placeholder Basel report from the active strategy adapter."""
 
     strategy = ReportFactory.get_strategy("basel")
     data = strategy.generate_report(_convert_exposures(exposures))
