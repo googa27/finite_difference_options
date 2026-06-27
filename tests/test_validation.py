@@ -6,10 +6,9 @@ import sys
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import pytest
-import numpy as np
 from src.exceptions import ValidationError, GridError, InstrumentError, ModelError
 from src.validation import (
-    validate_positive, validate_non_negative, validate_probability,
+    validate_positive,
     validate_grid_parameters, validate_option_parameters, validate_model_parameters
 )
 from src.processes.affine import GeometricBrownianMotion
@@ -80,7 +79,7 @@ def test_option_validation_in_constructor():
     with pytest.raises(InstrumentError):
         EuropeanCall(strike=100.0, maturity=-1.0, model=model)
     
-    # Invalid model parameters should raise
-    bad_model = GeometricBrownianMotion(mu=0.05, sigma=-0.2)
-    with pytest.raises(ModelError):
-        EuropeanCall(strike=100.0, maturity=1.0, model=bad_model)
+    # Invalid process parameters fail at the model boundary before the
+    # instrument constructor is reached.
+    with pytest.raises(ValidationError, match="sigma must be a positive number"):
+        GeometricBrownianMotion(mu=0.05, sigma=-0.2)

@@ -5,14 +5,12 @@ for all financial instruments in the unified framework.
 """
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import Optional
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, field_validator, ConfigDict
 from findiff import FinDiff, BoundaryConditions
 
-from src.exceptions import ValidationError
+from src.exceptions import InstrumentError
 from ..processes.base import StochasticProcess
 from .operators import SpatialOperator
 
@@ -29,7 +27,7 @@ class Instrument(BaseModel):
     def validate_maturity(cls, v):
         """Validate maturity."""
         if v <= 0:
-            raise ValidationError(f"Maturity must be positive, got {v}")
+            raise InstrumentError(f"Invalid instrument parameter: maturity must be positive, got {v}")
         return v
     
     def payoff(self, state: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -99,7 +97,7 @@ class EuropeanOption(Instrument):
     def validate_strike(cls, v):
         """Validate strike price."""
         if v <= 0:
-            raise ValidationError(f"Strike price must be positive, got {v}")
+            raise InstrumentError(f"Invalid option parameter: strike price must be positive, got {v}")
         return v
     
     def generator(self, s: NDArray[np.float64]) -> FinDiff:
