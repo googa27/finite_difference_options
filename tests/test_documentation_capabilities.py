@@ -32,12 +32,28 @@ def test_capability_matrix_is_authoritative_and_cites_evidence_ids() -> None:
         "RANNACHER-GAMMA-V0",
         "QPS-VANILLA-CALL-V0",
         "FACTOR-ROLE-COMPAT-V0",
+        "API-REQUEST-GUARDS-V0",
     ]:
         assert evidence_id in text
     assert "Heston stochastic volatility" in text
     assert "basket option" in text
     assert "two-leg spreads" in text
+    assert "explicit spot semantics" in text
+    assert "pre-solve node budgets" in text
     assert "unsupported" in text
+
+
+def test_readme_fastapi_section_documents_guarded_request_contract() -> None:
+    text = README.read_text(encoding="utf-8")
+    fastapi_section = text.split("## FastAPI Service", maxsplit=1)[1].split(
+        "## Next.js Client", maxsplit=1
+    )[0]
+
+    assert '"schema_version": "fd-api-v1"' in fastapi_section
+    assert '"spot": 100.0' in fastapi_section
+    assert '"include_full_grid": false' in fastapi_section
+    assert "full-grid output disabled by default" in fastapi_section
+    assert "requested-spot Greeks" in fastapi_section
 
 
 def test_readme_black_scholes_quickstart_executes() -> None:

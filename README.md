@@ -146,18 +146,34 @@ python -m cli plot --option-type Call --strike 1 --maturity 1 --output plot.png
 
 ## FastAPI Service
 
-Start a REST API that exposes pricing and Greek calculations.
-The service allows cross-origin requests from `https://your-domain.com`.
+Start a REST API that exposes experimental pricing and Greek calculations.
+The service allows cross-origin requests from `http://localhost:5173`.
 
 ```bash
 uvicorn api.main:app --reload
 ```
 
+Pricing requests use a versioned schema with explicit `spot`, enum `option_type`, finite/range numeric validation, a pre-solve node budget, and full-grid output disabled by default:
+
+```json
+{
+  "option_type": "Call",
+  "spot": 100.0,
+  "strike": 100.0,
+  "maturity": 0.25,
+  "rate": 0.05,
+  "sigma": 0.2,
+  "s_steps": 101,
+  "t_steps": 51,
+  "include_full_grid": false
+}
+```
+
 Endpoints:
 
-- `POST /price` → `{ "price": float }`
-- `POST /greeks` → `{ "delta": float, "gamma": float, "theta": float }`
-- `POST /pde_solution` → Full 2D grids for prices and Greeks visualization
+- `POST /price` → scalar requested-spot response `{ "schema_version": "fd-api-v1", "spot": float, "price": float, "grid": null }`
+- `POST /greeks` → requested-spot Greeks `{ "schema_version": "fd-api-v1", "spot": float, "delta": float, "gamma": float, "theta": float }`
+- `POST /pde_solution` → bounded full grids for prices and Greeks only when `include_full_grid` is `true`
 - `POST /reports/crif` → HTTP 501 problem detail until an exact ISDA CRIF profile/version and conformance suite are implemented
 - `POST /reports/cuso` → HTTP 501 problem detail until an authoritative CUSO specification is identified
 - `POST /reports/basel` → HTTP 501 problem detail until a versioned Basel market-risk subset is implemented
