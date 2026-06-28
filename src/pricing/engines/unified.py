@@ -15,12 +15,12 @@ Current production guidance
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, Iterable, cast
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ...processes.base import StochasticProcess
+from ...processes.base import FactorRole, StochasticProcess
 from ...pricing.instruments.base import UnifiedInstrument
 from src.exceptions import ValidationError
 from ...solvers.base import Solver, SolverFactory
@@ -108,13 +108,9 @@ class UnifiedPricingEngine:
                 f"Expected {self.process.dimension.value} grids, got {len(grids)}"
             )
 
-        if len(grids) == 1:
-            initial_condition = instrument.payoff(grids[0])
-        else:
-            mesh_grids = np.meshgrid(*grids, indexing="ij")
-            flattened_grids = [grid.flatten() for grid in mesh_grids]
-            grid_shape = mesh_grids[0].shape
-            initial_condition = instrument.payoff(*flattened_grids).reshape(grid_shape)
+        self._validate_factor_compatibility(instrument)
+
+        initial_condition = self._build_initial_condition(instrument, *grids)
 
         solution = self.solver.solve(
             initial_condition,
@@ -124,6 +120,81 @@ class UnifiedPricingEngine:
         )
 
         return solution
+
+    def _build_initial_condition(
+        self,
+        instrument: UnifiedInstrument,
+        *grids: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Build terminal payoff on the full process state grid.
+
+        Payoff products only receive the state coordinates they explicitly
+        require. If the process contains extra volatility/rate/auxiliary factors,
+        the lower-dimensional payoff is broadcast over those dynamic state axes.
+        """
+
+        full_shape = tuple(len(grid) for grid in grids)
+        payoff_grid_count = self._payoff_grid_count(instrument, len(grids))
+        payoff = np.asarray(instrument.payoff(*grids[:payoff_grid_count]), dtype=np.float64)
+        payoff_shape = full_shape[:payoff_grid_count]
+        if payoff.shape == full_shape:
+            return payoff
+        if payoff.shape != payoff_shape:
+            raise ValidationError(
+                f"Payoff shape {payoff.shape} is incompatible with required factor grid shape {payoff_shape}"
+            )
+        reshaped = payoff.reshape(payoff_shape + (1,) * (len(full_shape) - payoff_grid_count))
+        return np.broadcast_to(reshaped, full_shape).copy()
+
+    @staticmethod
+    def _payoff_grid_count(instrument: UnifiedInstrument, process_grid_count: int) -> int:
+        """Return the number of process grids consumed by the payoff."""
+
+        required_roles_getter = getattr(instrument, "required_factor_roles", None)
+        if not callable(required_roles_getter):
+            return process_grid_count
+        return len(tuple(cast(Iterable[FactorRole], required_roles_getter())))
+
+    def _validate_factor_compatibility(self, instrument: UnifiedInstrument) -> None:
+        """Validate instrument payoff dependencies against process factor roles."""
+
+        required_roles_getter = getattr(instrument, "required_factor_roles", None)
+        if not callable(required_roles_getter):
+            return
+        required_roles = tuple(cast(Iterable[FactorRole], required_roles_getter()))
+        if not required_roles:
+            return
+
+        factors = tuple(self.process.factor_metadata())
+        if len(required_roles) > len(factors):
+            raise ValidationError(
+                f"{type(instrument).__name__} requires {len(required_roles)} factors, "
+                f"but {type(self.process).__name__} exposes {len(factors)}"
+            )
+        asset_ids_getter = getattr(instrument, "required_asset_ids", None)
+        required_asset_ids = (
+            tuple(cast(Iterable[str | None], asset_ids_getter()))
+            if callable(asset_ids_getter)
+            else tuple(None for _ in required_roles)
+        )
+        if len(required_asset_ids) != len(required_roles):
+            raise ValidationError("required_asset_ids must align with required_factor_roles")
+        paired_requirements = zip(required_roles, required_asset_ids, strict=True)
+        for index, (required_role, expected_asset_id) in enumerate(paired_requirements):
+            actual = factors[index]
+            if actual.role != required_role:
+                required_label = required_role.value.replace("_", " ")
+                actual_label = actual.role.value.replace("_", " ")
+                raise ValidationError(
+                    f"{type(instrument).__name__} requires factor {index} to be {required_label}, "
+                    f"but {type(self.process).__name__} factor {index} ({actual.name}) is {actual_label}. "
+                    "A basket payoff cannot consume variance or other non-tradable factors by accident."
+                )
+            if expected_asset_id is not None and actual.asset_id != expected_asset_id:
+                raise ValidationError(
+                    f"{type(instrument).__name__} requires asset_id {expected_asset_id!r} at factor {index}, "
+                    f"but {type(self.process).__name__} exposes {actual.asset_id!r}"
+                )
 
     def compute_greeks(
         self,

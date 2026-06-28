@@ -27,10 +27,16 @@ def test_capability_matrix_is_authoritative_and_cites_evidence_ids() -> None:
     assert "# FD capability and maturity matrix" in text
     for status in ["validated", "experimental", "unsupported"]:
         assert f"`{status}`" in text
-    for evidence_id in ["BS-CALL-PARITY-V0", "RANNACHER-GAMMA-V0", "QPS-VANILLA-CALL-V0"]:
+    for evidence_id in [
+        "BS-CALL-PARITY-V0",
+        "RANNACHER-GAMMA-V0",
+        "QPS-VANILLA-CALL-V0",
+        "FACTOR-ROLE-COMPAT-V0",
+    ]:
         assert evidence_id in text
     assert "Heston stochastic volatility" in text
     assert "basket option" in text
+    assert "two-leg spreads" in text
     assert "unsupported" in text
 
 

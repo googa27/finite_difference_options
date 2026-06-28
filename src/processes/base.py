@@ -14,7 +14,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Tuple
+from typing import Optional, Tuple
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, field_validator, ConfigDict
@@ -90,6 +90,35 @@ class ProcessType(Enum):
     """Enumeration of process types for optimization purposes."""
     AFFINE = "affine"
     NON_AFFINE = "non_affine"
+
+
+class FactorRole(Enum):
+    """Financial role of a process state coordinate."""
+
+    TRADABLE_SPOT = "tradable_spot"
+    VARIANCE = "variance"
+    VOLATILITY = "volatility"
+    SHORT_RATE = "short_rate"
+    AUXILIARY_STATE = "auxiliary_state"
+
+
+@dataclass(frozen=True)
+class ProcessFactor:
+    """Metadata for one process state coordinate.
+
+    The role separates numerical state variables from payoff-underlying assets.
+    For example, Heston's second coordinate is variance; it influences dynamics
+    but must not be consumed as a basket asset.
+    """
+
+    name: str
+    role: FactorRole
+    coordinate: str = "native"
+    asset_id: Optional[str] = None
+    payoff_transform: str = "identity"
+
+
+ProcessFactorMetadata = ProcessFactor
 
 
 @dataclass(frozen=True)
@@ -187,15 +216,9 @@ class StochasticProcess(ABC):
     @property
     @abstractmethod
     def dimension(self) -> ProcessDimension:
-        """Get process dimension.
-
-        Returns
-        -------
-        ProcessDimension
-            Strongly-typed number of state dimensions.
-        """
+        """Return the process dimension."""
         ...
-    
+
     @property
     @abstractmethod
     def process_type(self) -> ProcessType:
@@ -246,6 +269,19 @@ class StochasticProcess(ABC):
             ``(n, d, d)``.
         """
         ...
+
+    def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
+        """Return semantic metadata for process state coordinates.
+
+        Unannotated processes fail closed by default: every coordinate is treated
+        as auxiliary state. Concrete equity/forward/short-rate models override
+        this method with explicit roles.
+        """
+
+        return tuple(
+            ProcessFactorMetadata(name=f"x{index}", role=FactorRole.AUXILIARY_STATE)
+            for index in range(self.dimension.value)
+        )
     
     def validate_state(self, state: NDArray[np.float64]) -> None:
         """Validate state vector dimensions and state-space assumptions.

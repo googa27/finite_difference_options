@@ -72,7 +72,7 @@ Uniform, nonuniform, transformed and multidimensional tensor grids have typed re
 
 ### FR-FD-004 — Differential operators
 
-First, second and mixed derivative operators declare stencil order, local-spacing assumptions, upwind/central bias, boundary closure and coordinate transform. Variable coefficients are evaluated at the correct locations. Consistency, dimensions, sparsity and signs are tested independently of products. Process-level generator contracts provide canonical batched drift/covariance/discount shapes, validated exact affine covariance tensor accessors, PSD diagnostics and explicit generator application to polynomial fixtures. Inexact affine-covariance claims fail closed for quadratic/bilinear native covariances, including direct raw coefficient access. Discount/reaction is an independent field and is never inferred from drift.
+First, second and mixed derivative operators declare stencil order, local-spacing assumptions, upwind/central bias, boundary closure and coordinate transform. Variable coefficients are evaluated at the correct locations. Consistency, dimensions, sparsity and signs are tested independently of products. Process-level generator contracts provide canonical batched drift/covariance/discount shapes, state-factor roles for payoff/process compatibility, validated exact affine covariance tensor accessors, PSD diagnostics and explicit generator application to polynomial fixtures. Inexact affine-covariance claims fail closed for quadratic/bilinear native covariances, including direct raw coefficient access. Discount/reaction is an independent field and is never inferred from drift.
 
 ### FR-FD-005 — Boundary conditions
 

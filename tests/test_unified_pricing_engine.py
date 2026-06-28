@@ -4,7 +4,6 @@ import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
 from src.pricing import (
-    UnifiedInstrument,
     UnifiedEuropeanOption,
     UnifiedBasketOption,
     UnifiedPricingEngine,
@@ -17,12 +16,7 @@ from src.pricing import (
 )
 from src.processes import (
     GeometricBrownianMotion,
-    OrnsteinUhlenbeck,
-    CoxIngersollRoss,
-    HestonModel,
     create_black_scholes_process,
-    create_vasicek_process,
-    create_cir_process,
     create_standard_heston,
 )
 from src.exceptions import ValidationError
@@ -298,7 +292,7 @@ class TestUnifiedPricingEngine:
         # Mock price array
         prices = np.zeros((len(time_grid), len(s_grid), len(v_grid)))
         for i, s in enumerate(s_grid):
-            for j, v in enumerate(v_grid):
+            for j, _v in enumerate(v_grid):
                 prices[:, i, j] = max(s - 100, 0)
         
         greeks = engine.compute_greeks(prices, s_grid, v_grid)
@@ -458,39 +452,21 @@ class TestPricingEngineIntegration:
         assert 0.2 <= delta_atm <= 0.8
         assert vega_atm >= 0  # Vega should be positive for calls
     
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "#45/#62: Heston's second state is variance, not a second basket asset; "
-            "the route must fail closed before this integration can be promoted"
-        ),
-    )
-    def test_basket_option_pricing_integration(self):
-        """Test basket option pricing with 2D process."""
-        # Use simple 2D process (could be extended to proper multi-asset model)
+    def test_heston_basket_option_pricing_fails_closed_on_variance_factor(self):
+        """Basket payoffs must not treat Heston variance as a second asset."""
         process = create_standard_heston()
         engine = create_unified_pricing_engine(process)
-        
-        # Create basket option
+
         strikes = np.array([100.0, 100.0])
         weights = np.array([0.5, 0.5])
         option = create_unified_basket_call(strikes, weights, 0.25)
-        
-        # Create grids (treating as two assets for simplicity)
-        s1_grid = create_log_grid(80.0, 120.0, 9)
-        s2_grid = create_log_grid(80.0, 120.0, 9)
+
+        s_grid = create_log_grid(80.0, 120.0, 9)
+        v_grid = create_linear_grid(0.01, 0.25, 9)
         time_grid = np.linspace(0, 0.25, 5)
-        
-        # Price option
-        prices = engine.price_option(option, s1_grid, s2_grid, time_grid=time_grid)
-        
-        # Check basic properties
-        assert prices.shape == (len(time_grid), len(s1_grid), len(s2_grid))
-        assert np.all(prices >= 0)
-        
-        # Terminal condition should match payoff
-        terminal_payoff = option.payoff(s1_grid, s2_grid)
-        assert_allclose(prices[-1], terminal_payoff, rtol=1e-10)
+
+        with pytest.raises(ValidationError, match="tradable spot.*variance"):
+            engine.price_option(option, s_grid, v_grid, time_grid=time_grid)
 
 
 class TestErrorHandling:
