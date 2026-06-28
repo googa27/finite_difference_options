@@ -1,0 +1,62 @@
+# Machine-readable finite_difference_options architecture contract.
+# The repo is still in a transitional multi-package src layout; this contract
+# freezes that surface so any new package boundary is explicit and reviewed.
+
+[contract]
+schema_version = 1
+name = "finite_difference_options"
+mode = "transitional-src-packages"
+
+[paths]
+package_root = "src"
+tests_root = "tests"
+
+[topology]
+allowed_root_modules = ["__init__.py"]
+required_top_level_packages = [
+  "boundary_conditions",
+  "contracts",
+  "exceptions",
+  "greeks",
+  "instruments",
+  "models",
+  "plotting",
+  "pricing",
+  "processes",
+  "risk",
+  "solvers",
+  "utils",
+  "validation",
+]
+allowed_top_level_packages = [
+  "boundary_conditions",
+  "contracts",
+  "exceptions",
+  "greeks",
+  "instruments",
+  "models",
+  "plotting",
+  "pricing",
+  "processes",
+  "risk",
+  "solvers",
+  "utils",
+  "validation",
+]
+max_top_level_package_count = 13
+ignore_top_level_dirs = []
+
+[repository_root]
+allowed_python_files = []
+
+[documentation]
+required_docs = ["docs/ARCHITECTURE.md", "AGENTS.md", "docs/CI_POLICY.md"]
+required_fragments = ["docs/architecture_contract.toml", "architecture contract"]
+
+[ci]
+workflow_paths = [".github/workflows/ci.yml"]
+required_fragments = ["scripts/check_architecture_contract.py", "tests/architecture"]
+
+[[import_rules]]
+source = "src/pricing"
+forbidden_prefixes = ["api", "cli", "streamlit", "fastapi", "typer", "uvicorn"]

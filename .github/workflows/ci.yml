@@ -24,6 +24,8 @@ jobs:
         run: |
           python -m compileall -q src tests
           ruff check . --select E9,F63,F7,F82
+      - name: Architecture contract
+        run: python scripts/check_architecture_contract.py
       - name: Architecture fitness gate
         run: pytest -q tests/architecture
       - name: Stable regression suite

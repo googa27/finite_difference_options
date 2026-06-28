@@ -10,6 +10,8 @@ on app/UI/visualization stacks while the package migration proceeds.
 from __future__ import annotations
 
 import ast
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -81,6 +83,17 @@ REQUIRED_ARCHITECTURE_PHRASES = {
     "deptry",
     "haircut-engine",
 }
+
+
+def test_architecture_contract_file_is_executable_source_of_truth() -> None:
+    result = subprocess.run(
+        [sys.executable, "scripts/check_architecture_contract.py"],
+        cwd=ROOT,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def _python_files(root: Path) -> list[Path]:
