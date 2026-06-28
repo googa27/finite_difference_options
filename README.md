@@ -148,7 +148,7 @@ python -m cli plot --option-type Call --strike 1 --maturity 1 --output plot.png
 ## FastAPI Service
 
 Start a REST API that exposes experimental pricing and Greek calculations.
-The service allows cross-origin requests from `http://localhost:5173`.
+This is a local-demo service contract, not a production deployment profile. By default, browser CORS origins are restrictive and no cross-origin browser caller is allowed; opt into the local demo client explicitly with `FDO_API_ENABLE_LOCAL_DEV_CORS=1` or set a comma-separated `FDO_API_CORS_ORIGINS` allow-list.
 
 ```bash
 uvicorn api.main:app --reload
@@ -183,6 +183,8 @@ All public responses use the stable `fd-api-v1` envelope. Successful scalar rout
 
 The default `local_demo` resource policy is process-local: one concurrent solve, one state dimension, up to 50,000 compute/output nodes, up to 8 MB estimated serialized numerical output, and a cooperative timeout capped at 5 seconds. The sync solver cannot be interrupted mid-kernel; the API checks deadlines before and after solve/sampling/assembly, releases the local concurrency slot on failure, and returns bounded HTTP 429/504 error envelopes when capacity or timeout limits are hit.
 
+Deployment hardening is intentionally conservative but still local-demo maturity. Default CORS allows no browser origins; `FDO_API_ENABLE_LOCAL_DEV_CORS=1` adds only `http://localhost:5173`, while `FDO_API_CORS_ORIGINS=https://example.com,https://admin.example.com` sets an explicit allow-list. Boolean deployment flags reject typos at startup instead of silently disabling controls. `FDO_API_AUTH_REQUIRED=1` enables fail-closed API-key authentication for pricing and reporting routes; if it is enabled without `FDO_API_KEY`, protected routes return a bounded 503 `auth_misconfigured` error rather than running unauthenticated. Valid credentials can be supplied as `Authorization: Bearer ...` or `X-API-Key`. The default process-local fixed-window limiter applies before authentication, counts failed auth attempts, allows 120 protected requests per 60 seconds, and can be tuned with `FDO_API_RATE_LIMIT_REQUESTS` and `FDO_API_RATE_LIMIT_WINDOW_SECONDS`; multi-worker or internet-facing deployments still require an external shared limiter and a real operations/security review.
+
 Endpoints:
 
 - `POST /price` → scalar requested-spot response with `{ "schema_version": "fd-api-v1", "request_id": str, "run_id": str, "metadata": {...}, "spot": float, "price": float, "grid": null }`
@@ -193,7 +195,7 @@ Endpoints:
 - `POST /reports/basel` → HTTP 501 `ErrorResponse` until a versioned Basel market-risk subset is implemented
 - `POST /reports/frtb` → HTTP 501 `ErrorResponse` until a versioned FRTB calculation subset is implemented
 
-Validation, resource-limit, concurrency-limit, timeout, bad-request, internal, and unsupported-route failures are concise machine-readable `ErrorResponse` objects with stable `error.code`, `error.http_status`, route, request/run IDs, and original diagnostic `detail`. The pricing, Greeks, and PDE routes currently execute only the explicit Black-Scholes / geometric-Brownian-motion / vanilla-European / tradable-spot contract; recognized but unsupported model, process, payoff, exercise-style, or factor-role combinations fail closed with HTTP 501 before numerical work. OpenAPI compatibility tests guard these public schema components from unreviewed drift.
+Validation, authentication, resource-limit, concurrency-limit, rate-limit, timeout, bad-request, internal, and unsupported-route failures are concise machine-readable `ErrorResponse` objects with stable `error.code`, `error.http_status`, route, request/run IDs, and original diagnostic `detail`. The pricing, Greeks, and PDE routes currently execute only the explicit Black-Scholes / geometric-Brownian-motion / vanilla-European / tradable-spot contract; recognized but unsupported model, process, payoff, exercise-style, or factor-role combinations fail closed with HTTP 501 before numerical work. OpenAPI compatibility tests guard these public schema components from unreviewed drift.
 
 ## Next.js Client
 
@@ -205,7 +207,7 @@ npm install
 npm run dev
 ```
 
-It expects the FastAPI server to run locally on port 8000.
+It expects the FastAPI server to run locally on port 8000 with local browser CORS explicitly enabled, for example `FDO_API_ENABLE_LOCAL_DEV_CORS=1 uvicorn api.main:app --reload`.
 
 ## Architecture
 

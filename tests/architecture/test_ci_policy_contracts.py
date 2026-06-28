@@ -22,6 +22,7 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     assert "tests/test_api_route_validation.py" in workflow
     assert "tests/test_api_interpolation_diagnostics.py" in workflow
     assert "tests/test_api_resource_controls.py" in workflow
+    assert "tests/test_api_deployment_hardening.py" in workflow
     assert "tests/test_unified_pricing_engine.py" in workflow
 
 

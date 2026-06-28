@@ -207,10 +207,11 @@ def test_openapi_schema_contains_reviewed_v1_response_error_components() -> None
         "/reports/frtb",
     ]:
         operation = schema["paths"][path]["post"]
-        assert "422" in operation["responses"]
-        assert operation["responses"]["422"]["content"]["application/json"]["schema"][
-            "$ref"
-        ].endswith("/ErrorResponse")
+        for status in ["401", "403", "422", "429", "503"]:
+            assert status in operation["responses"]
+            assert operation["responses"][status]["content"]["application/json"][
+                "schema"
+            ]["$ref"].endswith("/ErrorResponse")
 
     for path in ["/reports/crif", "/reports/cuso", "/reports/basel", "/reports/frtb"]:
         assert schema["paths"][path]["post"]["responses"]["501"]["content"][
