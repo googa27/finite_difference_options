@@ -163,6 +163,7 @@ def test_openapi_schema_contains_reviewed_v1_response_error_components() -> None
         "ResponseMetadata",
         "SolverMetadata",
         "ConvergenceDiagnostics",
+        "SamplingDiagnostics",
         "UnitMetadata",
         "RouteWarning",
     }

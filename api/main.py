@@ -219,6 +219,28 @@ class ConvergenceDiagnostics(BaseModel):
     benchmark_error: float | None = None
 
 
+class SamplingDiagnostics(BaseModel):
+    """Requested-state sampling metadata for scalar API outputs."""
+
+    requested_spot: float
+    reference_grid: Literal["asset_price"] = "asset_price"
+    method: Literal["grid_node", "linear_interpolation"]
+    lower_index: int
+    upper_index: int
+    lower_spot: float
+    upper_spot: float
+    interpolation_weight: float
+    bounded_policy: Literal["reject_outside_grid"] = "reject_outside_grid"
+    extrapolated: bool = False
+
+
+class GridSample(BaseModel):
+    """Internal value plus diagnostics for requested-state grid sampling."""
+
+    value: float
+    sampling: SamplingDiagnostics
+
+
 class ResponseMetadata(BaseModel):
     """Stable metadata envelope shared by success and error responses."""
 
@@ -228,6 +250,7 @@ class ResponseMetadata(BaseModel):
     units: UnitMetadata = Field(default_factory=UnitMetadata)
     solver: SolverMetadata | None = None
     convergence: ConvergenceDiagnostics | None = None
+    sampling: SamplingDiagnostics | None = None
 
 
 class APIResponseBase(BaseModel):
@@ -379,6 +402,7 @@ def _success_metadata(
     *,
     include_grid: bool,
     requested_outputs: list[str],
+    sampling: SamplingDiagnostics | None = None,
 ) -> ResponseMetadata:
     """Build the success metadata envelope required by the v1 API schema."""
 
@@ -392,6 +416,7 @@ def _success_metadata(
             requested_outputs=requested_outputs,
         ),
         convergence=_convergence_metadata(),
+        sampling=sampling,
     )
 
 
@@ -617,8 +642,97 @@ def _compute_grid(request: OptionRequest, *, return_greeks: bool = False):
     )
 
 
-def _interp_at_spot(values: np.ndarray, grid: np.ndarray, spot: float) -> float:
-    return float(np.interp(spot, grid, values))
+def _sample_grid_at_spot(
+    values: np.ndarray, grid: np.ndarray, spot: float
+) -> GridSample:
+    """Sample a one-dimensional solution grid at the requested spot with diagnostics."""
+
+    values_array = np.asarray(values, dtype=float)
+    grid_array = np.asarray(grid, dtype=float)
+    if values_array.ndim != 1 or grid_array.ndim != 1:
+        raise HTTPException(
+            status_code=500,
+            detail="requested-state sampling expects one-dimensional grid arrays",
+        )
+    if len(values_array) != len(grid_array):
+        raise HTTPException(
+            status_code=500,
+            detail="requested-state sampling grid/value dimensions do not match",
+        )
+    if len(grid_array) == 0:
+        raise HTTPException(
+            status_code=500,
+            detail="requested-state sampling cannot use an empty grid",
+        )
+
+    requested_spot = float(spot)
+    grid_min = float(grid_array[0])
+    grid_max = float(grid_array[-1])
+    if requested_spot < grid_min or requested_spot > grid_max:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "requested spot is outside computed grid bounds",
+                "bounded_policy": "reject_outside_grid",
+                "requested_spot": requested_spot,
+                "grid_min": grid_min,
+                "grid_max": grid_max,
+            },
+        )
+
+    upper_index = int(np.searchsorted(grid_array, requested_spot, side="left"))
+    if upper_index < len(grid_array) and np.isclose(
+        grid_array[upper_index], requested_spot, rtol=0.0, atol=1e-12
+    ):
+        value = float(values_array[upper_index])
+        diagnostics = SamplingDiagnostics(
+            requested_spot=requested_spot,
+            method="grid_node",
+            lower_index=upper_index,
+            upper_index=upper_index,
+            lower_spot=float(grid_array[upper_index]),
+            upper_spot=float(grid_array[upper_index]),
+            interpolation_weight=0.0,
+        )
+        return GridSample(value=value, sampling=diagnostics)
+
+    if upper_index <= 0 or upper_index >= len(
+        grid_array
+    ):  # pragma: no cover - defensive
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "requested spot is outside computed interpolation brackets",
+                "bounded_policy": "reject_outside_grid",
+                "requested_spot": requested_spot,
+                "grid_min": grid_min,
+                "grid_max": grid_max,
+            },
+        )
+
+    lower_index = upper_index - 1
+    lower_spot = float(grid_array[lower_index])
+    upper_spot = float(grid_array[upper_index])
+    bracket_width = upper_spot - lower_spot
+    if bracket_width <= 0.0:  # pragma: no cover - defensive
+        raise HTTPException(
+            status_code=500,
+            detail="requested-state sampling requires a strictly increasing grid",
+        )
+    weight = (requested_spot - lower_spot) / bracket_width
+    value = float(
+        (1.0 - weight) * values_array[lower_index] + weight * values_array[upper_index]
+    )
+    diagnostics = SamplingDiagnostics(
+        requested_spot=requested_spot,
+        method="linear_interpolation",
+        lower_index=lower_index,
+        upper_index=upper_index,
+        lower_spot=lower_spot,
+        upper_spot=upper_spot,
+        interpolation_weight=float(weight),
+    )
+    return GridSample(value=value, sampling=diagnostics)
 
 
 def _grid_payload(res) -> PriceGrid:
@@ -631,6 +745,7 @@ def price(request: OptionRequest, http_request: Request) -> PriceResponse:
 
     _ensure_supported_contract(request, route="/price")
     res = _compute_grid(request)
+    price_sample = _sample_grid_at_spot(res.values[-1], res.s, request.spot)
     return PriceResponse(
         **_response_identity(http_request),
         metadata=_success_metadata(
@@ -638,10 +753,11 @@ def price(request: OptionRequest, http_request: Request) -> PriceResponse:
             request,
             include_grid=request.include_full_grid,
             requested_outputs=["price"],
+            sampling=price_sample.sampling,
         ),
         option_type=request.option_type,
         spot=request.spot,
-        price=_interp_at_spot(res.values[-1], res.s, request.spot),
+        price=price_sample.value,
         grid=_grid_payload(res) if request.include_full_grid else None,
     )
 
@@ -656,6 +772,9 @@ def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
         res.delta is None or res.gamma is None or res.theta is None
     ):  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail="Greek grid was not computed")
+    delta_sample = _sample_grid_at_spot(res.delta[-1], res.s, request.spot)
+    gamma_sample = _sample_grid_at_spot(res.gamma[-1], res.s, request.spot)
+    theta_sample = _sample_grid_at_spot(res.theta[-1], res.s, request.spot)
     return GreeksResponse(
         **_response_identity(http_request),
         metadata=_success_metadata(
@@ -663,12 +782,13 @@ def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
             request,
             include_grid=False,
             requested_outputs=["delta", "gamma", "theta"],
+            sampling=delta_sample.sampling,
         ),
         option_type=request.option_type,
         spot=request.spot,
-        delta=_interp_at_spot(res.delta[-1], res.s, request.spot),
-        gamma=_interp_at_spot(res.gamma[-1], res.s, request.spot),
-        theta=_interp_at_spot(res.theta[-1], res.s, request.spot),
+        delta=delta_sample.value,
+        gamma=gamma_sample.value,
+        theta=theta_sample.value,
     )
 
 
