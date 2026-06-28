@@ -1,6 +1,7 @@
 """FD capability-manifest and unsupported-route diagnostics tests."""
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 
@@ -16,6 +17,9 @@ from src.contracts import (  # noqa: E402
     diagnose_unsupported_route,
     ensure_route_supported,
 )
+
+
+FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures" / "quant_problem_specs"
 
 
 def _supported_payload() -> dict[str, object]:
@@ -68,6 +72,28 @@ def test_quant_problem_spec_mapping_preserves_conventions_and_outputs() -> None:
     assert request.units == {"underlying": "USD", "time": "ACT/365F"}
     assert request.valuation_date == "2026-01-02"
     assert request.maturity_date == "2027-01-02"
+    assert diagnose_unsupported_route(request) == ()
+
+
+def test_haircut_engine_vanilla_call_fixture_maps_to_supported_fd_route() -> None:
+    """Consume the same public QuantProblemSpec fixture that Haircut Engine validates."""
+
+    payload = json.loads((FIXTURE_DIR / "vanilla_call.json").read_text())
+
+    request = FDRouteRequest.from_quant_problem_spec(payload)
+
+    assert request.source_schema_version == "quant-problem-spec/v0"
+    assert request.dimension == 1
+    assert request.grid_type == "uniform"
+    assert request.pde_terms == ("drift", "diffusion", "reaction")
+    assert request.boundary_conditions == ("dirichlet", "neumann")
+    assert request.boundary_details == {"S=0": "0", "S=S_max": "linear growth"}
+    assert request.requested_outputs == ("value", "delta", "gamma")
+    assert request.measure == "risk_neutral_money_market"
+    assert request.numeraire == "money_market_account_CLP"
+    assert request.units["S"] == "CLP"
+    assert request.valuation_date == "2026-06-30"
+    assert request.time_domain == "[0, 1]"
     assert diagnose_unsupported_route(request) == ()
 
 
