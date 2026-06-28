@@ -52,7 +52,7 @@ Cross-repository integration uses independently versioned wheels and fixtures, n
 | Backend consumer | Clean wheel, capability manifest and no private-module coupling |
 | Application developer | Thin clients over one public numerical API |
 
-Capabilities are `implemented`, `validated`, `production`, `experimental`, `proxy`, `deprecated` or `unsupported`. A unified facade, example or endpoint is not evidence of a validated numerical capability.
+Capabilities are `production`, `validated`, `experimental`, `scaffold`, `deprecated` or `unsupported`. `docs/CAPABILITY_MATRIX.md` is the authoritative current-status matrix; a unified facade, example or endpoint is not evidence of a validated numerical capability.
 
 ## 4. Functional requirements
 

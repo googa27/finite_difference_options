@@ -1,8 +1,8 @@
 # Unified Multi-Dimensional PDE Option Pricing Framework
 
-[![CI](https://github.com/PLACEHOLDER/finite_difference_options/actions/workflows/ci.yml/badge.svg)](https://github.com/PLACEHOLDER/finite_difference_options/actions/workflows/ci.yml)
+[![CI](https://github.com/googa27/finite_difference_options/actions/workflows/ci.yml/badge.svg)](https://github.com/googa27/finite_difference_options/actions/workflows/ci.yml)
 
-A comprehensive framework for pricing financial derivatives using finite difference methods to solve partial differential equations (PDEs). Supports both 1D and multi-dimensional stochastic processes through a unified interface.
+A finite-difference PDE framework for option-pricing experiments and backend-contract validation. Public capability claims are governed by [docs/CAPABILITY_MATRIX.md](docs/CAPABILITY_MATRIX.md); unsupported routes must fail closed rather than returning plausible placeholder values.
 
 ![PDE Solution Visualization](pde_solution_example.png)
 
@@ -52,7 +52,7 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 ## Quick Start
 
-### Basic European Option Pricing
+### Validated Black-Scholes European call smoke example
 
 ```python
 import numpy as np
@@ -60,7 +60,7 @@ from src.processes import create_black_scholes_process
 from src.pricing import create_unified_european_call, create_unified_pricing_engine, create_log_grid
 
 # Create Black-Scholes process
-process = create_black_scholes_process(risk_free_rate=0.05, volatility=0.2)
+process = create_black_scholes_process(mu=0.05, sigma=0.2)
 
 # Create European call option
 option = create_unified_european_call(strike=100.0, maturity=0.25)
@@ -69,19 +69,23 @@ option = create_unified_european_call(strike=100.0, maturity=0.25)
 engine = create_unified_pricing_engine(process)
 
 # Create spatial grid
-grid = create_log_grid(s_min=50.0, s_max=150.0, n_points=101)
+grid = create_log_grid(s_min=50.0, s_max=150.0, n_points=101, center=100.0)
+times = np.linspace(0.0, option.maturity, 12)
 
 # Price the option
-prices = engine.price_option(option, grid)
-print(f"Option price at S=100: {prices[50]:.4f}")
+prices = engine.price_option(option, grid, time_grid=times)
+spot_idx = int(np.argmin(np.abs(grid - 100.0)))
+print(f"Option price at S=100: {prices[0, spot_idx]:.4f}")
 ```
 
-### Multi-Dimensional Heston Model
+### Heston stochastic-volatility smoke example
+
+This example is an experimental shape/finite-value smoke path for a vanilla equity call under Heston state `(spot, variance)`. It is not a basket option and is not advertised as a production Heston benchmark.
 
 ```python
 import numpy as np
 from src.processes import create_standard_heston
-from src.pricing import create_unified_european_call, create_unified_pricing_engine
+from src.pricing import create_unified_european_call, create_unified_pricing_engine, create_log_grid
 
 # Create Heston stochastic volatility model
 heston = create_standard_heston()
@@ -89,37 +93,20 @@ heston = create_standard_heston()
 # Create pricing engine for 2D process
 engine = create_unified_pricing_engine(heston)
 
-# Create option and grids
+# Create a vanilla call and model-state grids
 option = create_unified_european_call(strike=100.0, maturity=0.25)
-s_grid = np.linspace(50.0, 150.0, 51)   # Stock price grid
-v_grid = np.linspace(0.01, 0.5, 26)     # Volatility grid
+s_grid = create_log_grid(40.0, 220.0, 17, center=100.0)  # Stock price grid
+v_grid = np.linspace(0.01, 0.30, 8)                       # Variance grid
+times = np.linspace(0.0, option.maturity, 10)
 
 # Price with 2D process
-prices = engine.price_option(option, s_grid, v_grid)
+prices = engine.price_option(option, s_grid, v_grid, time_grid=times)
 print(f"2D Heston option prices shape: {prices.shape}")
 ```
 
-### Basket Options
+### Unsupported basket payoff route
 
-```python
-import numpy as np
-from src.processes import create_standard_heston
-from src.pricing import create_unified_basket_call, create_unified_pricing_engine
-
-# Multi-asset basket option
-strikes = np.array([100.0, 110.0])
-weights = np.array([0.6, 0.4])
-basket = create_unified_basket_call(strikes, weights, maturity=0.25)
-
-# Use 2D process for basket
-process = create_standard_heston()
-engine = create_unified_pricing_engine(process)
-
-# Price basket option
-s1_grid = np.linspace(80.0, 120.0, 21)
-s2_grid = np.linspace(90.0, 130.0, 21)
-prices = engine.price_option(basket, s1_grid, s2_grid)
-```
+Basket payoff routing is currently `unsupported` unless a true multi-asset process/factor map is supplied and validated. Heston variance is a volatility state, not a second tradable basket asset. See #62 and the capability matrix.
 
 ## Development
 
@@ -234,8 +221,9 @@ src/
 
 - **Mathematical Foundation**: [docs/explanation/black_scholes_fdm.md](docs/explanation/black_scholes_fdm.md)
 - **PDE Models**: [docs/explanation/pde_models.md](docs/explanation/pde_models.md)
-- **Regulatory Notes**: [docs/regulatory.md](docs/regulatory.md)
+- **Regulatory Notes**: [docs/compliance/regulatory.md](docs/compliance/regulatory.md)
 - **Architecture Decisions**: [docs/adr/](docs/adr/)
+- **Capability Matrix**: [docs/CAPABILITY_MATRIX.md](docs/CAPABILITY_MATRIX.md)
 - **Refactoring Summary**: [REFACTOR_SUMMARY.md](REFACTOR_SUMMARY.md)
 
 ## License
