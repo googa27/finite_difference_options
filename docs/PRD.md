@@ -80,7 +80,7 @@ Dirichlet, Neumann, Robin, periodic and asymptotic conditions use typed represen
 
 ### FR-FD-006 — One-dimensional time integration
 
-Validated theta-family routes include backward Euler and Crank–Nicolson with explicit time orientation, coefficient evaluation and stability policy. Rannacher smoothing is a separate capability with payoff-kink and start-up evidence. Owner: #56.
+Validated theta-family routes include backward Euler and Crank–Nicolson with explicit time orientation, coefficient evaluation and stability policy. Rannacher smoothing is a separate capability with payoff-kink and start-up evidence; issue #56 adds configurable two/four BE half-step startup, realised schedule records and a near-strike Gamma roughness regression. Owner: #56.
 
 ### FR-FD-007 — Multidimensional ADI
 

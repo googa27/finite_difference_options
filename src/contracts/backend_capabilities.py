@@ -169,7 +169,9 @@ class FDRouteRequest:
             valuation_date=_optional_string(
                 _first_present(context, ("valuation_date", "as_of_date"), default=vintage.get("valuation_date"))
             ),
-            maturity_date=_optional_string(_first_present(context, ("maturity_date",), default=vintage.get("maturity_date"))),
+            maturity_date=_optional_string(
+                _first_present(context, ("maturity_date",), default=vintage.get("maturity_date"))
+            ),
             time_domain=_optional_string(_first_present(context, ("time_domain",), default=domain.get("t"))),
             source_schema_version=_optional_string(payload.get("schema_version")),
         )
@@ -185,7 +187,7 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
     boundary_conditions=("dirichlet", "neumann", "robin", "second_derivative"),
     exercise_styles=("european",),
     outputs=("value", "delta", "gamma"),
-    stability_controls=("theta", "crank_nicolson", "explicit_euler", "adi_psor"),
+    stability_controls=("theta", "crank_nicolson", "rannacher", "explicit_euler", "adi_psor"),
     required_conventions=("measure", "numeraire", "units", "valuation_date", "maturity_date"),
     diagnostics=(
         "unsupported dimension",
@@ -220,8 +222,20 @@ def diagnose_unsupported_route(
             )
         )
 
-    _extend_set_diagnostics(diagnostics, UnsupportedReason.UNSUPPORTED_GRID, "grid_type", (request.grid_type,), manifest.grid_types)
-    _extend_set_diagnostics(diagnostics, UnsupportedReason.UNSUPPORTED_TERM, "pde_terms", request.pde_terms, manifest.pde_terms)
+    _extend_set_diagnostics(
+        diagnostics,
+        UnsupportedReason.UNSUPPORTED_GRID,
+        "grid_type",
+        (request.grid_type,),
+        manifest.grid_types,
+    )
+    _extend_set_diagnostics(
+        diagnostics,
+        UnsupportedReason.UNSUPPORTED_TERM,
+        "pde_terms",
+        request.pde_terms,
+        manifest.pde_terms,
+    )
     _extend_set_diagnostics(
         diagnostics,
         UnsupportedReason.UNSUPPORTED_BOUNDARY,

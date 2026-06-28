@@ -266,7 +266,7 @@ Theta-family integration is explicit. For a semidiscrete operator `L`, a represe
 
 subject to the repository's declared operator sign and boundary algebra.
 
-Time-dependent coefficients require explicit reassembly/reuse policy. Rannacher smoothing is modeled as a start-up sequence, not a Boolean that silently changes the scheme. Stability and temporal convergence are tested independently of spatial error.
+Time-dependent coefficients require explicit reassembly/reuse policy. Rannacher smoothing is modeled as a start-up sequence, not a Boolean that silently changes the scheme: `RannacherCrankNicolson` supports exactly two or four Backward-Euler half-steps, records every realised substep as `ThetaSubstepRecord`, and then resumes the declared theta/CN policy. Stability and temporal convergence are tested independently of spatial error.
 
 ## 13. Multidimensional ADI architecture
 
@@ -299,6 +299,8 @@ LCP policies declare PSOR, policy iteration or another validated method, toleran
 
 Finite-difference Greeks are separate from PDE discretization operators but share grid metadata. A result records coordinate transform, stencil/order, one-sided treatment, evaluation/interpolation point, smoothing policy and error evidence.
 
+Issue #56 adds a blocking kinked-call regression showing that four BE half-steps reduce near-strike Gamma high-frequency roughness versus starting directly with CN on the same grid. The schedule is available through `FiniteDifferenceSolver.last_step_schedule` and the legacy `PDEModel.last_step_schedule` bridge until typed result DTOs replace array-only returns.
+
 Nonuniform-grid first and second derivatives use dedicated formulas. Payoff-kink tests distinguish pre-asymptotic behavior, Rannacher effects and smooth-region convergence. Parameter sensitivities by bump-and-resolve disclose bump size and solver tolerance interaction.
 
 ## 16. Backend plugin architecture
@@ -322,7 +324,7 @@ Adapter lifecycle:
 
 The adapter imports no Haircut domain/application, PDP or delivery modules and advertises only tested capabilities.
 
-Issue #79 adds the transitional `src/contracts/backend_capabilities.py` module as the first executable FD adapter contract. It owns the data-only `FDCapabilityManifest`, `FDRouteRequest`, and `UnsupportedRouteDiagnostic` records used to screen QuantProblemSpec-style payloads before grid, operator, or ADI allocation. The default manifest intentionally advertises only validated FD/ADI capabilities: 1D/2D/3D uniform or log-uniform parabolic routes, drift/diffusion/reaction/source/mixed-derivative terms, Dirichlet/Neumann/Robin/second-derivative boundaries, European exercise, value/Delta/Gamma outputs, and theta/Crank-Nicolson/explicit/ADI controls.
+Issue #79 adds the transitional `src/contracts/backend_capabilities.py` module as the first executable FD adapter contract. It owns the data-only `FDCapabilityManifest`, `FDRouteRequest`, and `UnsupportedRouteDiagnostic` records used to screen QuantProblemSpec-style payloads before grid, operator, or ADI allocation. The default manifest intentionally advertises only validated FD/ADI capabilities: 1D/2D/3D uniform or log-uniform parabolic routes, drift/diffusion/reaction/source/mixed-derivative terms, Dirichlet/Neumann/Robin/second-derivative boundaries, European exercise, value/Delta/Gamma outputs, and theta/Crank-Nicolson/Rannacher/explicit/ADI controls.
 
 Unsupported dimensions, jump/PIDE or HJB/control terms, free-boundary/American exercise, unsupported Greeks, unsupported stability controls, and missing measure/numeraire/units/date conventions produce explicit unsupported-route diagnostics. They must not fall through to placeholder coefficients, guessed boundaries, or plausible-looking downgraded outputs.
 

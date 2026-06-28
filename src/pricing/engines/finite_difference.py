@@ -243,12 +243,14 @@ class PDEModel(ABC):
         boundary_conditions = self.boundary_conditions(s, option)
         initial_conditions = self.payoff(s, option)
 
-        return solver.solve(
+        values = solver.solve(
             generator=generator,
             boundary_conditions=boundary_conditions,
             initial_conditions=initial_conditions,
             time_grid=t,
         )
+        self.last_step_schedule = solver.last_step_schedule
+        return values
 
 
 @dataclass

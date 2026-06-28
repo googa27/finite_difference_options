@@ -54,6 +54,7 @@ def test_default_manifest_declares_fd_support_without_claiming_american_or_jumps
     assert manifest.supported_dimensions == (1, 2, 3)
     assert "american" not in manifest.exercise_styles
     assert "jump_integral" not in manifest.pde_terms
+    assert "rannacher" in manifest.stability_controls
     assert {"measure", "numeraire", "units", "valuation_date", "maturity_date"} <= set(
         manifest.required_conventions
     )
@@ -131,7 +132,11 @@ def test_missing_measure_numeraire_units_and_dates_are_actionable_diagnostics() 
     request = FDRouteRequest.from_quant_problem_spec(payload)
 
     diagnostics = diagnose_unsupported_route(request)
-    missing = {diagnostic.field for diagnostic in diagnostics if diagnostic.reason == UnsupportedReason.MISSING_CONVENTION}
+    missing = {
+        diagnostic.field
+        for diagnostic in diagnostics
+        if diagnostic.reason == UnsupportedReason.MISSING_CONVENTION
+    }
 
     assert missing == {"measure", "numeraire", "units", "valuation_date", "maturity_date"}
     assert all("missing or empty" in diagnostic.message for diagnostic in diagnostics)
@@ -155,6 +160,5 @@ def test_unsupported_outputs_and_stability_controls_do_not_silently_downgrade() 
         "exercise_boundary",
     }
     assert {diagnostic.value for diagnostic in diagnostics if diagnostic.field == "stability_controls"} == {
-        "rannacher",
         "policy_iteration_lcp",
     }
