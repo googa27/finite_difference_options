@@ -328,6 +328,8 @@ Unsupported dimensions, jump/PIDE or HJB/control terms, free-boundary/American e
 
 Issue #80 adds the public-synthetic Black-Scholes call parity fixture in `src/validation/black_scholes_parity.py`. The fixture defines its analytical oracle, convergence table, tolerance, boundary assumptions, resource controls, and `SolverEvidence` payload with route/backend/code/config/seed/convention fields. It uses only synthetic parameters and is part of the blocking CI stable suite so adapter/router evidence cannot drift silently.
 
+Issue #76 extends the adapter tests to consume the same public-synthetic `QuantProblemSpec` vanilla-call JSON fixture validated by `haircut-engine` #91. The fixture is vendored under `tests/fixtures/quant_problem_specs/` as a data contract, not as a Python import, and the adapter must preserve schema version, measure, numeraire, units, valuation/vintage timing, boundary details, and requested outputs before route support is claimed.
+
 ## 17. Canonical implementation consolidation
 
 For every duplicated capability, choose one canonical path based on correctness evidence, API clarity and maintainability. The other path becomes:

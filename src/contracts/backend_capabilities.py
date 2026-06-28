@@ -95,8 +95,10 @@ class FDRouteRequest:
     measure: str | None
     numeraire: str | None
     units: Mapping[str, str] = field(default_factory=dict)
+    boundary_details: Mapping[str, str] = field(default_factory=dict)
     valuation_date: str | None = None
     maturity_date: str | None = None
+    time_domain: str | None = None
     source_schema_version: str | None = None
 
     @classmethod
@@ -112,30 +114,63 @@ class FDRouteRequest:
         solver = _mapping(payload.get("solver_plan"))
         context = _mapping(payload.get("valuation_context"))
         conventions = _mapping(payload.get("conventions"))
+        vintage = _mapping(payload.get("vintage"))
+        domain = _mapping(math.get("domain"))
+        boundary_details = _mapping(math.get("boundary_conditions"))
 
-        dimension = int(_first_present(math, ("dimension", "dimensions", "state_dimension"), default=1))
+        dimension = int(
+            _first_present(
+                math,
+                ("dimension", "dimensions", "state_dimension"),
+                default=_state_dimension(math.get("state_variables")),
+            )
+        )
         grid_type = str(_first_present(solver, ("grid_type", "grid", "grid_family"), default="uniform"))
         exercise_style = str(_first_present(math, ("exercise_style", "exercise"), default="european"))
 
         return cls(
             dimension=dimension,
             grid_type=grid_type,
-            pde_terms=_tuple_of_strings(_first_present(math, ("pde_terms", "terms"), default=("drift", "diffusion", "reaction"))),
-            boundary_conditions=_tuple_of_strings(
-                _first_present(math, ("boundary_conditions", "boundary_types", "boundaries"), default=("dirichlet",))
+            pde_terms=_tuple_of_strings(
+                _first_present(math, ("pde_terms", "terms"), default=("drift", "diffusion", "reaction"))
+            ),
+            boundary_conditions=_boundary_condition_classes(
+                _first_present(math, ("boundary_types", "boundaries", "boundary_conditions"), default=("dirichlet",))
             ),
             exercise_style=exercise_style,
             requested_outputs=_tuple_of_strings(
-                _first_present(solver, ("requested_outputs", "outputs"), default=("value",))
+                _first_present(solver, ("requested_outputs", "required_outputs", "outputs"), default=("value",))
             ),
             stability_controls=_tuple_of_strings(
                 _first_present(solver, ("stability_controls", "stability"), default=("theta",))
             ),
-            measure=_optional_string(_first_present(context, ("measure",), default=conventions.get("measure"))),
-            numeraire=_optional_string(_first_present(context, ("numeraire",), default=conventions.get("numeraire"))),
-            units=_mapping(_first_present(context, ("units",), default=conventions.get("units", {}))),
-            valuation_date=_optional_string(_first_present(context, ("valuation_date", "as_of_date"), default=None)),
-            maturity_date=_optional_string(_first_present(context, ("maturity_date",), default=None)),
+            measure=_optional_string(
+                _first_present(
+                    context,
+                    ("measure",),
+                    default=_first_present(math, ("measure_id", "measure"), default=conventions.get("measure")),
+                )
+            ),
+            numeraire=_optional_string(
+                _first_present(
+                    context,
+                    ("numeraire",),
+                    default=_first_present(math, ("numeraire_id", "numeraire"), default=conventions.get("numeraire")),
+                )
+            ),
+            units=_mapping(
+                _first_present(
+                    context,
+                    ("units",),
+                    default=_first_present(math, ("units",), default=conventions.get("units", {})),
+                )
+            ),
+            boundary_details={str(key): str(value) for key, value in boundary_details.items()},
+            valuation_date=_optional_string(
+                _first_present(context, ("valuation_date", "as_of_date"), default=vintage.get("valuation_date"))
+            ),
+            maturity_date=_optional_string(_first_present(context, ("maturity_date",), default=vintage.get("maturity_date"))),
+            time_domain=_optional_string(_first_present(context, ("time_domain",), default=domain.get("t"))),
             source_schema_version=_optional_string(payload.get("schema_version")),
         )
 
@@ -221,7 +256,7 @@ def diagnose_unsupported_route(
         "numeraire": request.numeraire,
         "units": request.units,
         "valuation_date": request.valuation_date,
-        "maturity_date": request.maturity_date,
+        "maturity_date": request.maturity_date or request.time_domain,
     }
     for field_name in manifest.required_conventions:
         if not conventions.get(field_name):
@@ -312,6 +347,44 @@ def _tuple_of_strings(value: Any) -> tuple[str, ...]:
     if isinstance(value, Iterable) and not isinstance(value, Mapping):
         return tuple(str(item) for item in value)
     return (str(value),)
+
+
+def _state_dimension(value: Any) -> int:
+    if isinstance(value, str):
+        return 1
+    if isinstance(value, Iterable) and not isinstance(value, Mapping):
+        values = tuple(value)
+        return len(values) or 1
+    return 1
+
+
+def _boundary_condition_classes(value: Any) -> tuple[str, ...]:
+    """Normalize public schema boundary formulas to FD capability classes."""
+
+    raw_items: Iterable[Any]
+    if isinstance(value, Mapping):
+        raw_items = value.values()
+    else:
+        raw_items = _tuple_of_strings(value)
+
+    classes: list[str] = []
+    for item in raw_items:
+        text = str(item).lower().replace("-", "_")
+        if "robin" in text:
+            boundary_class = "robin"
+        elif "second" in text:
+            boundary_class = "second_derivative"
+        elif "linear" in text or "slope" in text or "growth" in text:
+            boundary_class = "neumann"
+        elif "neumann" in text:
+            boundary_class = "neumann"
+        elif "dirichlet" in text or "absorbing" in text or text.strip() in {"0", "zero"}:
+            boundary_class = "dirichlet"
+        else:
+            boundary_class = text
+        if boundary_class not in classes:
+            classes.append(boundary_class)
+    return tuple(classes) or ("dirichlet",)
 
 
 def _optional_string(value: Any) -> str | None:
