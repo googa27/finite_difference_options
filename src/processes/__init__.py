@@ -4,7 +4,16 @@ This package contains all stochastic process implementations organized by type.
 """
 
 # Base classes
-from .base import StochasticProcess, AffineProcess, NonAffineProcess, ProcessDimension, ProcessType
+from .base import (
+    AffineCovarianceForm,
+    AffineProcess,
+    CovarianceValidationResult,
+    NonAffineProcess,
+    ProcessCoefficientEvaluation,
+    ProcessDimension,
+    ProcessType,
+    StochasticProcess,
+)
 
 # Affine processes
 from .affine import (
@@ -28,8 +37,9 @@ from .nonaffine import (
 
 __all__ = [
     # Base classes
-    'StochasticProcess', 'AffineProcess', 'NonAffineProcess', 
-    'ProcessDimension', 'ProcessType',
+    "StochasticProcess", "AffineProcess", "NonAffineProcess",
+    "AffineCovarianceForm", "CovarianceValidationResult", "ProcessCoefficientEvaluation",
+    "ProcessDimension", "ProcessType",
     
     # Affine processes
     'GeometricBrownianMotion', 'OrnsteinUhlenbeck', 'CoxIngersollRoss', 'HestonModel',
