@@ -118,7 +118,7 @@ Inventory legacy and newer pricers, processes, boundaries, Greeks and solvers. E
 
 ### FR-FD-014 — Optional applications
 
-CLI, FastAPI, Streamlit, plotting and Next.js are separately tested applications over the installed package. They are not core dependencies or alternate numerical implementations. Frontend and service contracts have independent locks and CI.
+CLI, FastAPI, Streamlit, plotting and Next.js are separately tested applications over the installed package. They are not core dependencies or alternate numerical implementations. Frontend and service contracts have independent locks and CI. Regulatory/reporting service routes must return HTTP 501 problem details unless the route declares an exact standard/profile/version, effective date, jurisdiction, licensing status and conformance fixture set.
 
 ## 5. Non-functional requirements
 

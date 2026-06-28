@@ -9,13 +9,14 @@ from __future__ import annotations
 from typing import Optional
 
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from src.pricing import OptionPricer
 from src.risk import (
     Exposure,
+    NotImplementedForStandard,
     RiskFactor,
     Trade,
 )
@@ -185,16 +186,17 @@ class ExposureModel(BaseModel):
     amount: float
 
 
-class CRIFResponse(BaseModel):
-    """String payload for CRIF report output."""
+class RegulatoryNotImplementedResponse(BaseModel):
+    """Machine-readable failure for disabled regulatory/reporting routes."""
 
-    crif: str
+    detail: dict
 
 
-class PlaceholderResponse(BaseModel):
-    """Generic response wrapper for non-production reporting stubs."""
+def _raise_regulatory_not_implemented(error: NotImplementedForStandard) -> None:
+    """Convert internal regulatory failures to HTTP 501 problem details."""
 
-    status: str
+    detail = error.to_problem_detail()
+    raise HTTPException(status_code=detail["http_status"], detail=detail) from error
 
 
 def _convert_exposures(models: list[ExposureModel]) -> list[Exposure]:
@@ -202,49 +204,53 @@ def _convert_exposures(models: list[ExposureModel]) -> list[Exposure]:
 
     return [
         Exposure(
-            trade=Trade(**m.trade.dict()),
-            risk_factor=RiskFactor(**m.risk_factor.dict()),
+            trade=Trade(**m.trade.model_dump()),
+            risk_factor=RiskFactor(**m.risk_factor.model_dump()),
             amount=m.amount,
         )
         for m in models
     ]
 
 
-@app.post("/reports/crif", response_model=CRIFResponse)
-def crif_report(exposures: list[ExposureModel]) -> CRIFResponse:
-    """Generate a CRIF report for the provided exposures.
-
-    Inputs are converted from API models to internal domain objects before
-    invoking the configured report strategy.
-    """
+@app.post("/reports/crif", response_model=RegulatoryNotImplementedResponse)
+def crif_report(exposures: list[ExposureModel]) -> None:
+    """Fail closed until an exact ISDA CRIF profile and conformance suite exist."""
 
     strategy = ReportFactory.get_strategy("crif")
-    crif = strategy.generate_report(_convert_exposures(exposures))
-    return CRIFResponse(**crif)
+    try:
+        strategy.generate_report(_convert_exposures(exposures))
+    except NotImplementedForStandard as exc:
+        _raise_regulatory_not_implemented(exc)
 
 
-@app.post("/reports/cuso", response_model=PlaceholderResponse)
-def cuso_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
-    """Return placeholder CUSO report from the active strategy adapter."""
+@app.post("/reports/cuso", response_model=RegulatoryNotImplementedResponse)
+def cuso_report(exposures: list[ExposureModel]) -> None:
+    """Fail closed until an authoritative CUSO specification exists."""
 
     strategy = ReportFactory.get_strategy("cuso")
-    data = strategy.generate_report(_convert_exposures(exposures))
-    return PlaceholderResponse(**data)
+    try:
+        strategy.generate_report(_convert_exposures(exposures))
+    except NotImplementedForStandard as exc:
+        _raise_regulatory_not_implemented(exc)
 
 
-@app.post("/reports/basel", response_model=PlaceholderResponse)
-def basel_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
-    """Return placeholder Basel report from the active strategy adapter."""
+@app.post("/reports/basel", response_model=RegulatoryNotImplementedResponse)
+def basel_report(exposures: list[ExposureModel]) -> None:
+    """Fail closed until a versioned Basel market-risk subset is implemented."""
 
     strategy = ReportFactory.get_strategy("basel")
-    data = strategy.generate_report(_convert_exposures(exposures))
-    return PlaceholderResponse(**data)
+    try:
+        strategy.generate_report(_convert_exposures(exposures))
+    except NotImplementedForStandard as exc:
+        _raise_regulatory_not_implemented(exc)
 
 
-@app.post("/reports/frtb", response_model=PlaceholderResponse)
-def frtb_report(exposures: list[ExposureModel]) -> PlaceholderResponse:
-    """Placeholder FRTB report endpoint."""
+@app.post("/reports/frtb", response_model=RegulatoryNotImplementedResponse)
+def frtb_report(exposures: list[ExposureModel]) -> None:
+    """Fail closed until a versioned FRTB calculation subset is implemented."""
 
     strategy = ReportFactory.get_strategy("frtb")
-    data = strategy.generate_report(_convert_exposures(exposures))
-    return PlaceholderResponse(**data)
+    try:
+        strategy.generate_report(_convert_exposures(exposures))
+    except NotImplementedForStandard as exc:
+        _raise_regulatory_not_implemented(exc)
