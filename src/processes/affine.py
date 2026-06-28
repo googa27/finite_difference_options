@@ -15,17 +15,15 @@ from __future__ import annotations
 from typing import Tuple
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, field_validator, ConfigDict
 
+from src.exceptions import ValidationError
 from .base import AffineProcess, ProcessDimension
 from ..validation import validate_positive, validate_non_negative
 from ..utils.process_validators import (
-    validate_feller_condition, 
-    validate_correlation_parameter,
-    validate_cev_beta,
+    validate_feller_condition,
     validate_heston_parameters
 )
-from ..utils.state_handling import validate_positive_state_components
 
 
 class GeometricBrownianMotion(AffineProcess, BaseModel):
@@ -70,8 +68,11 @@ class GeometricBrownianMotion(AffineProcess, BaseModel):
         return np.array([0.0]), np.array([self.mu])
     
     def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
-        """Σ(S) = σ²S², so γ=0, δ=σ²."""
-        return np.array([[0.0]]), np.array([[self.sigma**2]])
+        """Fail closed because ``Σ(S)=σ²S²`` is quadratic in native spot."""
+        raise ValidationError(
+            "GeometricBrownianMotion does not have exact affine covariance in native state coordinates; "
+            "use covariance(...) or evaluate_coefficients(...) for native-state coefficients"
+        )
     
     def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Covariance matrix Σ(S) = σ²S²."""
@@ -257,13 +258,11 @@ class HestonModel(AffineProcess, BaseModel):
         return alpha, beta
     
     def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
-        """Heston covariance coefficients."""
-        gamma = np.zeros((2, 2))
-        delta = np.array([
-            [[0.0, 0.0], [0.0, 1.0]],  # S component: V * S²
-            [[0.0, 0.0], [0.0, self.sigma**2]]  # V component: σ² * V
-        ])
-        return gamma, delta
+        """Fail closed because native-state Heston covariance is quadratic/bilinear."""
+        raise ValidationError(
+            "HestonModel does not have exact affine covariance in native state coordinates; "
+            "use covariance(...) or evaluate_coefficients(...) for native-state coefficients"
+        )
     
     def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute Heston covariance matrix."""
