@@ -66,3 +66,6 @@ Issue #69 restores a trustworthy blocking baseline. It does not claim to finish 
 - full repository lint/type/test debt repayment;
 - action pinning, SBOM, audit, and benchmark profiles;
 - maintained frontend dependency and vulnerability policy if the frontend is promoted from optional example to deliverable.
+
+
+The architecture contract gate (`python scripts/check_architecture_contract.py`) must remain in blocking CI beside `pytest -q tests/architecture`; `docs/architecture_contract.toml` is the reviewed topology source of truth.

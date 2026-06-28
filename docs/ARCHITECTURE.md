@@ -129,6 +129,10 @@ tests/
 
 This is a responsibility map, not a big-bang refactor instruction. Boundaries are justified by dependency direction, semantic ownership, optional installation or independent testing.
 
+
+
+The machine-readable architecture contract is `docs/architecture_contract.toml`. It is the CI-enforced source of truth for the transitional `src/` package allowlist, root-module policy, and topology-count ratchet; update it with `tests/architecture` and `scripts/check_architecture_contract.py` in every hierarchy-changing PR.
+
 ## 6. Dependency direction
 
 ```text

@@ -268,3 +268,5 @@ Before review, confirm:
 ---
 
 *This file is the canonical Finite Difference Options contributor and agent contract.*
+
+- Package topology changes must update `docs/architecture_contract.toml`, `docs/ARCHITECTURE.md`, architecture tests, and `scripts/check_architecture_contract.py` architecture contract gate in the same PR.
