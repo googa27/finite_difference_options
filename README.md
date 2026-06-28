@@ -175,7 +175,7 @@ Pricing requests use a versioned schema with explicit model/payoff/process contr
 }
 ```
 
-All public responses use the stable `fd-api-v1` envelope. Successful routes include top-level `schema_version`, `request_id`, `run_id`, and `metadata`; callers may supply `X-Request-ID` for trace propagation. `metadata` records route maturity, warnings, units, solver/grid dimensions, and explicit `not_assessed` convergence status. This is a service-contract shape, not a production validation claim.
+All public responses use the stable `fd-api-v1` envelope. Successful scalar routes include top-level `schema_version`, `request_id`, `run_id`, and `metadata`; callers may supply `X-Request-ID` for trace propagation. `metadata` records route maturity, warnings, units, solver/grid dimensions, requested-state sampling diagnostics, and explicit `not_assessed` convergence status. This is a service-contract shape, not a production validation claim.
 
 Endpoints:
 
