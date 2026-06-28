@@ -106,7 +106,7 @@ print(f"2D Heston option prices shape: {prices.shape}")
 
 ### Unsupported basket payoff route
 
-Basket payoff routing is currently `unsupported` unless a true multi-asset process/factor map is supplied and validated. Heston variance is a volatility state, not a second tradable basket asset. See #62 and the capability matrix.
+Basket payoff routing is currently `unsupported` unless a true multi-asset process/factor map is supplied and validated. Process metadata now labels Heston state as `(tradable_spot, variance)`, so Heston variance fails closed instead of being consumed as a second basket asset. Use `StandardBasketOption` / `create_standard_basket_call` for the one-strike basket payoff object; pricing still requires a process whose required legs are all tradable spot factors. See #45, #62 and the capability matrix.
 
 ## Development
 

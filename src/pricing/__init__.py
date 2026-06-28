@@ -20,8 +20,11 @@ from .workflows import GridResult, OptionPricer
 # Backward compatibility imports
 from .instruments.base import UnifiedInstrument
 from .instruments.options import (
+    StandardBasketOption,
     UnifiedEuropeanOption,
     UnifiedBasketOption,
+    create_standard_basket_call,
+    create_standard_basket_put,
     create_unified_european_call,
     create_unified_european_put,
     create_unified_basket_call,
@@ -42,8 +45,11 @@ __all__ = [
 
     # Backward compatibility
     "UnifiedInstrument",
+    "StandardBasketOption",
     "UnifiedEuropeanOption",
     "UnifiedBasketOption",
+    "create_standard_basket_call",
+    "create_standard_basket_put",
     "create_unified_european_call",
     "create_unified_european_put",
     "create_unified_basket_call",

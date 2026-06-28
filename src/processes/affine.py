@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, field_validator, ConfigDict
 
 from src.exceptions import ValidationError
-from .base import AffineProcess, ProcessDimension
+from .base import AffineProcess, FactorRole, ProcessDimension, ProcessFactorMetadata
 from ..validation import validate_positive, validate_non_negative
 from ..utils.process_validators import (
     validate_feller_condition,
@@ -62,6 +62,18 @@ class GeometricBrownianMotion(AffineProcess, BaseModel):
     @property
     def dimension(self) -> ProcessDimension:
         return ProcessDimension(value=1)
+
+    def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
+        """GBM's sole state coordinate is a tradable spot."""
+
+        return (
+            ProcessFactorMetadata(
+                name="spot",
+                role=FactorRole.TRADABLE_SPOT,
+                coordinate="spot",
+                asset_id="spot",
+            ),
+        )
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(S) = μS, so α=0, β=μ."""
@@ -121,6 +133,17 @@ class OrnsteinUhlenbeck(AffineProcess, BaseModel):
     @property
     def dimension(self) -> ProcessDimension:
         return ProcessDimension(value=1)
+
+    def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
+        """Vasicek's state coordinate is a short rate, not an equity spot."""
+
+        return (
+            ProcessFactorMetadata(
+                name="short_rate",
+                role=FactorRole.SHORT_RATE,
+                coordinate="short_rate",
+            ),
+        )
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(r) = κθ - κr, so α=κθ, β=-κ."""
@@ -187,6 +210,17 @@ class CoxIngersollRoss(AffineProcess, BaseModel):
     @property
     def dimension(self) -> ProcessDimension:
         return ProcessDimension(value=1)
+
+    def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
+        """CIR's state coordinate is a short rate."""
+
+        return (
+            ProcessFactorMetadata(
+                name="short_rate",
+                role=FactorRole.SHORT_RATE,
+                coordinate="short_rate",
+            ),
+        )
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(r) = κθ - κr, so α=κθ, β=-κ."""
@@ -247,6 +281,19 @@ class HestonModel(AffineProcess, BaseModel):
     @property
     def dimension(self) -> ProcessDimension:
         return ProcessDimension(value=2)
+
+    def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
+        """Return explicit state-factor roles for ``(spot, variance)``."""
+
+        return (
+            ProcessFactorMetadata(
+                name="spot",
+                role=FactorRole.TRADABLE_SPOT,
+                coordinate="spot",
+                asset_id="spot",
+            ),
+            ProcessFactorMetadata(name="variance", role=FactorRole.VARIANCE, coordinate="variance"),
+        )
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Heston drift coefficients."""

@@ -15,12 +15,12 @@ Current production guidance
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, Iterable, cast
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ...processes.base import StochasticProcess
+from ...processes.base import FactorRole, StochasticProcess
 from ...pricing.instruments.base import UnifiedInstrument
 from src.exceptions import ValidationError
 from ...solvers.base import Solver, SolverFactory
@@ -108,6 +108,8 @@ class UnifiedPricingEngine:
                 f"Expected {self.process.dimension.value} grids, got {len(grids)}"
             )
 
+        self._validate_factor_compatibility(instrument)
+
         if len(grids) == 1:
             initial_condition = instrument.payoff(grids[0])
         else:
@@ -124,6 +126,33 @@ class UnifiedPricingEngine:
         )
 
         return solution
+
+    def _validate_factor_compatibility(self, instrument: UnifiedInstrument) -> None:
+        """Validate instrument payoff dependencies against process factor roles."""
+
+        required_roles_getter = getattr(instrument, "required_factor_roles", None)
+        if not callable(required_roles_getter):
+            return
+        required_roles = tuple(cast(Iterable[FactorRole], required_roles_getter()))
+        if not required_roles:
+            return
+
+        factors = tuple(self.process.factor_metadata())
+        if len(required_roles) > len(factors):
+            raise ValidationError(
+                f"{type(instrument).__name__} requires {len(required_roles)} factors, "
+                f"but {type(self.process).__name__} exposes {len(factors)}"
+            )
+        for index, required_role in enumerate(required_roles):
+            actual = factors[index]
+            if actual.role != required_role:
+                required_label = required_role.value.replace("_", " ")
+                actual_label = actual.role.value.replace("_", " ")
+                raise ValidationError(
+                    f"{type(instrument).__name__} requires factor {index} to be {required_label}, "
+                    f"but {type(self.process).__name__} factor {index} ({actual.name}) is {actual_label}. "
+                    "A basket payoff cannot consume variance or other non-tradable factors by accident."
+                )
 
     def compute_greeks(
         self,

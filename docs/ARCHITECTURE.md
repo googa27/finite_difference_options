@@ -172,6 +172,7 @@ with domain, coordinate transform, time orientation, initial or terminal conditi
 The contract distinguishes:
 
 - covariance/diffusion matrix `A=[a_ij]` and its coordinate convention;
+- state-factor roles (`tradable_spot`, `variance`, `short_rate`, `auxiliary_state`) used to validate payoff/process compatibility before payoff allocation;
 - drift `b`;
 - reaction/discount `c`;
 - source `f`;

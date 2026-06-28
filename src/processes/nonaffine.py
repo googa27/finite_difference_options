@@ -9,15 +9,14 @@ constructed.
 """
 from __future__ import annotations
 
-from typing import Tuple
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, field_validator, ConfigDict
 
-from .base import NonAffineProcess, ProcessDimension
+from .base import FactorRole, NonAffineProcess, ProcessDimension, ProcessFactorMetadata
 from ..validation import validate_positive
 from ..utils.process_validators import validate_cev_beta, validate_sabr_parameters
-from ..utils.state_handling import validate_positive_state_components
+
 
 
 class ConstantElasticityVariance(NonAffineProcess, BaseModel):
@@ -56,6 +55,18 @@ class ConstantElasticityVariance(NonAffineProcess, BaseModel):
     @property
     def dimension(self) -> ProcessDimension:
         return ProcessDimension(value=1)
+
+    def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
+        """CEV's sole state coordinate is a tradable spot."""
+
+        return (
+            ProcessFactorMetadata(
+                name="spot",
+                role=FactorRole.TRADABLE_SPOT,
+                coordinate="spot",
+                asset_id="spot",
+            ),
+        )
     
     def drift(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         r"""Compute CEV drift :math:`\mu S_t` for each input state point."""
@@ -118,6 +129,19 @@ class SABRModel(NonAffineProcess, BaseModel):
     @property
     def dimension(self) -> ProcessDimension:
         return ProcessDimension(value=2)
+
+    def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
+        """SABR state is ``(forward, volatility)``; only the first factor is tradable."""
+
+        return (
+            ProcessFactorMetadata(
+                name="forward",
+                role=FactorRole.TRADABLE_SPOT,
+                coordinate="forward",
+                asset_id="forward",
+            ),
+            ProcessFactorMetadata(name="volatility", role=FactorRole.VOLATILITY, coordinate="volatility"),
+        )
     
     def drift(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return SABR model drift vector.

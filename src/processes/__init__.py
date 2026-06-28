@@ -8,9 +8,12 @@ from .base import (
     AffineCovarianceForm,
     AffineProcess,
     CovarianceValidationResult,
+    FactorRole,
     NonAffineProcess,
     ProcessCoefficientEvaluation,
     ProcessDimension,
+    ProcessFactor,
+    ProcessFactorMetadata,
     ProcessType,
     StochasticProcess,
 )
@@ -38,8 +41,8 @@ from .nonaffine import (
 __all__ = [
     # Base classes
     "StochasticProcess", "AffineProcess", "NonAffineProcess",
-    "AffineCovarianceForm", "CovarianceValidationResult", "ProcessCoefficientEvaluation",
-    "ProcessDimension", "ProcessType",
+    "AffineCovarianceForm", "CovarianceValidationResult", "FactorRole",
+    "ProcessCoefficientEvaluation", "ProcessDimension", "ProcessFactor", "ProcessFactorMetadata", "ProcessType",
     
     # Affine processes
     'GeometricBrownianMotion', 'OrnsteinUhlenbeck', 'CoxIngersollRoss', 'HestonModel',

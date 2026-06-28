@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from .base import UnifiedInstrument
 from .payoff_calculators import PayoffCalculatorFactory
+from ...processes.base import FactorRole
 from ...validation import validate_positive
 from ...utils.process_validators import validate_weights_sum_to_one
 from src.exceptions import ValidationError
@@ -73,6 +74,11 @@ class UnifiedEuropeanOption(UnifiedInstrument, BaseModel):
         """
         calculator = PayoffCalculatorFactory.create_calculator(self)
         return calculator.calculate_payoff(self, *grids)
+
+    def required_factor_roles(self) -> tuple[FactorRole, ...]:
+        """European vanilla options consume one tradable spot factor."""
+
+        return (FactorRole.TRADABLE_SPOT,)
 
 
 class UnifiedBasketOption(UnifiedInstrument, BaseModel):
@@ -147,6 +153,79 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
         calculator = PayoffCalculatorFactory.create_calculator(self)
         return calculator.calculate_payoff(self, *grids)
 
+    def required_factor_roles(self) -> tuple[FactorRole, ...]:
+        """Legacy per-leg basket options require every leg to be tradable."""
+
+        return tuple(FactorRole.TRADABLE_SPOT for _ in self.weights)
+
+
+class StandardBasketOption(UnifiedInstrument, BaseModel):
+    """Standard basket option with one basket strike.
+
+    ``UnifiedBasketOption`` is retained as the legacy per-leg-strike product.
+    This contract represents the common payoff
+    ``max(sum_i w_i S_i - K, 0)`` for calls and the reverse for puts.
+    """
+
+    strike: float
+    weights: Any
+    maturity: float
+    option_type: str = "call"
+    asset_ids: tuple[str, ...] | None = None
+
+    model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
+
+    @field_validator("strike")
+    @classmethod
+    def validate_strike(cls, v: float) -> float:
+        """Validate basket strike."""
+        validate_positive(v, "strike")
+        return v
+
+    @field_validator("maturity")
+    @classmethod
+    def validate_maturity(cls, v: float) -> float:
+        """Validate maturity is strictly positive."""
+        validate_positive(v, "maturity")
+        return v
+
+    @field_validator("weights")
+    @classmethod
+    def validate_weights(cls, v: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Convert weights to a dense floating array."""
+        return np.asarray(v, dtype=np.float64)
+
+    @field_validator("option_type")
+    @classmethod
+    def validate_option_type(cls, v: str) -> str:
+        """Validate option type."""
+        if v not in ["call", "put"]:
+            raise ValidationError(f"option_type must be 'call' or 'put', got {v}")
+        return v
+
+    def __init__(self, **data):
+        """Initialise and perform basket cross-field validation."""
+        super().__init__(**data)
+
+        if self.weights.ndim != 1:
+            raise ValidationError("weights must be one-dimensional")
+        if len(self.weights) == 0:
+            raise ValidationError("weights must be nonempty")
+        if not np.all(np.isfinite(self.weights)):
+            raise ValidationError("weights must contain only finite values")
+        if self.asset_ids is not None and len(self.asset_ids) != len(self.weights):
+            raise ValidationError("asset_ids must have the same length as weights")
+
+    def payoff(self, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Compute the standard one-strike basket payoff."""
+        calculator = PayoffCalculatorFactory.create_calculator(self)
+        return calculator.calculate_payoff(self, *grids)
+
+    def required_factor_roles(self) -> tuple[FactorRole, ...]:
+        """Standard basket legs must map to tradable spot factors."""
+
+        return tuple(FactorRole.TRADABLE_SPOT for _ in self.weights)
+
 
 # Convenience functions
 
@@ -180,6 +259,22 @@ def create_unified_basket_call(
     )
 
 
+def create_standard_basket_call(
+    strike: float,
+    weights: NDArray[np.float64],
+    maturity: float,
+    asset_ids: tuple[str, ...] | None = None,
+) -> StandardBasketOption:
+    """Create a standard basket call with one basket strike."""
+    return StandardBasketOption(
+        strike=strike,
+        weights=weights,
+        maturity=maturity,
+        option_type="call",
+        asset_ids=asset_ids,
+    )
+
+
 def create_unified_basket_put(
     strikes: NDArray[np.float64],
     weights: NDArray[np.float64],
@@ -191,4 +286,20 @@ def create_unified_basket_put(
         weights=weights,
         maturity=maturity,
         option_type="put",
+    )
+
+
+def create_standard_basket_put(
+    strike: float,
+    weights: NDArray[np.float64],
+    maturity: float,
+    asset_ids: tuple[str, ...] | None = None,
+) -> StandardBasketOption:
+    """Create a standard basket put with one basket strike."""
+    return StandardBasketOption(
+        strike=strike,
+        weights=weights,
+        maturity=maturity,
+        option_type="put",
+        asset_ids=asset_ids,
     )
