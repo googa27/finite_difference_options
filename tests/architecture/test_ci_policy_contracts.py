@@ -12,11 +12,13 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     workflow = _read(".github/workflows/ci.yml")
 
     assert "Static smoke gate" in workflow
-    assert "python -m compileall -q src tests" in workflow
+    assert "python -m compileall -q api src tests" in workflow
     assert "ruff check . --select E9,F63,F7,F82" in workflow
     assert "Architecture fitness gate" in workflow
     assert "pytest -q tests/architecture" in workflow
     assert "Stable regression suite" in workflow
+    assert "PYTHONPATH=. pytest -q" in workflow
+    assert "tests/test_api_schema_contracts.py" in workflow
     assert "tests/test_unified_pricing_engine.py" in workflow
 
 
@@ -35,7 +37,10 @@ def test_gemini_review_and_issue_triage_failures_are_advisory() -> None:
 
     assert "continue-on-error: true" in pr_review
     assert "Classify unavailable Gemini PR review as advisory" in pr_review
-    assert "review-service events, not as Python/Node/package validation failures" in pr_review
+    assert (
+        "review-service events, not as Python/Node/package validation failures"
+        in pr_review
+    )
     assert "Post PR review failure comment" not in pr_review
 
     assert "continue-on-error: true" in issue_triage

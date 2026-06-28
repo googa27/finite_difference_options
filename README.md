@@ -170,15 +170,19 @@ Pricing requests use a versioned schema with explicit `spot`, enum `option_type`
 }
 ```
 
+All public responses use the stable `fd-api-v1` envelope. Successful routes include top-level `schema_version`, `request_id`, `run_id`, and `metadata`; callers may supply `X-Request-ID` for trace propagation. `metadata` records route maturity, warnings, units, solver/grid dimensions, and explicit `not_assessed` convergence status. This is a service-contract shape, not a production validation claim.
+
 Endpoints:
 
-- `POST /price` → scalar requested-spot response `{ "schema_version": "fd-api-v1", "spot": float, "price": float, "grid": null }`
-- `POST /greeks` → requested-spot Greeks `{ "schema_version": "fd-api-v1", "spot": float, "delta": float, "gamma": float, "theta": float }`
+- `POST /price` → scalar requested-spot response with `{ "schema_version": "fd-api-v1", "request_id": str, "run_id": str, "metadata": {...}, "spot": float, "price": float, "grid": null }`
+- `POST /greeks` → requested-spot Greeks with the same envelope plus `delta`, `gamma`, and `theta`
 - `POST /pde_solution` → bounded full grids for prices and Greeks only when `include_full_grid` is `true`
-- `POST /reports/crif` → HTTP 501 problem detail until an exact ISDA CRIF profile/version and conformance suite are implemented
-- `POST /reports/cuso` → HTTP 501 problem detail until an authoritative CUSO specification is identified
-- `POST /reports/basel` → HTTP 501 problem detail until a versioned Basel market-risk subset is implemented
-- `POST /reports/frtb` → HTTP 501 problem detail until a versioned FRTB calculation subset is implemented
+- `POST /reports/crif` → HTTP 501 `ErrorResponse` until an exact ISDA CRIF profile/version and conformance suite are implemented
+- `POST /reports/cuso` → HTTP 501 `ErrorResponse` until an authoritative CUSO specification is identified
+- `POST /reports/basel` → HTTP 501 `ErrorResponse` until a versioned Basel market-risk subset is implemented
+- `POST /reports/frtb` → HTTP 501 `ErrorResponse` until a versioned FRTB calculation subset is implemented
+
+Validation, bad-request, internal, and unsupported-route failures are concise machine-readable `ErrorResponse` objects with stable `error.code`, `error.http_status`, route, request/run IDs, and original diagnostic `detail`. OpenAPI compatibility tests guard these public schema components from unreviewed drift.
 
 ## Next.js Client
 

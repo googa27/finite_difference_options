@@ -7,14 +7,19 @@ front-end integrations and smoke testing.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Any, Literal, Optional
+from uuid import uuid4
 
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.instruments.base import EuropeanCall, EuropeanPut
 from src.pricing import OptionPricer
+from src.processes.affine import GeometricBrownianMotion
 from src.risk import (
     Exposure,
     NotImplementedForStandard,
@@ -22,8 +27,8 @@ from src.risk import (
     Trade,
 )
 from src.risk.reporting_strategies import ReportFactory
-from src.processes.affine import GeometricBrownianMotion
-from src.instruments.base import EuropeanCall, EuropeanPut
+
+API_SCHEMA_VERSION: Literal["fd-api-v1"] = "fd-api-v1"
 
 app = FastAPI(title="Finite Difference Option Pricing")
 
@@ -79,14 +84,99 @@ class OptionRequest(BaseModel):
             raise ValueError("strike must lie inside the spatial grid [0, s_max]")
         node_count = self.s_steps * self.t_steps
         if node_count > self.max_output_nodes:
-            raise ValueError(f"request exceeds node budget: {node_count} > {self.max_output_nodes}")
+            raise ValueError(
+                f"request exceeds node budget: {node_count} > {self.max_output_nodes}"
+            )
         return self
 
     @property
     def resolved_s_max(self) -> float:
         """Return explicit or default spatial upper bound."""
 
-        return float(self.s_max if self.s_max is not None else max(self.spot, self.strike) * 3.0)
+        return float(
+            self.s_max if self.s_max is not None else max(self.spot, self.strike) * 3.0
+        )
+
+
+class RouteWarning(BaseModel):
+    """Machine-readable non-blocking route warning."""
+
+    code: str
+    message: str
+    severity: Literal["info", "warning"] = "warning"
+
+
+class UnitMetadata(BaseModel):
+    """Unit conventions for the public API schema."""
+
+    price: str = "same currency as underlying; examples use dimensionless inputs"
+    spot: str = "underlying price level"
+    strike: str = "underlying price level"
+    rate: str = "annual_decimal"
+    volatility: str = "annual_decimal"
+    time: str = "years"
+    greek_delta: str = "price per spot unit"
+    greek_gamma: str = "price per squared spot unit"
+    greek_theta: str = "price per year"
+
+
+class SolverMetadata(BaseModel):
+    """Numerical route metadata exposed without claiming production maturity."""
+
+    engine: str
+    process: str
+    scheme: str
+    s_steps: int
+    t_steps: int
+    grid_nodes: int
+    output_grid_included: bool
+    requested_outputs: list[str]
+
+
+class ConvergenceDiagnostics(BaseModel):
+    """Schema placeholder for convergence evidence attached to API results."""
+
+    status: Literal["not_assessed", "not_applicable"] = "not_assessed"
+    message: str
+    residual_norm: float | None = None
+    benchmark_error: float | None = None
+
+
+class ResponseMetadata(BaseModel):
+    """Stable metadata envelope shared by success and error responses."""
+
+    route: str
+    route_maturity: Literal["experimental", "scaffold", "unsupported"]
+    warnings: list[RouteWarning]
+    units: UnitMetadata = Field(default_factory=UnitMetadata)
+    solver: SolverMetadata | None = None
+    convergence: ConvergenceDiagnostics | None = None
+
+
+class APIResponseBase(BaseModel):
+    """Common top-level stable fields for every public API response."""
+
+    schema_version: Literal["fd-api-v1"] = API_SCHEMA_VERSION
+    request_id: str
+    run_id: str
+    metadata: ResponseMetadata
+
+
+class ErrorBody(BaseModel):
+    """Machine-readable error summary."""
+
+    code: str
+    message: str
+    http_status: int
+    route: str
+    source: str = "api"
+
+
+class ErrorResponse(APIResponseBase):
+    """Stable error envelope for validation, bad-request, and unsupported routes."""
+
+    error: ErrorBody
+    detail: dict[str, Any] | list[dict[str, Any]] | str | None = None
 
 
 class PriceGrid(BaseModel):
@@ -97,20 +187,18 @@ class PriceGrid(BaseModel):
     values: list[list[float]]
 
 
-class PriceResponse(BaseModel):
+class PriceResponse(APIResponseBase):
     """Scalar option price response with optional bounded grid payload."""
 
-    schema_version: str = "fd-api-v1"
     option_type: OptionType
     spot: float
     price: float
     grid: PriceGrid | None = None
 
 
-class GreeksResponse(BaseModel):
+class GreeksResponse(APIResponseBase):
     """Scalar Greeks sampled at the explicitly requested spot."""
 
-    schema_version: str = "fd-api-v1"
     option_type: OptionType
     spot: float
     delta: float
@@ -118,10 +206,9 @@ class GreeksResponse(BaseModel):
     theta: float
 
 
-class FullPDEResponse(BaseModel):
+class FullPDEResponse(APIResponseBase):
     """Explicitly requested complete solution and Greeks grids."""
 
-    schema_version: str = "fd-api-v1"
     option_type: OptionType
     spot: float
     s: list[float]
@@ -130,6 +217,224 @@ class FullPDEResponse(BaseModel):
     delta: list[list[float]]
     gamma: list[list[float]]
     theta: list[list[float]]
+
+
+API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    400: {"model": ErrorResponse},
+    422: {"model": ErrorResponse},
+    500: {"model": ErrorResponse},
+}
+UNSUPPORTED_ROUTE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    501: {"model": ErrorResponse},
+    422: {"model": ErrorResponse},
+}
+
+
+def _new_run_id() -> str:
+    """Return an opaque run identifier for a single route evaluation."""
+
+    return f"fd-run-{uuid4().hex}"
+
+
+def _request_id(http_request: Request) -> str:
+    """Propagate a caller-supplied request ID or create an opaque one."""
+
+    return http_request.headers.get("x-request-id") or f"fd-req-{uuid4().hex}"
+
+
+def _route_warning(route: str, *, route_maturity: str) -> RouteWarning:
+    """Return the standard maturity warning for a public route."""
+
+    if route_maturity == "unsupported":
+        return RouteWarning(
+            code="unsupported_route",
+            message=f"{route} is intentionally fail-closed until its contract is implemented.",
+        )
+    return RouteWarning(
+        code="experimental_api",
+        message=(
+            f"{route} is an experimental finite-difference service contract; "
+            "results require independent numerical validation before production use."
+        ),
+    )
+
+
+def _solver_metadata(
+    request: OptionRequest,
+    *,
+    include_grid: bool,
+    requested_outputs: list[str],
+) -> SolverMetadata:
+    """Build stable metadata for the current finite-difference route."""
+
+    return SolverMetadata(
+        engine="OptionPricer",
+        process="GeometricBrownianMotion",
+        scheme="finite_difference_black_scholes_reference",
+        s_steps=request.s_steps,
+        t_steps=request.t_steps,
+        grid_nodes=request.s_steps * request.t_steps,
+        output_grid_included=include_grid,
+        requested_outputs=requested_outputs,
+    )
+
+
+def _convergence_metadata() -> ConvergenceDiagnostics:
+    """Return explicit non-claim convergence metadata for experimental routes."""
+
+    return ConvergenceDiagnostics(
+        status="not_assessed",
+        message=(
+            "This endpoint returns a single-grid experimental solve; convergence, "
+            "oracle parity, and production model-risk evidence are tracked by separate gates."
+        ),
+    )
+
+
+def _success_metadata(
+    route: str,
+    request: OptionRequest,
+    *,
+    include_grid: bool,
+    requested_outputs: list[str],
+) -> ResponseMetadata:
+    """Build the success metadata envelope required by the v1 API schema."""
+
+    return ResponseMetadata(
+        route=route,
+        route_maturity="experimental",
+        warnings=[_route_warning(route, route_maturity="experimental")],
+        solver=_solver_metadata(
+            request,
+            include_grid=include_grid,
+            requested_outputs=requested_outputs,
+        ),
+        convergence=_convergence_metadata(),
+    )
+
+
+def _error_metadata(route: str, *, code: str) -> ResponseMetadata:
+    """Build the error metadata envelope without invoking numerical work."""
+
+    route_maturity: Literal["experimental", "unsupported"] = (
+        "unsupported" if code == "unsupported_route" else "experimental"
+    )
+    return ResponseMetadata(
+        route=route,
+        route_maturity=route_maturity,
+        warnings=[_route_warning(route, route_maturity=route_maturity)],
+        convergence=ConvergenceDiagnostics(
+            status="not_applicable",
+            message="No numerical solve was executed for this error response.",
+        ),
+    )
+
+
+def _response_identity(http_request: Request) -> dict[str, str]:
+    """Return common response identifiers."""
+
+    return {"request_id": _request_id(http_request), "run_id": _new_run_id()}
+
+
+def _error_code(status_code: int, detail: Any) -> str:
+    """Classify HTTP failures into stable public error codes."""
+
+    if status_code == 501:
+        return "unsupported_route"
+    if isinstance(detail, dict) and detail.get("capability_status") in {
+        "scaffold",
+        "unsupported",
+    }:
+        return "unsupported_route"
+    if status_code == 422:
+        return "validation_error"
+    if status_code == 400:
+        return "bad_request"
+    if status_code >= 500:
+        return "internal_error"
+    return "http_error"
+
+
+def _error_message(code: str, detail: Any) -> str:
+    """Return a concise human-readable message for the stable error envelope."""
+
+    if isinstance(detail, str):
+        return detail
+    if isinstance(detail, dict):
+        for key in ("message", "detail", "reason"):
+            if isinstance(detail.get(key), str):
+                return detail[key]
+    if code == "validation_error":
+        return "Request validation failed"
+    if code == "unsupported_route":
+        return "Route is unsupported or not implemented for the declared contract"
+    if code == "internal_error":
+        return "Internal server error"
+    return "Request failed"
+
+
+def _error_response(
+    http_request: Request,
+    *,
+    status_code: int,
+    detail: Any,
+    source: str,
+) -> JSONResponse:
+    """Serialize all public API errors through the stable v1 envelope."""
+
+    route = http_request.url.path
+    code = _error_code(status_code, detail)
+    body = ErrorResponse(
+        **_response_identity(http_request),
+        metadata=_error_metadata(route, code=code),
+        error=ErrorBody(
+            code=code,
+            message=_error_message(code, detail),
+            http_status=status_code,
+            route=route,
+            source=source,
+        ),
+        detail=detail,
+    )
+    return JSONResponse(status_code=status_code, content=body.model_dump(mode="json"))
+
+
+@app.exception_handler(RequestValidationError)
+def _validation_exception_handler(
+    http_request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Return Pydantic/FastAPI validation failures as stable v1 error responses."""
+
+    return _error_response(
+        http_request,
+        status_code=422,
+        detail=exc.errors(),
+        source="request_validation",
+    )
+
+
+@app.exception_handler(HTTPException)
+def _http_exception_handler(http_request: Request, exc: HTTPException) -> JSONResponse:
+    """Return explicit HTTP failures as stable v1 error responses."""
+
+    return _error_response(
+        http_request,
+        status_code=exc.status_code,
+        detail=exc.detail,
+        source="http_exception",
+    )
+
+
+@app.exception_handler(Exception)
+def _unhandled_exception_handler(http_request: Request, exc: Exception) -> JSONResponse:
+    """Return unexpected failures as redacted stable v1 error responses."""
+
+    return _error_response(
+        http_request,
+        status_code=500,
+        detail={"exception_type": type(exc).__name__},
+        source="unhandled_exception",
+    )
 
 
 def _option_class(option_type: OptionType) -> type[EuropeanCall] | type[EuropeanPut]:
@@ -160,12 +465,19 @@ def _grid_payload(res) -> PriceGrid:
     return PriceGrid(s=res.s.tolist(), t=res.t.tolist(), values=res.values.tolist())
 
 
-@app.post("/price", response_model=PriceResponse)
-def price(request: OptionRequest) -> PriceResponse:
+@app.post("/price", response_model=PriceResponse, responses=API_ERROR_RESPONSES)
+def price(request: OptionRequest, http_request: Request) -> PriceResponse:
     """Return requested-spot price and optional bounded grid for an option."""
 
     res = _compute_grid(request)
     return PriceResponse(
+        **_response_identity(http_request),
+        metadata=_success_metadata(
+            "/price",
+            request,
+            include_grid=request.include_full_grid,
+            requested_outputs=["price"],
+        ),
         option_type=request.option_type,
         spot=request.spot,
         price=_interp_at_spot(res.values[-1], res.s, request.spot),
@@ -173,14 +485,23 @@ def price(request: OptionRequest) -> PriceResponse:
     )
 
 
-@app.post("/greeks", response_model=GreeksResponse)
-def greeks(request: OptionRequest) -> GreeksResponse:
+@app.post("/greeks", response_model=GreeksResponse, responses=API_ERROR_RESPONSES)
+def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
     """Return scalar Greeks at the explicitly requested spot."""
 
     res = _compute_grid(request, return_greeks=True)
-    if res.delta is None or res.gamma is None or res.theta is None:  # pragma: no cover - defensive
+    if (
+        res.delta is None or res.gamma is None or res.theta is None
+    ):  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail="Greek grid was not computed")
     return GreeksResponse(
+        **_response_identity(http_request),
+        metadata=_success_metadata(
+            "/greeks",
+            request,
+            include_grid=False,
+            requested_outputs=["delta", "gamma", "theta"],
+        ),
         option_type=request.option_type,
         spot=request.spot,
         delta=_interp_at_spot(res.delta[-1], res.s, request.spot),
@@ -189,8 +510,10 @@ def greeks(request: OptionRequest) -> GreeksResponse:
     )
 
 
-@app.post("/pde_solution", response_model=FullPDEResponse)
-def pde_solution(request: OptionRequest) -> FullPDEResponse:
+@app.post(
+    "/pde_solution", response_model=FullPDEResponse, responses=API_ERROR_RESPONSES
+)
+def pde_solution(request: OptionRequest, http_request: Request) -> FullPDEResponse:
     """Return complete solution and Greeks grids only after explicit opt-in."""
 
     if not request.include_full_grid:
@@ -199,9 +522,18 @@ def pde_solution(request: OptionRequest) -> FullPDEResponse:
             detail="include_full_grid must be true to return the full PDE grid",
         )
     res = _compute_grid(request, return_greeks=True)
-    if res.delta is None or res.gamma is None or res.theta is None:  # pragma: no cover - defensive
+    if (
+        res.delta is None or res.gamma is None or res.theta is None
+    ):  # pragma: no cover - defensive
         raise HTTPException(status_code=500, detail="Greek grid was not computed")
     return FullPDEResponse(
+        **_response_identity(http_request),
+        metadata=_success_metadata(
+            "/pde_solution",
+            request,
+            include_grid=True,
+            requested_outputs=["price_grid", "delta_grid", "gamma_grid", "theta_grid"],
+        ),
         option_type=request.option_type,
         spot=request.spot,
         s=res.s.tolist(),
@@ -239,12 +571,6 @@ class ExposureModel(BaseModel):
     amount: float
 
 
-class RegulatoryNotImplementedResponse(BaseModel):
-    """Machine-readable failure for disabled regulatory/reporting routes."""
-
-    detail: dict
-
-
 def _raise_regulatory_not_implemented(error: NotImplementedForStandard) -> None:
     """Convert internal regulatory failures to HTTP 501 problem details."""
 
@@ -265,7 +591,12 @@ def _convert_exposures(models: list[ExposureModel]) -> list[Exposure]:
     ]
 
 
-@app.post("/reports/crif", response_model=RegulatoryNotImplementedResponse)
+@app.post(
+    "/reports/crif",
+    response_model=ErrorResponse,
+    status_code=501,
+    responses=UNSUPPORTED_ROUTE_RESPONSES,
+)
 def crif_report(exposures: list[ExposureModel]) -> None:
     """Fail closed until an exact ISDA CRIF profile and conformance suite exist."""
 
@@ -276,7 +607,12 @@ def crif_report(exposures: list[ExposureModel]) -> None:
         _raise_regulatory_not_implemented(exc)
 
 
-@app.post("/reports/cuso", response_model=RegulatoryNotImplementedResponse)
+@app.post(
+    "/reports/cuso",
+    response_model=ErrorResponse,
+    status_code=501,
+    responses=UNSUPPORTED_ROUTE_RESPONSES,
+)
 def cuso_report(exposures: list[ExposureModel]) -> None:
     """Fail closed until an authoritative CUSO specification exists."""
 
@@ -287,7 +623,12 @@ def cuso_report(exposures: list[ExposureModel]) -> None:
         _raise_regulatory_not_implemented(exc)
 
 
-@app.post("/reports/basel", response_model=RegulatoryNotImplementedResponse)
+@app.post(
+    "/reports/basel",
+    response_model=ErrorResponse,
+    status_code=501,
+    responses=UNSUPPORTED_ROUTE_RESPONSES,
+)
 def basel_report(exposures: list[ExposureModel]) -> None:
     """Fail closed until a versioned Basel market-risk subset is implemented."""
 
@@ -298,7 +639,12 @@ def basel_report(exposures: list[ExposureModel]) -> None:
         _raise_regulatory_not_implemented(exc)
 
 
-@app.post("/reports/frtb", response_model=RegulatoryNotImplementedResponse)
+@app.post(
+    "/reports/frtb",
+    response_model=ErrorResponse,
+    status_code=501,
+    responses=UNSUPPORTED_ROUTE_RESPONSES,
+)
 def frtb_report(exposures: list[ExposureModel]) -> None:
     """Fail closed until a versioned FRTB calculation subset is implemented."""
 

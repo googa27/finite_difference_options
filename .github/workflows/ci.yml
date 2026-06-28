@@ -22,7 +22,7 @@ jobs:
           pip install -r requirements.txt -r requirements-dev.txt
       - name: Static smoke gate
         run: |
-          python -m compileall -q src tests
+          python -m compileall -q api src tests
           ruff check . --select E9,F63,F7,F82
       - name: Architecture contract
         run: python scripts/check_architecture_contract.py
@@ -30,7 +30,10 @@ jobs:
         run: pytest -q tests/architecture
       - name: Stable regression suite
         run: |
-          pytest -q \
+          PYTHONPATH=. pytest -q \
+            tests/test_api_request_guards.py \
+            tests/test_api_schema_contracts.py \
+            tests/test_regulatory_fail_closed.py \
             tests/test_boundary_conditions.py \
             tests/test_callable_bond.py \
             tests/test_fd_backend_capabilities.py \
