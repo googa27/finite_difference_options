@@ -21,7 +21,7 @@ Status vocabulary:
 | American/free-boundary exercise | `unsupported` | none | Requires diagnosed LCP/complementarity implementation; tracked by #66. |
 | Jump/PIDE and HJB/control terms | `unsupported` | none | Capability manifest rejects these terms fail-closed. |
 | CRIF/CUSO/Basel/FRTB regulatory report endpoints | `scaffold` | `REG-FAIL-CLOSED-V0` | Endpoints and Python strategy/converter entry points return typed HTTP 501 / `NotImplementedForStandard` metadata until exact standard/profile/version, effective date, jurisdiction, licensing status, and conformance fixtures exist. |
-| FastAPI/CLI/UI service contracts | `experimental` | `DOCS-README-SMOKE-V0` | Convenience interfaces only; numerical truth remains in the Python core. |
+| FastAPI/CLI/UI service contracts | `experimental` | `DOCS-README-SMOKE-V0`, `API-REQUEST-GUARDS-V0` | FastAPI pricing endpoints use versioned schemas, enum payoff validation, explicit spot semantics, finite/range request checks, pre-solve node budgets, and explicit opt-in for full grids. Convenience interfaces only; numerical truth remains in the Python core. |
 
 Maintained documentation set:
 
