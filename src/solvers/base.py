@@ -124,6 +124,7 @@ class FiniteDifferenceSolverAdapter(Solver):
             initial_conditions=initial_condition,
             time_grid=time_grid,
         )
+        self.last_step_schedule = self._solver.last_step_schedule
         return solution[::-1]
 
     def _build_generator(self, spatial_grid: NDArray[np.float64]) -> FinDiff:

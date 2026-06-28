@@ -24,6 +24,7 @@ A comprehensive framework for pricing financial derivatives using finite differe
 - **European Options**: Calls and puts with unified interface
 - **Basket Options**: Multi-asset derivatives with flexible weighting
 - **Greeks Computation**: Delta, Gamma, Theta, Vega via finite differences
+- **Rannacher Startup**: Configurable two/four Backward-Euler half-step damping before Crank-Nicolson for kinked payoffs and near-strike Greeks
 - **ADI Solver**: Alternating Direction Implicit method for multi-dimensional PDEs
 
 ### Development & Quality
