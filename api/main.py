@@ -133,7 +133,7 @@ class FullPDEResponse(BaseModel):
 
 
 def _option_class(option_type: OptionType) -> type[EuropeanCall] | type[EuropeanPut]:
-    return EuropeanCall if option_type is OptionType.CALL else EuropeanPut
+    return EuropeanCall if option_type == OptionType.CALL else EuropeanPut
 
 
 def _compute_grid(request: OptionRequest, *, return_greeks: bool = False):

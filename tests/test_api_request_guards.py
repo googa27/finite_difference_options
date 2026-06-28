@@ -97,9 +97,10 @@ def test_request_budget_rejects_oversized_grids_before_solver_allocation() -> No
         OptionRequest(**_payload(s_steps=1001, t_steps=101))
 
 
-@pytest.mark.parametrize("field", ["spot", "strike", "maturity", "sigma", "s_max"])
-def test_request_rejects_nonfinite_positive_numeric_fields(field: str) -> None:
-    kwargs = _payload(**{field: math.inf})
+@pytest.mark.parametrize("field", ["spot", "strike", "maturity", "rate", "sigma", "s_max"])
+@pytest.mark.parametrize("bad_value", [math.inf, math.nan])
+def test_request_rejects_nonfinite_numeric_fields(field: str, bad_value: float) -> None:
+    kwargs = _payload(**{field: bad_value})
 
     with pytest.raises(PydanticValidationError):
         OptionRequest(**kwargs)
