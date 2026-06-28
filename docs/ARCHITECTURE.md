@@ -176,7 +176,7 @@ with domain, coordinate transform, time orientation, initial or terminal conditi
 The contract distinguishes:
 
 - covariance/diffusion matrix `A=[a_ij]` and its coordinate convention;
-- state-factor roles (`tradable_spot`, `variance`, `volatility`, `short_rate`, `auxiliary_state`) used to validate payoff/process compatibility before payoff allocation;
+- state-factor roles (`tradable_spot`, `variance`, `volatility`, `short_rate`, `auxiliary_state`) and payoff transforms used to validate payoff/process compatibility before payoff allocation;
 - drift `b`;
 - reaction/discount `c`;
 - source `f`;
@@ -230,7 +230,7 @@ Validation checks finite monotone coordinates, minimum node count, spacing ratio
 
 ## 10. Differential operators
 
-Operators are constructed from explicit grid and coefficient records. Process objects expose an executable generator contract with a single normalized coefficient convention: `evaluate_coefficients(t, x)` returns batched `states (n,d)`, `drift (n,d)`, `covariance (n,d,d)`, and `discount (n,)` even when the caller supplies one state point. Exact affine covariance, when available, uses the tensor form `a(x,t)=a0(t)+sum_k x_k a_k(t)` through both raw coefficient accessors and `AffineCovarianceForm`; models whose native covariance is quadratic/bilinear in the declared state fail closed instead of advertising an inexact affine form. Generator application uses `0.5 tr(a Hessian)+b·grad-c value+source`, with discount supplied explicitly and never inferred from drift. Each derivative declares order, local stencil, boundary closure and bias.
+Operators are constructed from explicit grid and coefficient records. Process objects expose an executable generator contract with a single normalized coefficient convention: `evaluate_coefficients(t, x)` returns batched `states (n,d)`, `drift (n,d)`, `covariance (n,d,d)`, and `discount (n,)` even when the caller supplies one state point. Exact affine covariance, when available, uses the tensor form `a(x,t)=a0(t)+sum_k x_k a_k(t)` through both raw coefficient accessors and `AffineCovarianceForm`; models whose native covariance is quadratic/bilinear in the declared state fail closed instead of advertising an inexact affine form. Heston declares the executable state as `(log_spot, variance)`, with spot recovered for vanilla payoffs only through the factor metadata `exp` transform, so basket routes cannot consume variance as a second tradable asset. Generator application uses `0.5 tr(a Hessian)+b·grad-c value+source`, with discount supplied explicitly and never inferred from drift. Each derivative declares order, local stencil, boundary closure and bias.
 
 Rules:
 

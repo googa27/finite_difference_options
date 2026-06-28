@@ -80,7 +80,7 @@ print(f"Option price at S=100: {prices[0, spot_idx]:.4f}")
 
 ### Heston stochastic-volatility smoke example
 
-This example is an experimental shape/finite-value smoke path for a vanilla equity call under Heston state `(spot, variance)`. It is not a basket option and is not advertised as a production Heston benchmark.
+This example is an experimental shape/finite-value smoke path for a vanilla equity call under Heston state `(log_spot, variance)`. It is not a basket option and is not advertised as a production Heston benchmark; semi-analytical Fourier oracle tests cover the Heston reference-price and Black-Scholes-limit evidence.
 
 ```python
 import numpy as np
@@ -95,12 +95,13 @@ engine = create_unified_pricing_engine(heston)
 
 # Create a vanilla call and model-state grids
 option = create_unified_european_call(strike=100.0, maturity=0.25)
-s_grid = create_log_grid(40.0, 220.0, 17, center=100.0)  # Stock price grid
-v_grid = np.linspace(0.01, 0.30, 8)                       # Variance grid
+spot_grid = create_log_grid(40.0, 220.0, 17, center=100.0)  # Spot grid for payoff display
+x_grid = np.log(spot_grid)                                  # Heston state coordinate
+v_grid = np.linspace(0.01, 0.30, 8)                         # Variance grid
 times = np.linspace(0.0, option.maturity, 10)
 
 # Price with 2D process
-prices = engine.price_option(option, s_grid, v_grid, time_grid=times)
+prices = engine.price_option(option, x_grid, v_grid, time_grid=times)
 print(f"2D Heston option prices shape: {prices.shape}")
 ```
 

@@ -33,13 +33,14 @@ def test_docstring_example_heston_price_smoke() -> None:
     process = create_standard_heston(r=0.03, kappa=1.8, theta=0.05, sigma=0.35, rho=-0.35)
     engine = create_unified_pricing_engine(process)
     option = create_unified_european_call(strike=100.0, maturity=0.25)
-    s_grid = create_log_grid(40.0, 220.0, 17, center=100.0)
+    spot_grid = create_log_grid(40.0, 220.0, 17, center=100.0)
+    x_grid = np.log(spot_grid)
     v_grid = np.linspace(0.01, 0.30, 8)
 
     time_grid = np.linspace(0.0, option.maturity, 10)
 
-    prices = engine.price_option(option, s_grid, v_grid, time_grid=time_grid)
-    assert prices.shape == (len(time_grid), len(s_grid), len(v_grid))
+    prices = engine.price_option(option, x_grid, v_grid, time_grid=time_grid)
+    assert prices.shape == (len(time_grid), len(x_grid), len(v_grid))
     assert np.all(np.isfinite(prices))
     assert np.all(prices >= 0.0)
 

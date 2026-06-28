@@ -135,8 +135,9 @@ class UnifiedPricingEngine:
 
         full_shape = tuple(len(grid) for grid in grids)
         payoff_grid_count = self._payoff_grid_count(instrument, len(grids))
-        payoff = np.asarray(instrument.payoff(*grids[:payoff_grid_count]), dtype=np.float64)
-        payoff_shape = full_shape[:payoff_grid_count]
+        payoff_grids = self._payoff_grids_for_instrument(payoff_grid_count, grids)
+        payoff = np.asarray(instrument.payoff(*payoff_grids), dtype=np.float64)
+        payoff_shape = tuple(len(grid) for grid in payoff_grids)
         if payoff.shape == full_shape:
             return payoff
         if payoff.shape != payoff_shape:
@@ -145,6 +146,27 @@ class UnifiedPricingEngine:
             )
         reshaped = payoff.reshape(payoff_shape + (1,) * (len(full_shape) - payoff_grid_count))
         return np.broadcast_to(reshaped, full_shape).copy()
+
+    def _payoff_grids_for_instrument(
+        self,
+        payoff_grid_count: int,
+        grids: tuple[NDArray[np.float64], ...],
+    ) -> tuple[NDArray[np.float64], ...]:
+        """Return payoff-domain grids after explicit process-coordinate transforms."""
+
+        transformed: list[NDArray[np.float64]] = []
+        factors = tuple(self.process.factor_metadata())
+        for index, grid in enumerate(grids[:payoff_grid_count]):
+            factor = factors[index]
+            if factor.payoff_transform == "identity":
+                transformed.append(grid)
+            elif factor.payoff_transform == "exp":
+                transformed.append(np.exp(grid))
+            else:
+                raise ValidationError(
+                    f"Unsupported payoff transform {factor.payoff_transform!r} for factor {factor.name!r}"
+                )
+        return tuple(transformed)
 
     @staticmethod
     def _payoff_grid_count(instrument: UnifiedInstrument, process_grid_count: int) -> int:

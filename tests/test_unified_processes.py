@@ -272,11 +272,11 @@ class TestHestonModel:
             kappa=2.0, theta=0.04, sigma=0.3, rho=-0.7,
             risk_free_rate=0.05, dividend_yield=0.01
         )
-        state = np.array([100.0, 0.04])
+        state = np.array([np.log(100.0), 0.04])
         
         drift = heston.drift(0.0, state)
         expected = np.array([
-            0.04 * 100.0,  # (r-q)S
+            0.05 - 0.01 - 0.5 * 0.04,  # log-spot drift r-q-0.5v
             2.0 * (0.04 - 0.04)  # κ(θ-V)
         ])
         assert_allclose(drift, expected)
@@ -287,12 +287,12 @@ class TestHestonModel:
             kappa=2.0, theta=0.04, sigma=0.3, rho=-0.7,
             risk_free_rate=0.05, dividend_yield=0.0
         )
-        states = np.array([[100.0, 0.04], [200.0, 0.09]])
+        states = np.array([[np.log(100.0), 0.04], [np.log(200.0), 0.09]])
         
         drift = heston.drift(0.0, states)
         expected = np.array([
-            [5.0, 0.0],
-            [10.0, -0.1]
+            [0.05 - 0.5 * 0.04, 0.0],
+            [0.05 - 0.5 * 0.09, -0.1]
         ])
         assert_allclose(drift, expected)
     
@@ -302,18 +302,18 @@ class TestHestonModel:
             kappa=2.0, theta=0.04, sigma=0.3, rho=-0.7,
             risk_free_rate=0.05, dividend_yield=0.0
         )
-        state = np.array([100.0, 0.04])
+        state = np.array([np.log(100.0), 0.04])
         
         cov = heston.covariance(0.0, state)
         
-        # Expected covariance matrix
-        var_s = 0.04 * 100.0**2  # VS²
+        # Expected covariance matrix in (logS, variance) coordinates
+        var_x = 0.04
         var_v = 0.09 * 0.04  # σ²V
-        cov_sv = -0.7 * 0.3 * 100.0 * 0.04  # ρσSV
+        cov_xv = -0.7 * 0.3 * 0.04  # ρσV
         
         expected = np.array([
-            [var_s, cov_sv],
-            [cov_sv, var_v]
+            [var_x, cov_xv],
+            [cov_xv, var_v]
         ])
         assert_allclose(cov, expected)
     
@@ -323,7 +323,7 @@ class TestHestonModel:
             kappa=2.0, theta=0.04, sigma=0.3, rho=-0.7,
             risk_free_rate=0.05, dividend_yield=0.0
         )
-        states = np.array([[100.0, 0.04], [200.0, 0.09]])
+        states = np.array([[np.log(100.0), 0.04], [np.log(200.0), 0.09]])
         
         cov = heston.covariance(0.0, states)
         assert cov.shape == (2, 2, 2)
@@ -550,8 +550,8 @@ class TestStateValidation:
         heston = create_standard_heston()
         
         # Valid states
-        heston.validate_state(np.array([100.0, 0.04]))
-        heston.validate_state(np.array([[100.0, 0.04], [200.0, 0.09]]))
+        heston.validate_state(np.array([np.log(100.0), 0.04]))
+        heston.validate_state(np.array([[np.log(100.0), 0.04], [np.log(200.0), 0.09]]))
         
         # Invalid states
         with pytest.raises(ValidationError, match="State dimension .* doesn't match"):
@@ -580,7 +580,7 @@ class TestDiffusionComputation:
     def test_heston_diffusion(self):
         """Test Heston diffusion computation."""
         heston = create_standard_heston()
-        state = np.array([100.0, 0.04])
+        state = np.array([np.log(100.0), 0.04])
         
         diffusion = heston.diffusion(0.0, state)
         

@@ -80,11 +80,12 @@ def test_readme_heston_example_is_not_a_basket_proxy() -> None:
     process = create_standard_heston(r=0.03, kappa=1.8, theta=0.05, sigma=0.35, rho=-0.35)
     option = create_unified_european_call(strike=100.0, maturity=0.25)
     engine = create_unified_pricing_engine(process)
-    s_grid = create_log_grid(40.0, 220.0, 17, center=100.0)
+    spot_grid = create_log_grid(40.0, 220.0, 17, center=100.0)
+    x_grid = np.log(spot_grid)
     v_grid = np.linspace(0.01, 0.30, 8)
     times = np.linspace(0.0, option.maturity, 10)
 
-    prices = engine.price_option(option, s_grid, v_grid, time_grid=times)
+    prices = engine.price_option(option, x_grid, v_grid, time_grid=times)
 
-    assert prices.shape == (len(times), len(s_grid), len(v_grid))
+    assert prices.shape == (len(times), len(x_grid), len(v_grid))
     assert np.all(np.isfinite(prices))
