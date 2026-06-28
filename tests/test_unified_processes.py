@@ -2,7 +2,7 @@
 
 import pytest
 import numpy as np
-from numpy.testing import assert_allclose, assert_array_equal
+from numpy.testing import assert_allclose
 
 from src.processes import (
     ProcessDimension,
@@ -20,7 +20,6 @@ from src.processes import (
     create_cev_process,
     create_sabr_model,
 )
-from src.utils.covariance_utils import validate_covariance_matrix, diffusion_to_covariance
 from src.exceptions import ValidationError
 
 
@@ -104,16 +103,15 @@ class TestGeometricBrownianMotion:
         assert_allclose(cov, expected)
     
     def test_gbm_affine_coefficients(self):
-        """Test GBM affine coefficients."""
+        """Test GBM affine drift and fail-closed covariance coefficients."""
         gbm = GeometricBrownianMotion(mu=0.05, sigma=0.2)
         
         alpha, beta = gbm.affine_drift_coefficients()
         assert_allclose(alpha, [0.0])
         assert_allclose(beta, [0.05])
         
-        gamma, delta = gbm.affine_covariance_coefficients()
-        assert_allclose(gamma, [[0.0]])
-        assert_allclose(delta, [[0.04]])
+        with pytest.raises(ValidationError, match="exact affine covariance"):
+            gbm.affine_covariance_coefficients()
 
 
 class TestOrnsteinUhlenbeck:
