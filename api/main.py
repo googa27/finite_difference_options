@@ -7,6 +7,8 @@ front-end integrations and smoke testing.
 from __future__ import annotations
 
 from enum import Enum
+from threading import BoundedSemaphore
+from time import monotonic as _monotonic
 from typing import Any, Literal, Optional
 from uuid import uuid4
 
@@ -90,6 +92,41 @@ class FactorRole(str, Enum):
     AUXILIARY_STATE = "auxiliary_state"
 
 
+class APIResourcePolicy(BaseModel):
+    """Deployable local/demo runtime safety policy for numerical API routes."""
+
+    policy_name: str = "local_demo"
+    max_state_dimensions: int = 1
+    max_s_steps: int = 5_000
+    max_t_steps: int = 5_000
+    max_compute_nodes: int = 50_000
+    max_output_nodes: int = 50_000
+    max_response_bytes: int = 8_000_000
+    bytes_per_float: int = 8
+    default_timeout_seconds: float = 2.0
+    max_timeout_seconds: float = 5.0
+    max_concurrent_solves: int = 1
+
+
+DEFAULT_API_RESOURCE_POLICY = APIResourcePolicy()
+_SOLVE_SEMAPHORE = BoundedSemaphore(DEFAULT_API_RESOURCE_POLICY.max_concurrent_solves)
+
+
+class ResourceBudgetMetadata(BaseModel):
+    """Budget metadata attached to API responses and pre-solve checks."""
+
+    policy_name: str
+    state_dimensions: int
+    compute_nodes: int
+    max_compute_nodes: int
+    output_nodes: int
+    max_output_nodes: int
+    estimated_response_bytes: int
+    max_response_bytes: int
+    timeout_seconds: float
+    max_concurrent_solves: int
+
+
 class OptionRequest(BaseModel):
     """Validated request payload for option pricing endpoints.
 
@@ -108,6 +145,7 @@ class OptionRequest(BaseModel):
     payoff_family: PayoffFamily = PayoffFamily.VANILLA_EUROPEAN
     exercise_style: ExerciseStyle = ExerciseStyle.EUROPEAN
     underlying_factor_role: FactorRole = FactorRole.TRADABLE_SPOT
+    state_dimensions: int = Field(default=1, ge=1, le=8)
     option_type: OptionType = OptionType.CALL
     spot: float = Field(..., gt=0.0, allow_inf_nan=False)
     strike: float = Field(..., gt=0.0, allow_inf_nan=False)
@@ -119,6 +157,8 @@ class OptionRequest(BaseModel):
     t_steps: int = Field(default=100, ge=3, le=5_000)
     include_full_grid: bool = False
     max_output_nodes: int = Field(default=50_000, ge=1, le=50_000)
+    max_response_bytes: int = Field(default=8_000_000, ge=1, le=8_000_000)
+    timeout_seconds: Optional[float] = Field(default=None, gt=0.0, le=5.0)
     correlation: Optional[float] = Field(
         default=None, ge=-1.0, le=1.0, allow_inf_nan=False
     )
@@ -133,15 +173,30 @@ class OptionRequest(BaseModel):
     def validate_api_budget_domain_and_model_fields(self) -> "OptionRequest":
         """Reject impossible, unbounded, or mismatched requests before numerical work."""
 
+        policy = DEFAULT_API_RESOURCE_POLICY
         s_max = self.resolved_s_max
         if self.spot > s_max:
             raise ValueError("spot must lie inside the spatial grid [0, s_max]")
         if self.strike > s_max:
             raise ValueError("strike must lie inside the spatial grid [0, s_max]")
-        node_count = self.s_steps * self.t_steps
-        if node_count > self.max_output_nodes:
+        if self.state_dimensions > policy.max_state_dimensions:
             raise ValueError(
-                f"request exceeds node budget: {node_count} > {self.max_output_nodes}"
+                "state dimension budget exceeded: "
+                f"{self.state_dimensions} > {policy.max_state_dimensions}"
+            )
+        if self.s_steps > policy.max_s_steps:
+            raise ValueError(
+                f"spatial step budget exceeded: {self.s_steps} > {policy.max_s_steps}"
+            )
+        if self.t_steps > policy.max_t_steps:
+            raise ValueError(
+                f"time step budget exceeded: {self.t_steps} > {policy.max_t_steps}"
+            )
+        node_count = self.state_dimensions * self.s_steps * self.t_steps
+        node_budget = policy.max_compute_nodes
+        if node_count > node_budget:
+            raise ValueError(
+                f"request exceeds node budget: {node_count} > {node_budget}"
             )
         if self.model == PricingModel.BLACK_SCHOLES:
             extra_model_fields = [
@@ -251,6 +306,7 @@ class ResponseMetadata(BaseModel):
     solver: SolverMetadata | None = None
     convergence: ConvergenceDiagnostics | None = None
     sampling: SamplingDiagnostics | None = None
+    resource_budget: ResourceBudgetMetadata | None = None
 
 
 class APIResponseBase(BaseModel):
@@ -322,8 +378,10 @@ class FullPDEResponse(APIResponseBase):
 API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     400: {"model": ErrorResponse},
     422: {"model": ErrorResponse},
+    429: {"model": ErrorResponse},
     500: {"model": ErrorResponse},
     501: {"model": ErrorResponse},
+    504: {"model": ErrorResponse},
 }
 UNSUPPORTED_ROUTE_RESPONSES: dict[int | str, dict[str, Any]] = {
     501: {"model": ErrorResponse},
@@ -403,6 +461,7 @@ def _success_metadata(
     include_grid: bool,
     requested_outputs: list[str],
     sampling: SamplingDiagnostics | None = None,
+    resource_budget: ResourceBudgetMetadata | None = None,
 ) -> ResponseMetadata:
     """Build the success metadata envelope required by the v1 API schema."""
 
@@ -417,6 +476,7 @@ def _success_metadata(
         ),
         convergence=_convergence_metadata(),
         sampling=sampling,
+        resource_budget=resource_budget,
     )
 
 
@@ -446,6 +506,8 @@ def _response_identity(http_request: Request) -> dict[str, str]:
 def _error_code(status_code: int, detail: Any) -> str:
     """Classify HTTP failures into stable public error codes."""
 
+    if isinstance(detail, dict) and isinstance(detail.get("code"), str):
+        return str(detail["code"])
     if status_code == 501:
         return "unsupported_route"
     if isinstance(detail, dict) and detail.get("capability_status") in {
@@ -626,6 +688,165 @@ def _ensure_supported_contract(request: OptionRequest, *, route: str) -> None:
     )
 
 
+def _timeout_seconds(request: OptionRequest) -> float:
+    """Return request timeout clamped by the local API resource policy."""
+
+    policy = DEFAULT_API_RESOURCE_POLICY
+    requested = request.timeout_seconds or policy.default_timeout_seconds
+    return min(float(requested), policy.max_timeout_seconds)
+
+
+def _output_nodes(route: str, request: OptionRequest) -> int:
+    """Estimate serialized numerical output nodes for a route before solving."""
+
+    grid_nodes = request.s_steps * request.t_steps
+    if route == "/price":
+        return (
+            1 + request.s_steps + request.t_steps + grid_nodes
+            if request.include_full_grid
+            else 1
+        )
+    if route == "/greeks":
+        return 3
+    if route == "/pde_solution":
+        return (
+            request.s_steps + request.t_steps + 4 * grid_nodes
+            if request.include_full_grid
+            else 0
+        )
+    return 0
+
+
+def _resource_budget(route: str, request: OptionRequest) -> ResourceBudgetMetadata:
+    """Compute and enforce route resource budgets before numerical allocation."""
+
+    policy = DEFAULT_API_RESOURCE_POLICY
+    compute_nodes = request.state_dimensions * request.s_steps * request.t_steps
+    max_compute_nodes = policy.max_compute_nodes
+    output_nodes = _output_nodes(route, request)
+    max_output_nodes = min(policy.max_output_nodes, request.max_output_nodes)
+    estimated_response_bytes = output_nodes * policy.bytes_per_float
+    max_response_bytes = min(policy.max_response_bytes, request.max_response_bytes)
+    budget = ResourceBudgetMetadata(
+        policy_name=policy.policy_name,
+        state_dimensions=request.state_dimensions,
+        compute_nodes=compute_nodes,
+        max_compute_nodes=max_compute_nodes,
+        output_nodes=output_nodes,
+        max_output_nodes=max_output_nodes,
+        estimated_response_bytes=estimated_response_bytes,
+        max_response_bytes=max_response_bytes,
+        timeout_seconds=_timeout_seconds(request),
+        max_concurrent_solves=policy.max_concurrent_solves,
+    )
+    if compute_nodes > max_compute_nodes:
+        _raise_resource_limit(
+            route,
+            budget,
+            limit="max_compute_nodes",
+            observed=compute_nodes,
+            allowed=max_compute_nodes,
+        )
+    if output_nodes > max_output_nodes:
+        _raise_resource_limit(
+            route,
+            budget,
+            limit="max_output_nodes",
+            observed=output_nodes,
+            allowed=max_output_nodes,
+        )
+    if estimated_response_bytes > max_response_bytes:
+        _raise_resource_limit(
+            route,
+            budget,
+            limit="max_response_bytes",
+            observed=estimated_response_bytes,
+            allowed=max_response_bytes,
+        )
+    return budget
+
+
+def _raise_resource_limit(
+    route: str,
+    budget: ResourceBudgetMetadata,
+    *,
+    limit: str,
+    observed: int,
+    allowed: int,
+) -> None:
+    raise HTTPException(
+        status_code=422,
+        detail={
+            "code": "resource_limit_exceeded",
+            "message": f"request exceeds {limit}: {observed} > {allowed}",
+            "route": route,
+            "resource": {
+                "limit": limit,
+                "observed": observed,
+                "allowed": allowed,
+                **budget.model_dump(mode="json"),
+            },
+        },
+    )
+
+
+class _ResourceLease:
+    """Non-blocking local concurrency slot plus cooperative deadline checks."""
+
+    def __init__(self, route: str, budget: ResourceBudgetMetadata) -> None:
+        self.route = route
+        self.budget = budget
+        self.started_at = _monotonic()
+        self.deadline = self.started_at + budget.timeout_seconds
+        self.acquired = False
+
+    def __enter__(self) -> "_ResourceLease":
+        self.acquired = _SOLVE_SEMAPHORE.acquire(blocking=False)
+        if not self.acquired:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "code": "concurrency_limit_exceeded",
+                    "message": "no local/demo API solve concurrency slot is available",
+                    "route": self.route,
+                    "resource": {
+                        "limit": "max_concurrent_solves",
+                        **self.budget.model_dump(mode="json"),
+                    },
+                },
+            )
+        try:
+            self.check_deadline(stage="before_solve")
+        except BaseException:
+            _SOLVE_SEMAPHORE.release()
+            self.acquired = False
+            raise
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
+        if self.acquired:
+            _SOLVE_SEMAPHORE.release()
+            self.acquired = False
+
+    def check_deadline(self, *, stage: str) -> None:
+        now = _monotonic()
+        if now < self.deadline:
+            return
+        elapsed = max(0.0, now - self.started_at)
+        raise HTTPException(
+            status_code=504,
+            detail={
+                "code": "request_timeout",
+                "message": f"request exceeded cooperative timeout at {stage}",
+                "route": self.route,
+                "stage": stage,
+                "timeout_seconds": self.budget.timeout_seconds,
+                "elapsed_seconds": elapsed,
+                "resource": self.budget.model_dump(mode="json"),
+            },
+        )
+
+
 def _compute_grid(request: OptionRequest, *, return_greeks: bool = False):
     model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
     instrument = _option_class(request.option_type)(
@@ -743,17 +964,23 @@ def _grid_payload(res) -> PriceGrid:
 def price(request: OptionRequest, http_request: Request) -> PriceResponse:
     """Return requested-spot price and optional bounded grid for an option."""
 
-    _ensure_supported_contract(request, route="/price")
-    res = _compute_grid(request)
-    price_sample = _sample_grid_at_spot(res.values[-1], res.s, request.spot)
+    route = "/price"
+    _ensure_supported_contract(request, route=route)
+    budget = _resource_budget(route, request)
+    with _ResourceLease(route, budget) as lease:
+        res = _compute_grid(request)
+        lease.check_deadline(stage="after_solve")
+        price_sample = _sample_grid_at_spot(res.values[-1], res.s, request.spot)
+        lease.check_deadline(stage="after_sampling")
     return PriceResponse(
         **_response_identity(http_request),
         metadata=_success_metadata(
-            "/price",
+            route,
             request,
             include_grid=request.include_full_grid,
             requested_outputs=["price"],
             sampling=price_sample.sampling,
+            resource_budget=budget,
         ),
         option_type=request.option_type,
         spot=request.spot,
@@ -766,23 +993,29 @@ def price(request: OptionRequest, http_request: Request) -> PriceResponse:
 def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
     """Return scalar Greeks at the explicitly requested spot."""
 
-    _ensure_supported_contract(request, route="/greeks")
-    res = _compute_grid(request, return_greeks=True)
-    if (
-        res.delta is None or res.gamma is None or res.theta is None
-    ):  # pragma: no cover - defensive
-        raise HTTPException(status_code=500, detail="Greek grid was not computed")
-    delta_sample = _sample_grid_at_spot(res.delta[-1], res.s, request.spot)
-    gamma_sample = _sample_grid_at_spot(res.gamma[-1], res.s, request.spot)
-    theta_sample = _sample_grid_at_spot(res.theta[-1], res.s, request.spot)
+    route = "/greeks"
+    _ensure_supported_contract(request, route=route)
+    budget = _resource_budget(route, request)
+    with _ResourceLease(route, budget) as lease:
+        res = _compute_grid(request, return_greeks=True)
+        lease.check_deadline(stage="after_solve")
+        if (
+            res.delta is None or res.gamma is None or res.theta is None
+        ):  # pragma: no cover - defensive
+            raise HTTPException(status_code=500, detail="Greek grid was not computed")
+        delta_sample = _sample_grid_at_spot(res.delta[-1], res.s, request.spot)
+        gamma_sample = _sample_grid_at_spot(res.gamma[-1], res.s, request.spot)
+        theta_sample = _sample_grid_at_spot(res.theta[-1], res.s, request.spot)
+        lease.check_deadline(stage="after_sampling")
     return GreeksResponse(
         **_response_identity(http_request),
         metadata=_success_metadata(
-            "/greeks",
+            route,
             request,
             include_grid=False,
             requested_outputs=["delta", "gamma", "theta"],
             sampling=delta_sample.sampling,
+            resource_budget=budget,
         ),
         option_type=request.option_type,
         spot=request.spot,
@@ -798,24 +1031,30 @@ def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
 def pde_solution(request: OptionRequest, http_request: Request) -> FullPDEResponse:
     """Return complete solution and Greeks grids only after explicit opt-in."""
 
-    _ensure_supported_contract(request, route="/pde_solution")
+    route = "/pde_solution"
+    _ensure_supported_contract(request, route=route)
     if not request.include_full_grid:
         raise HTTPException(
             status_code=400,
             detail="include_full_grid must be true to return the full PDE grid",
         )
-    res = _compute_grid(request, return_greeks=True)
-    if (
-        res.delta is None or res.gamma is None or res.theta is None
-    ):  # pragma: no cover - defensive
-        raise HTTPException(status_code=500, detail="Greek grid was not computed")
+    budget = _resource_budget(route, request)
+    with _ResourceLease(route, budget) as lease:
+        res = _compute_grid(request, return_greeks=True)
+        lease.check_deadline(stage="after_solve")
+        if (
+            res.delta is None or res.gamma is None or res.theta is None
+        ):  # pragma: no cover - defensive
+            raise HTTPException(status_code=500, detail="Greek grid was not computed")
+        lease.check_deadline(stage="after_grid_assembly")
     return FullPDEResponse(
         **_response_identity(http_request),
         metadata=_success_metadata(
-            "/pde_solution",
+            route,
             request,
             include_grid=True,
             requested_outputs=["price_grid", "delta_grid", "gamma_grid", "theta_grid"],
+            resource_budget=budget,
         ),
         option_type=request.option_type,
         spot=request.spot,
