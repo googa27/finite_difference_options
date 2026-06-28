@@ -18,7 +18,7 @@ from numpy.typing import NDArray
 from pydantic import BaseModel, field_validator, ConfigDict
 
 from src.exceptions import ValidationError
-from .base import AffineProcess, FactorRole, ProcessDimension, ProcessFactorMetadata
+from .base import AffineCovarianceForm, AffineProcess, FactorRole, ProcessDimension, ProcessFactorMetadata
 from ..validation import validate_positive, validate_non_negative
 from ..utils.process_validators import (
     validate_feller_condition,
@@ -257,10 +257,16 @@ class HestonModel(AffineProcess, BaseModel):
        dv_t = \kappa(\theta-v_t)dt + \sigma\sqrt{v_t} dW_t^{(2)}
        dW_t^{(1)} dW_t^{(2)} = \rho dt
 
-    Notes
-    -----
-    The state vector is ``(S, v)`` and both coordinates are validated for
-    non-negativity where applicable.
+    The executable process state is ``(x, v) = (log(S), variance)``:
+
+    .. math::
+
+       dx_t = (r - q - \tfrac12 v_t)dt + \sqrt{v_t} dW_t^{(1)}
+
+    Payoffs receive spot through the explicit ``exp`` transform declared in
+    :meth:`factor_metadata`; solver/operator coefficients stay in log-spot
+    coordinates.  Negative variance states fail closed rather than being
+    silently clipped.
     """
     
     risk_free_rate: float
@@ -283,67 +289,81 @@ class HestonModel(AffineProcess, BaseModel):
         return ProcessDimension(value=2)
 
     def factor_metadata(self) -> tuple[ProcessFactorMetadata, ...]:
-        """Return explicit state-factor roles for ``(spot, variance)``."""
+        """Return explicit state-factor roles for ``(log_spot, variance)``."""
 
         return (
             ProcessFactorMetadata(
-                name="spot",
+                name="log_spot",
                 role=FactorRole.TRADABLE_SPOT,
-                coordinate="spot",
+                coordinate="log_spot",
                 asset_id="spot",
+                payoff_transform="exp",
             ),
             ProcessFactorMetadata(name="variance", role=FactorRole.VARIANCE, coordinate="variance"),
         )
     
     def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
-        """Heston drift coefficients."""
-        alpha = np.array([0.0, self.kappa * self.theta])
+        """Drift in log-spot state: ``(r-q-0.5v, kappa(theta-v))``."""
+        alpha = np.array([self.risk_free_rate - self.dividend_yield, self.kappa * self.theta])
         beta = np.array([
-            [self.risk_free_rate - self.dividend_yield, 0.0],
+            [0.0, -0.5],
             [0.0, -self.kappa]
         ])
         return alpha, beta
     
     def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
-        """Fail closed because native-state Heston covariance is quadratic/bilinear."""
-        raise ValidationError(
-            "HestonModel does not have exact affine covariance in native state coordinates; "
-            "use covariance(...) or evaluate_coefficients(...) for native-state coefficients"
+        """Exact covariance tensor in ``(log_spot, variance)`` coordinates."""
+        constant = np.zeros((2, 2), dtype=float)
+        linear = np.zeros((2, 2, 2), dtype=float)
+        linear[1] = np.array(
+            [
+                [1.0, self.rho * self.sigma],
+                [self.rho * self.sigma, self.sigma**2],
+            ],
+            dtype=float,
         )
+        return constant, linear
+
+    def validate_state(self, state: NDArray[np.float64]) -> None:
+        """Validate Heston log-spot/variance state coordinates."""
+
+        super().validate_state(state)
+        states = np.asarray(state, dtype=float)
+        variance = states[1] if states.ndim == 1 else states[:, 1]
+        if np.any(variance < 0.0):
+            raise ValidationError("Heston variance coordinate must be non-negative")
     
     def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
-        """Compute Heston covariance matrix."""
-        self.validate_state(state)
-        
-        if state.ndim == 1:
-            s, v = state[0], max(state[1], 1e-10)  # Ensure positive variance
-            
-            # Covariance matrix elements
-            var_s = v * s**2  # Variance of S
-            var_v = self.sigma**2 * v  # Variance of V
-            cov_sv = self.rho * self.sigma * s * v  # Covariance S,V
-            
-            return np.array([
-                [var_s, cov_sv],
-                [cov_sv, var_v]
-            ])
-        else:
-            batch_size = state.shape[0]
-            result = np.zeros((batch_size, 2, 2))
-            
-            s_vals = state[:, 0]
-            v_vals = np.maximum(state[:, 1], 1e-10)
-            
-            # Diagonal elements
-            result[:, 0, 0] = v_vals * s_vals**2  # Var(S)
-            result[:, 1, 1] = self.sigma**2 * v_vals  # Var(V)
-            
-            # Off-diagonal elements
-            cov_sv = self.rho * self.sigma * s_vals * v_vals
-            result[:, 0, 1] = cov_sv
-            result[:, 1, 0] = cov_sv
-            
-            return result
+        """Compute Heston covariance in ``(log_spot, variance)`` coordinates."""
+
+        state_array = np.asarray(state, dtype=float)
+        self.validate_state(state_array)
+        constant, linear = self.affine_covariance_coefficients(time)
+        covariance = AffineCovarianceForm.from_coefficients(constant, linear).evaluate(state_array)
+        return covariance[0] if state_array.ndim == 1 else covariance
+
+    @staticmethod
+    def state_from_spot(
+        spot: float | NDArray[np.float64],
+        variance: float | NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Map spot/variance inputs to Heston's ``(log_spot, variance)`` state."""
+
+        spot_array = np.asarray(spot, dtype=float)
+        variance_array = np.asarray(variance, dtype=float)
+        if np.any(spot_array <= 0.0) or not np.all(np.isfinite(spot_array)):
+            raise ValidationError("spot must be finite and strictly positive for log-state conversion")
+        if np.any(variance_array < 0.0) or not np.all(np.isfinite(variance_array)):
+            raise ValidationError("variance must be finite and non-negative for Heston state conversion")
+        return np.stack(np.broadcast_arrays(np.log(spot_array), variance_array), axis=-1)
+
+    @staticmethod
+    def spot_from_state(state: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Map Heston log-spot state coordinate(s) back to spot values."""
+
+        states = np.asarray(state, dtype=float)
+        log_spot = states[0] if states.ndim == 1 else states[:, 0]
+        return np.exp(log_spot)
 
 
 # Convenience functions for creating common processes

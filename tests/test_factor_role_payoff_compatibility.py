@@ -35,7 +35,9 @@ def test_heston_factor_metadata_identifies_spot_and_variance() -> None:
         factor_role.TRADABLE_SPOT,
         factor_role.VARIANCE,
     ]
-    assert [factor.name for factor in factors] == ["spot", "variance"]
+    assert [factor.name for factor in factors] == ["log_spot", "variance"]
+    assert factors[0].coordinate == "log_spot"
+    assert factors[0].payoff_transform == "exp"
     assert factors[0].asset_id == "spot"
     assert factors[1].asset_id is None
 
@@ -56,17 +58,18 @@ def test_heston_european_payoff_broadcasts_only_the_spot_factor() -> None:
     process = create_standard_heston()
     engine = create_unified_pricing_engine(process)
     option = create_unified_european_call(100.0, 0.25)
-    s_grid = create_log_grid(80.0, 120.0, 7, center=100.0)
+    spot_grid = create_log_grid(80.0, 120.0, 7, center=100.0)
+    x_grid = np.log(spot_grid)
     v_grid = create_linear_grid(0.01, 0.25, 5)
     time_grid = np.linspace(0.0, option.maturity, 4)
 
-    prices = engine.price_option(option, s_grid, v_grid, time_grid=time_grid)
+    prices = engine.price_option(option, x_grid, v_grid, time_grid=time_grid)
 
     expected_terminal = np.broadcast_to(
-        np.maximum(s_grid - option.strike, 0.0).reshape(-1, 1),
-        (len(s_grid), len(v_grid)),
+        np.maximum(spot_grid - option.strike, 0.0).reshape(-1, 1),
+        (len(x_grid), len(v_grid)),
     )
-    assert prices.shape == (len(time_grid), len(s_grid), len(v_grid))
+    assert prices.shape == (len(time_grid), len(x_grid), len(v_grid))
     assert_allclose(prices[-1], expected_terminal)
 
 
@@ -78,11 +81,12 @@ def test_basket_payoff_cannot_consume_heston_variance_factor() -> None:
         weights=np.array([0.5, 0.5]),
         maturity=0.25,
     )
-    s_grid = create_log_grid(80.0, 120.0, 7, center=100.0)
+    spot_grid = create_log_grid(80.0, 120.0, 7, center=100.0)
+    x_grid = np.log(spot_grid)
     v_grid = create_linear_grid(0.01, 0.25, 5)
 
     with pytest.raises(ValidationError, match="tradable spot.*variance"):
-        engine.price_option(option, s_grid, v_grid, time_grid=np.linspace(0.0, 0.25, 4))
+        engine.price_option(option, x_grid, v_grid, time_grid=np.linspace(0.0, 0.25, 4))
 
 
 def test_standard_basket_has_one_strike_and_hand_calculated_payoff() -> None:
@@ -132,17 +136,18 @@ def test_standard_basket_one_leg_broadcasts_over_heston_variance() -> None:
     engine = create_unified_pricing_engine(process)
     create_standard_basket_call = options_module.create_standard_basket_call
     option = create_standard_basket_call(strike=100.0, weights=np.array([1.0]), maturity=0.25)
-    s_grid = create_log_grid(80.0, 120.0, 7, center=100.0)
+    spot_grid = create_log_grid(80.0, 120.0, 7, center=100.0)
+    x_grid = np.log(spot_grid)
     v_grid = create_linear_grid(0.01, 0.25, 5)
     time_grid = np.linspace(0.0, option.maturity, 4)
 
-    prices = engine.price_option(option, s_grid, v_grid, time_grid=time_grid)
+    prices = engine.price_option(option, x_grid, v_grid, time_grid=time_grid)
 
     expected_terminal = np.broadcast_to(
-        np.maximum(s_grid - option.strike, 0.0).reshape(-1, 1),
-        (len(s_grid), len(v_grid)),
+        np.maximum(spot_grid - option.strike, 0.0).reshape(-1, 1),
+        (len(x_grid), len(v_grid)),
     )
-    assert prices.shape == (len(time_grid), len(s_grid), len(v_grid))
+    assert prices.shape == (len(time_grid), len(x_grid), len(v_grid))
     assert_allclose(prices[-1], expected_terminal)
 
 

@@ -93,33 +93,39 @@ def test_affine_covariance_form_matches_builtin_models_or_fails_closed() -> None
         evaluated = process.evaluate_coefficients(0.0, short_rate_states)
         assert_allclose(form.evaluate(short_rate_states), evaluated.covariance)
 
+    heston = HestonModel(
+        risk_free_rate=0.05,
+        kappa=2.0,
+        theta=0.04,
+        sigma=0.3,
+        rho=-0.7,
+    )
+    heston_states = np.array([[np.log(90.0), 0.04], [np.log(120.0), 0.09]])
+    heston_form = heston.affine_covariance_form()
+    heston_evaluated = heston.evaluate_coefficients(0.0, heston_states)
+    assert_allclose(heston_form.evaluate(heston_states), heston_evaluated.covariance)
+
     with pytest.raises(ValidationError, match="exact affine covariance"):
         GeometricBrownianMotion(mu=0.05, sigma=0.2).affine_covariance_form()
 
-    with pytest.raises(ValidationError, match="exact affine covariance"):
-        HestonModel(
-            risk_free_rate=0.05,
-            kappa=2.0,
-            theta=0.04,
-            sigma=0.3,
-            rho=-0.7,
-        ).affine_covariance_form()
 
-
-def test_raw_affine_covariance_coefficients_fail_closed_for_inexact_builtin_models() -> None:
-    """Direct coefficient access must not bypass exact-affine certification."""
+def test_raw_affine_covariance_coefficients_respect_exactness_contract() -> None:
+    """Direct coefficient access fails closed only for inexact native-coordinate models."""
 
     with pytest.raises(ValidationError, match="exact affine covariance"):
         GeometricBrownianMotion(mu=0.05, sigma=0.2).affine_covariance_coefficients()
 
-    with pytest.raises(ValidationError, match="exact affine covariance"):
-        HestonModel(
-            risk_free_rate=0.05,
-            kappa=2.0,
-            theta=0.04,
-            sigma=0.3,
-            rho=-0.7,
-        ).affine_covariance_coefficients()
+    heston = HestonModel(
+        risk_free_rate=0.05,
+        kappa=2.0,
+        theta=0.04,
+        sigma=0.3,
+        rho=-0.7,
+    )
+    constant, linear = heston.affine_covariance_coefficients()
+    assert constant.shape == (2, 2)
+    assert linear.shape == (2, 2, 2)
+    assert_allclose(linear[1, 0, 0], 1.0)
 
 
 def test_generator_application_matches_analytical_one_factor_processes() -> None:

@@ -64,7 +64,7 @@ Define complete PEP 621 project/build metadata and a real `finite_difference_opt
 
 Native immutable contracts describe domain, coordinates, time orientation, drift, diffusion/covariance, discount/reaction, source, initial/terminal condition, boundaries, optional mixed terms/jumps/systems/obstacle, requested outputs, discretization/tolerances/resources, dtype/device and result diagnostics.
 
-No selectable route may invent coefficients, boundaries or dynamics. Owner: #59.
+No selectable route may invent coefficients, boundaries or dynamics. Heston's executable state convention is `(log_spot, variance)`: drift/covariance are evaluated in log-spot coordinates, variance is explicit at the lower boundary, and vanilla payoffs receive spot only through a declared `exp` payoff transform. Owner: #59; Heston convention evidence: #45.
 
 ### FR-FD-003 — Grids
 
