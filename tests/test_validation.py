@@ -5,6 +5,7 @@ import sys
 # Ensure project root on path
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
+import numpy as np
 import pytest
 from src.exceptions import ValidationError, GridError, InstrumentError, ModelError
 from src.validation import (
@@ -24,6 +25,14 @@ def test_validate_positive():
     
     with pytest.raises(ValidationError, match="test_param must be a positive number"):
         validate_positive(0.0, "test_param")
+
+
+@pytest.mark.parametrize("value", [np.nan, np.inf, -np.inf])
+def test_validate_positive_rejects_nonfinite_values(value):
+    """Positive scalar validation must fail closed on NaN/Infinity."""
+
+    with pytest.raises(ValidationError, match="finite positive number"):
+        validate_positive(value, "test_param")
 
 
 def test_validate_grid_parameters():

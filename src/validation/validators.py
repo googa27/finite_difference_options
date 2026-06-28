@@ -14,7 +14,7 @@ from src.exceptions import ValidationError, GridError, ModelError, InstrumentErr
 
 
 def validate_positive(value: float, name: str) -> None:
-    """Validate that a value is positive.
+    """Validate that a value is finite and positive.
     
     Parameters
     ----------
@@ -26,9 +26,11 @@ def validate_positive(value: float, name: str) -> None:
     Raises
     ------
     ValidationError
-        If value is not positive.
+        If value is not finite and positive.
     """
-    if not isinstance(value, (int, float)) or value <= 0:
+    if not isinstance(value, (int, float)) or not np.isfinite(value):
+        raise ValidationError(f"{name} must be a finite positive number, got {value}")
+    if value <= 0:
         raise ValidationError(f"{name} must be a positive number, got {value}")
 
 

@@ -179,6 +179,10 @@ def test_spread_option_has_separate_identity_and_non_normalized_coefficients() -
 @pytest.mark.parametrize(
     "kwargs, match",
     [
+        ({"strike": np.nan, "weights": np.array([1.0]), "maturity": 1.0}, "finite"),
+        ({"strike": np.inf, "weights": np.array([1.0]), "maturity": 1.0}, "finite"),
+        ({"strike": 100.0, "weights": np.array([1.0]), "maturity": np.nan}, "finite"),
+        ({"strike": 100.0, "weights": np.array([1.0]), "maturity": np.inf}, "finite"),
         ({"strike": 100.0, "weights": np.array([]), "maturity": 1.0}, "nonempty"),
         ({"strike": 100.0, "weights": np.array([0.5, np.nan]), "maturity": 1.0}, "finite"),
         ({"strike": 100.0, "weights": np.array([[0.5, 0.5]]), "maturity": 1.0}, "one-dimensional"),
