@@ -158,10 +158,10 @@ Endpoints:
 - `POST /price` → `{ "price": float }`
 - `POST /greeks` → `{ "delta": float, "gamma": float, "theta": float }`
 - `POST /pde_solution` → Full 2D grids for prices and Greeks visualization
-- `POST /reports/crif` → `{ "crif": str }`
-- `POST /reports/cuso` → `{ "status": str }`
-- `POST /reports/basel` → `{ "status": str }`
-- `POST /reports/frtb` → `{ "status": str }`
+- `POST /reports/crif` → HTTP 501 problem detail until an exact ISDA CRIF profile/version and conformance suite are implemented
+- `POST /reports/cuso` → HTTP 501 problem detail until an authoritative CUSO specification is identified
+- `POST /reports/basel` → HTTP 501 problem detail until a versioned Basel market-risk subset is implemented
+- `POST /reports/frtb` → HTTP 501 problem detail until a versioned FRTB calculation subset is implemented
 
 ## Next.js Client
 
