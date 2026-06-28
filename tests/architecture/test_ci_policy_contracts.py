@@ -19,6 +19,7 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     assert "Stable regression suite" in workflow
     assert "PYTHONPATH=. pytest -q" in workflow
     assert "tests/test_api_schema_contracts.py" in workflow
+    assert "tests/test_api_route_validation.py" in workflow
     assert "tests/test_unified_pricing_engine.py" in workflow
 
 

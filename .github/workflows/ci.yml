@@ -33,6 +33,7 @@ jobs:
           PYTHONPATH=. pytest -q \
             tests/test_api_request_guards.py \
             tests/test_api_schema_contracts.py \
+            tests/test_api_route_validation.py \
             tests/test_regulatory_fail_closed.py \
             tests/test_boundary_conditions.py \
             tests/test_callable_bond.py \

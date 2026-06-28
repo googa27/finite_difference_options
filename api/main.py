@@ -48,6 +48,48 @@ class OptionType(str, Enum):
     PUT = "Put"
 
 
+class PricingModel(str, Enum):
+    """Recognized pricing model contracts at the API boundary."""
+
+    BLACK_SCHOLES = "black_scholes"
+    HESTON = "heston"
+    LOCAL_VOLATILITY = "local_volatility"
+
+
+class ProcessType(str, Enum):
+    """Recognized stochastic-process contracts at the API boundary."""
+
+    GEOMETRIC_BROWNIAN_MOTION = "geometric_brownian_motion"
+    HESTON = "heston"
+    SABR = "sabr"
+
+
+class PayoffFamily(str, Enum):
+    """Recognized payoff families at the API boundary."""
+
+    VANILLA_EUROPEAN = "vanilla_european"
+    BASKET = "basket"
+    SPREAD = "spread"
+    DIGITAL = "digital"
+
+
+class ExerciseStyle(str, Enum):
+    """Recognized exercise styles at the API boundary."""
+
+    EUROPEAN = "european"
+    AMERICAN = "american"
+
+
+class FactorRole(str, Enum):
+    """Recognized state-factor roles for payoff compatibility checks."""
+
+    TRADABLE_SPOT = "tradable_spot"
+    VARIANCE = "variance"
+    VOLATILITY = "volatility"
+    SHORT_RATE = "short_rate"
+    AUXILIARY_STATE = "auxiliary_state"
+
+
 class OptionRequest(BaseModel):
     """Validated request payload for option pricing endpoints.
 
@@ -61,6 +103,11 @@ class OptionRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    model: PricingModel = PricingModel.BLACK_SCHOLES
+    process: ProcessType = ProcessType.GEOMETRIC_BROWNIAN_MOTION
+    payoff_family: PayoffFamily = PayoffFamily.VANILLA_EUROPEAN
+    exercise_style: ExerciseStyle = ExerciseStyle.EUROPEAN
+    underlying_factor_role: FactorRole = FactorRole.TRADABLE_SPOT
     option_type: OptionType = OptionType.CALL
     spot: float = Field(..., gt=0.0, allow_inf_nan=False)
     strike: float = Field(..., gt=0.0, allow_inf_nan=False)
@@ -72,10 +119,19 @@ class OptionRequest(BaseModel):
     t_steps: int = Field(default=100, ge=3, le=5_000)
     include_full_grid: bool = False
     max_output_nodes: int = Field(default=50_000, ge=1, le=50_000)
+    correlation: Optional[float] = Field(
+        default=None, ge=-1.0, le=1.0, allow_inf_nan=False
+    )
+    variance: Optional[float] = Field(default=None, ge=0.0, allow_inf_nan=False)
+    long_run_variance: Optional[float] = Field(
+        default=None, ge=0.0, allow_inf_nan=False
+    )
+    mean_reversion: Optional[float] = Field(default=None, gt=0.0, allow_inf_nan=False)
+    vol_of_vol: Optional[float] = Field(default=None, ge=0.0, allow_inf_nan=False)
 
     @model_validator(mode="after")
-    def validate_api_budget_and_domain(self) -> "OptionRequest":
-        """Reject impossible or unbounded requests before numerical work."""
+    def validate_api_budget_domain_and_model_fields(self) -> "OptionRequest":
+        """Reject impossible, unbounded, or mismatched requests before numerical work."""
 
         s_max = self.resolved_s_max
         if self.spot > s_max:
@@ -87,6 +143,23 @@ class OptionRequest(BaseModel):
             raise ValueError(
                 f"request exceeds node budget: {node_count} > {self.max_output_nodes}"
             )
+        if self.model == PricingModel.BLACK_SCHOLES:
+            extra_model_fields = [
+                name
+                for name in (
+                    "correlation",
+                    "variance",
+                    "long_run_variance",
+                    "mean_reversion",
+                    "vol_of_vol",
+                )
+                if getattr(self, name) is not None
+            ]
+            if extra_model_fields:
+                raise ValueError(
+                    "black_scholes route does not accept model-specific fields: "
+                    + ", ".join(extra_model_fields)
+                )
         return self
 
     @property
@@ -124,7 +197,11 @@ class SolverMetadata(BaseModel):
     """Numerical route metadata exposed without claiming production maturity."""
 
     engine: str
+    model: str
     process: str
+    payoff_family: str
+    exercise_style: str
+    underlying_factor_role: str
     scheme: str
     s_steps: int
     t_steps: int
@@ -223,6 +300,7 @@ API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     400: {"model": ErrorResponse},
     422: {"model": ErrorResponse},
     500: {"model": ErrorResponse},
+    501: {"model": ErrorResponse},
 }
 UNSUPPORTED_ROUTE_RESPONSES: dict[int | str, dict[str, Any]] = {
     501: {"model": ErrorResponse},
@@ -269,7 +347,11 @@ def _solver_metadata(
 
     return SolverMetadata(
         engine="OptionPricer",
-        process="GeometricBrownianMotion",
+        model=request.model.value,
+        process=request.process.value,
+        payoff_family=request.payoff_family.value,
+        exercise_style=request.exercise_style.value,
+        underlying_factor_role=request.underlying_factor_role.value,
         scheme="finite_difference_black_scholes_reference",
         s_steps=request.s_steps,
         t_steps=request.t_steps,
@@ -399,6 +481,21 @@ def _error_response(
     return JSONResponse(status_code=status_code, content=body.model_dump(mode="json"))
 
 
+def _validation_error_details(exc: RequestValidationError) -> list[dict[str, Any]]:
+    """Return validation errors without non-JSON-serializable exception objects."""
+
+    details: list[dict[str, Any]] = []
+    for error in exc.errors():
+        clean_error = {key: value for key, value in error.items() if key != "ctx"}
+        ctx = error.get("ctx")
+        if isinstance(ctx, dict):
+            clean_context = {key: str(value) for key, value in ctx.items()}
+            if clean_context:
+                clean_error["ctx"] = clean_context
+        details.append(clean_error)
+    return details
+
+
 @app.exception_handler(RequestValidationError)
 def _validation_exception_handler(
     http_request: Request, exc: RequestValidationError
@@ -408,7 +505,7 @@ def _validation_exception_handler(
     return _error_response(
         http_request,
         status_code=422,
-        detail=exc.errors(),
+        detail=_validation_error_details(exc),
         source="request_validation",
     )
 
@@ -441,6 +538,69 @@ def _option_class(option_type: OptionType) -> type[EuropeanCall] | type[European
     return EuropeanCall if option_type == OptionType.CALL else EuropeanPut
 
 
+def _contract_dict(request: OptionRequest) -> dict[str, str]:
+    """Return the model/payoff/process contract fields as JSON-safe strings."""
+
+    return {
+        "model": request.model.value,
+        "process": request.process.value,
+        "payoff_family": request.payoff_family.value,
+        "exercise_style": request.exercise_style.value,
+        "underlying_factor_role": request.underlying_factor_role.value,
+    }
+
+
+def _supported_contract() -> dict[str, str]:
+    """Return the only numerical route contract currently implemented."""
+
+    return {
+        "model": PricingModel.BLACK_SCHOLES.value,
+        "process": ProcessType.GEOMETRIC_BROWNIAN_MOTION.value,
+        "payoff_family": PayoffFamily.VANILLA_EUROPEAN.value,
+        "exercise_style": ExerciseStyle.EUROPEAN.value,
+        "underlying_factor_role": FactorRole.TRADABLE_SPOT.value,
+    }
+
+
+def _unsupported_contract_reason(request: OptionRequest) -> str | None:
+    """Explain why a recognized contract is unsupported, or None if supported."""
+
+    if request.model != PricingModel.BLACK_SCHOLES:
+        return f"model {request.model.value} is not enabled"
+    if request.process != ProcessType.GEOMETRIC_BROWNIAN_MOTION:
+        return (
+            f"process {request.process.value} is incompatible with model black_scholes"
+        )
+    if request.payoff_family != PayoffFamily.VANILLA_EUROPEAN:
+        return f"payoff family {request.payoff_family.value} is incompatible with model black_scholes"
+    if request.exercise_style != ExerciseStyle.EUROPEAN:
+        return f"exercise style {request.exercise_style.value} is incompatible with model black_scholes"
+    if request.underlying_factor_role != FactorRole.TRADABLE_SPOT:
+        return (
+            f"factor role {request.underlying_factor_role.value} is incompatible "
+            "with one-dimensional tradable-spot Black-Scholes"
+        )
+    return None
+
+
+def _ensure_supported_contract(request: OptionRequest, *, route: str) -> None:
+    """Fail closed for recognized but currently unimplemented route contracts."""
+
+    reason = _unsupported_contract_reason(request)
+    if reason is None:
+        return
+    raise HTTPException(
+        status_code=501,
+        detail={
+            "capability_status": "unsupported",
+            "reason": reason,
+            "route": route,
+            "requested_contract": _contract_dict(request),
+            "supported_contract": _supported_contract(),
+        },
+    )
+
+
 def _compute_grid(request: OptionRequest, *, return_greeks: bool = False):
     model = GeometricBrownianMotion(mu=request.rate, sigma=request.sigma)
     instrument = _option_class(request.option_type)(
@@ -469,6 +629,7 @@ def _grid_payload(res) -> PriceGrid:
 def price(request: OptionRequest, http_request: Request) -> PriceResponse:
     """Return requested-spot price and optional bounded grid for an option."""
 
+    _ensure_supported_contract(request, route="/price")
     res = _compute_grid(request)
     return PriceResponse(
         **_response_identity(http_request),
@@ -489,6 +650,7 @@ def price(request: OptionRequest, http_request: Request) -> PriceResponse:
 def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
     """Return scalar Greeks at the explicitly requested spot."""
 
+    _ensure_supported_contract(request, route="/greeks")
     res = _compute_grid(request, return_greeks=True)
     if (
         res.delta is None or res.gamma is None or res.theta is None
@@ -516,6 +678,7 @@ def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
 def pde_solution(request: OptionRequest, http_request: Request) -> FullPDEResponse:
     """Return complete solution and Greeks grids only after explicit opt-in."""
 
+    _ensure_supported_contract(request, route="/pde_solution")
     if not request.include_full_grid:
         raise HTTPException(
             status_code=400,
