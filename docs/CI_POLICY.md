@@ -18,6 +18,7 @@ The Python job uses Python 3.12 and reports failures by command group:
 3. architecture fitness gate:
    - `pytest -q tests/architecture`;
 4. stable regression suite:
+   - API request guards, schema contracts, and regulatory fail-closed envelopes;
    - boundary conditions;
    - callable bond;
    - FD backend capability manifest;
