@@ -6,8 +6,11 @@ front-end integrations and smoke testing.
 
 from __future__ import annotations
 
+import os
+import time
 from enum import Enum
-from threading import BoundedSemaphore
+from hmac import compare_digest
+from threading import BoundedSemaphore, Lock
 from time import monotonic as _monotonic
 from typing import Any, Literal, Optional
 from uuid import uuid4
@@ -34,13 +37,98 @@ API_SCHEMA_VERSION: Literal["fd-api-v1"] = "fd-api-v1"
 
 app = FastAPI(title="Finite Difference Option Pricing")
 
-# Allow browser applications from the specified domain to access the API.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+LOCAL_DEV_CORS_ORIGINS = ("http://localhost:5173",)
+
+
+def _env_bool(name: str, *, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    normalized = raw.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(
+        f"{name} must be a boolean string: one of 1/0, true/false, yes/no, on/off"
+    )
+
+
+def _env_int(name: str, *, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    return int(raw)
+
+
+def _env_float(name: str, *, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    return float(raw)
+
+
+def _env_csv(name: str) -> tuple[str, ...]:
+    raw = os.environ.get(name, "")
+    return tuple(item.strip() for item in raw.split(",") if item.strip())
+
+
+class DeploymentSecurityPolicy(BaseModel):
+    """Restrictive default deployment posture for the experimental API service."""
+
+    model_config = ConfigDict(frozen=True)
+
+    policy_name: str = "local_demo_security"
+    allowed_origins: tuple[str, ...] = ()
+    local_dev_cors: bool = False
+    auth_required: bool = False
+    api_key: Optional[str] = Field(default=None, repr=False, exclude=True)
+    rate_limit_requests: int = Field(default=120, ge=0)
+    rate_limit_window_seconds: float = Field(default=60.0, gt=0.0)
+    protected_path_prefixes: tuple[str, ...] = (
+        "/price",
+        "/greeks",
+        "/pde_solution",
+        "/reports/",
+    )
+
+    @classmethod
+    def from_env(cls) -> "DeploymentSecurityPolicy":
+        """Build policy from environment without requiring secrets in tests."""
+
+        return cls(
+            allowed_origins=_env_csv("FDO_API_CORS_ORIGINS"),
+            local_dev_cors=_env_bool("FDO_API_ENABLE_LOCAL_DEV_CORS"),
+            auth_required=_env_bool("FDO_API_AUTH_REQUIRED"),
+            api_key=os.environ.get("FDO_API_KEY") or None,
+            rate_limit_requests=_env_int("FDO_API_RATE_LIMIT_REQUESTS", default=120),
+            rate_limit_window_seconds=_env_float(
+                "FDO_API_RATE_LIMIT_WINDOW_SECONDS", default=60.0
+            ),
+        )
+
+
+DEFAULT_API_SECURITY_POLICY = DeploymentSecurityPolicy.from_env()
+
+
+def _cors_origins(policy: DeploymentSecurityPolicy) -> list[str]:
+    origins = set(policy.allowed_origins)
+    if policy.local_dev_cors:
+        origins.update(LOCAL_DEV_CORS_ORIGINS)
+    return sorted(origins)
+
+
+def _configure_cors(fastapi_app: FastAPI, policy: DeploymentSecurityPolicy) -> None:
+    """Install CORS middleware with restrictive defaults and opt-in local dev."""
+
+    fastapi_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins(policy),
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Request-ID"],
+        expose_headers=["X-Request-ID"],
+    )
 
 
 class OptionType(str, Enum):
@@ -377,15 +465,22 @@ class FullPDEResponse(APIResponseBase):
 
 API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     400: {"model": ErrorResponse},
+    401: {"model": ErrorResponse},
+    403: {"model": ErrorResponse},
     422: {"model": ErrorResponse},
     429: {"model": ErrorResponse},
     500: {"model": ErrorResponse},
     501: {"model": ErrorResponse},
+    503: {"model": ErrorResponse},
     504: {"model": ErrorResponse},
 }
 UNSUPPORTED_ROUTE_RESPONSES: dict[int | str, dict[str, Any]] = {
-    501: {"model": ErrorResponse},
+    401: {"model": ErrorResponse},
+    403: {"model": ErrorResponse},
     422: {"model": ErrorResponse},
+    429: {"model": ErrorResponse},
+    501: {"model": ErrorResponse},
+    503: {"model": ErrorResponse},
 }
 
 
@@ -607,6 +702,182 @@ def _http_exception_handler(http_request: Request, exc: HTTPException) -> JSONRe
         detail=exc.detail,
         source="http_exception",
     )
+
+
+class _ProcessLocalRateLimiter:
+    """Small in-process fixed-window limiter for local/demo API deployments."""
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._hits: dict[tuple[str, str], list[float]] = {}
+
+    def reset(self) -> None:
+        with self._lock:
+            self._hits.clear()
+
+    def check(
+        self,
+        key: tuple[str, str],
+        *,
+        max_requests: int,
+        window_seconds: float,
+    ) -> tuple[bool, int, float]:
+        if max_requests <= 0:
+            return True, 0, 0.0
+        now = time.monotonic()
+        cutoff = now - window_seconds
+        with self._lock:
+            hits = [hit for hit in self._hits.get(key, []) if hit > cutoff]
+            if len(hits) >= max_requests:
+                retry_after = max(0.0, window_seconds - (now - hits[0]))
+                self._hits[key] = hits
+                return False, len(hits), retry_after
+            hits.append(now)
+            self._hits[key] = hits
+            return True, len(hits), 0.0
+
+
+_RATE_LIMITER = _ProcessLocalRateLimiter()
+
+
+def _is_protected_path(path: str, policy: DeploymentSecurityPolicy) -> bool:
+    for prefix in policy.protected_path_prefixes:
+        if prefix.endswith("/"):
+            if path.startswith(prefix):
+                return True
+        elif path == prefix or path.startswith(f"{prefix}/"):
+            return True
+    return False
+
+
+def _extract_api_key(http_request: Request) -> str | None:
+    authorization = http_request.headers.get("authorization")
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() == "bearer" and token.strip():
+            return token.strip()
+    api_key = http_request.headers.get("x-api-key")
+    return api_key.strip() if api_key and api_key.strip() else None
+
+
+def _constant_time_key_equal(presented_key: str, configured_key: str) -> bool:
+    """Compare API keys without leaking timing and without ASCII-only TypeError."""
+
+    return compare_digest(
+        presented_key.encode("utf-8"),
+        configured_key.encode("utf-8"),
+    )
+
+
+def _auth_failure(
+    http_request: Request,
+    *,
+    status_code: int,
+    code: str,
+    message: str,
+) -> JSONResponse:
+    return _error_response(
+        http_request,
+        status_code=status_code,
+        detail={
+            "code": code,
+            "message": message,
+            "capability_status": "deployment_hardening",
+        },
+        source="deployment_security",
+    )
+
+
+def _enforce_authentication(
+    http_request: Request, policy: DeploymentSecurityPolicy
+) -> JSONResponse | None:
+    if not policy.auth_required:
+        return None
+    if not policy.api_key:
+        return _auth_failure(
+            http_request,
+            status_code=503,
+            code="auth_misconfigured",
+            message="API authentication is required but no API key is configured",
+        )
+    presented_key = _extract_api_key(http_request)
+    if presented_key is None:
+        return _auth_failure(
+            http_request,
+            status_code=401,
+            code="auth_required",
+            message="API authentication is required for this route",
+        )
+    if not _constant_time_key_equal(presented_key, policy.api_key):
+        return _auth_failure(
+            http_request,
+            status_code=403,
+            code="auth_invalid",
+            message="API authentication credentials were rejected",
+        )
+    return None
+
+
+def _rate_limit_key(http_request: Request) -> tuple[str, str]:
+    client_host = http_request.client.host if http_request.client else "unknown"
+    return (http_request.url.path, client_host)
+
+
+def _enforce_rate_limit(
+    http_request: Request, policy: DeploymentSecurityPolicy
+) -> JSONResponse | None:
+    allowed, observed, retry_after = _RATE_LIMITER.check(
+        _rate_limit_key(http_request),
+        max_requests=policy.rate_limit_requests,
+        window_seconds=policy.rate_limit_window_seconds,
+    )
+    if allowed:
+        return None
+    return _error_response(
+        http_request,
+        status_code=429,
+        detail={
+            "code": "rate_limit_exceeded",
+            "message": "process-local API rate limit exceeded",
+            "route": http_request.url.path,
+            "resource": {
+                "limit": "rate_limit_requests",
+                "observed": observed,
+                "allowed": policy.rate_limit_requests,
+                "window_seconds": policy.rate_limit_window_seconds,
+                "retry_after_seconds": retry_after,
+                "scope": "process_local_demo",
+            },
+        },
+        source="deployment_security",
+    )
+
+
+async def _apply_deployment_security(http_request: Request, call_next):
+    """Apply fail-closed auth and process-local rate limits to API routes."""
+
+    if http_request.method.upper() == "OPTIONS":
+        return await call_next(http_request)
+    policy = DEFAULT_API_SECURITY_POLICY
+    if not _is_protected_path(http_request.url.path, policy):
+        return await call_next(http_request)
+    rate_response = _enforce_rate_limit(http_request, policy)
+    if rate_response is not None:
+        return rate_response
+    auth_response = _enforce_authentication(http_request, policy)
+    if auth_response is not None:
+        return auth_response
+    return await call_next(http_request)
+
+
+@app.middleware("http")
+async def _deployment_security_middleware(http_request: Request, call_next):
+    return await _apply_deployment_security(http_request, call_next)
+
+
+# Register CORS after the security middleware so it remains outermost and adds
+# browser-readable headers to auth/rate-limit error envelopes for allowed origins.
+_configure_cors(app, DEFAULT_API_SECURITY_POLICY)
 
 
 @app.exception_handler(Exception)
