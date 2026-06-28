@@ -6,7 +6,7 @@ engine and small helpers for constructing common products.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -100,6 +100,8 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     weights: Any  # Using Any to avoid Pydantic issues with NDArray
     maturity: float
     option_type: str = "call"  # Default to 'call'
+    asset_ids: tuple[str, ...] | None = None
+    product_type: Literal["leg_strike_basket"] = "leg_strike_basket"
 
     model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
 
@@ -143,8 +145,18 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
         """
         super().__init__(**data)
 
+        if self.strikes.ndim != 1:
+            raise ValidationError("strikes must be one-dimensional")
+        if self.weights.ndim != 1:
+            raise ValidationError("weights must be one-dimensional")
+        if len(self.strikes) == 0:
+            raise ValidationError("strikes and weights must be nonempty")
         if len(self.strikes) != len(self.weights):
             raise ValidationError("strikes and weights must have same length")
+        if not np.all(np.isfinite(self.strikes)) or not np.all(np.isfinite(self.weights)):
+            raise ValidationError("strikes and weights must contain only finite values")
+        if self.asset_ids is not None and len(self.asset_ids) != len(self.weights):
+            raise ValidationError("asset_ids must have the same length as weights")
 
         validate_weights_sum_to_one(self.weights)
 
@@ -157,6 +169,13 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
         """Legacy per-leg basket options require every leg to be tradable."""
 
         return tuple(FactorRole.TRADABLE_SPOT for _ in self.weights)
+
+    def required_asset_ids(self) -> tuple[str | None, ...]:
+        """Return expected asset identifiers for payoff legs, if supplied."""
+
+        if self.asset_ids is None:
+            return tuple(None for _ in self.weights)
+        return self.asset_ids
 
 
 class StandardBasketOption(UnifiedInstrument, BaseModel):
@@ -172,6 +191,12 @@ class StandardBasketOption(UnifiedInstrument, BaseModel):
     maturity: float
     option_type: str = "call"
     asset_ids: tuple[str, ...] | None = None
+    basket_currency: str | None = None
+    asset_currencies: tuple[str, ...] | None = None
+    unit: str = "price"
+    carry_convention: Literal["none", "external"] = "none"
+    conversion_policy: Literal["single_currency_only"] = "single_currency_only"
+    product_type: Literal["standard_basket"] = "standard_basket"
 
     model_config = ConfigDict(frozen=True, extra="forbid", arbitrary_types_allowed=True)
 
@@ -213,8 +238,18 @@ class StandardBasketOption(UnifiedInstrument, BaseModel):
             raise ValidationError("weights must be nonempty")
         if not np.all(np.isfinite(self.weights)):
             raise ValidationError("weights must contain only finite values")
+        validate_weights_sum_to_one(self.weights)
         if self.asset_ids is not None and len(self.asset_ids) != len(self.weights):
             raise ValidationError("asset_ids must have the same length as weights")
+        if self.asset_currencies is not None and len(self.asset_currencies) != len(self.weights):
+            raise ValidationError("asset_currencies must have the same length as weights")
+        if self.asset_currencies is not None and self.basket_currency is not None:
+            mismatches = [currency for currency in self.asset_currencies if currency != self.basket_currency]
+            if mismatches:
+                raise ValidationError(
+                    "cross-currency basket conversion is unsupported; provide single-currency inputs "
+                    "or a dedicated conversion adapter"
+                )
 
     def payoff(self, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute the standard one-strike basket payoff."""
@@ -225,6 +260,42 @@ class StandardBasketOption(UnifiedInstrument, BaseModel):
         """Standard basket legs must map to tradable spot factors."""
 
         return tuple(FactorRole.TRADABLE_SPOT for _ in self.weights)
+
+    def required_asset_ids(self) -> tuple[str | None, ...]:
+        """Return expected asset identifiers for payoff legs, if supplied."""
+
+        if self.asset_ids is None:
+            return tuple(None for _ in self.weights)
+        return self.asset_ids
+
+
+class SpreadOption(StandardBasketOption):
+    """Two-leg spread option with a single spread strike.
+
+    Spread coefficients are not normalized basket weights; this class keeps a
+    separate product identity so spread/notional semantics cannot be confused
+    with normalized standard baskets.
+    """
+
+    product_type: Literal["spread"] = "spread"
+
+    def __init__(self, **data):
+        """Validate two-leg spread shape without requiring weights sum to one."""
+        BaseModel.__init__(self, **data)
+        if self.weights.ndim != 1:
+            raise ValidationError("weights must be one-dimensional")
+        if len(self.weights) != 2:
+            raise ValidationError("spread options require exactly two weights")
+        if not np.all(np.isfinite(self.weights)):
+            raise ValidationError("weights must contain only finite values")
+        if self.asset_ids is not None and len(self.asset_ids) != 2:
+            raise ValidationError("asset_ids must have length 2 for spread options")
+        if self.asset_currencies is not None and len(self.asset_currencies) != 2:
+            raise ValidationError("asset_currencies must have length 2 for spread options")
+        if self.asset_currencies is not None and self.basket_currency is not None:
+            mismatches = [currency for currency in self.asset_currencies if currency != self.basket_currency]
+            if mismatches:
+                raise ValidationError("cross-currency spread conversion is unsupported")
 
 
 # Convenience functions
@@ -249,13 +320,15 @@ def create_unified_basket_call(
     strikes: NDArray[np.float64],
     weights: NDArray[np.float64],
     maturity: float,
+    asset_ids: tuple[str, ...] | None = None,
 ) -> UnifiedBasketOption:
-    """Create a basket call with explicit per-asset strikes/weights."""
+    """Create a legacy leg-strike basket call with explicit per-leg strikes."""
     return UnifiedBasketOption(
         strikes=strikes,
         weights=weights,
         maturity=maturity,
         option_type="call",
+        asset_ids=asset_ids,
     )
 
 
@@ -279,13 +352,15 @@ def create_unified_basket_put(
     strikes: NDArray[np.float64],
     weights: NDArray[np.float64],
     maturity: float,
+    asset_ids: tuple[str, ...] | None = None,
 ) -> UnifiedBasketOption:
-    """Create a basket put with explicit per-asset strikes/weights."""
+    """Create a legacy leg-strike basket put with explicit per-leg strikes."""
     return UnifiedBasketOption(
         strikes=strikes,
         weights=weights,
         maturity=maturity,
         option_type="put",
+        asset_ids=asset_ids,
     )
 
 
@@ -297,6 +372,38 @@ def create_standard_basket_put(
 ) -> StandardBasketOption:
     """Create a standard basket put with one basket strike."""
     return StandardBasketOption(
+        strike=strike,
+        weights=weights,
+        maturity=maturity,
+        option_type="put",
+        asset_ids=asset_ids,
+    )
+
+
+def create_spread_call(
+    strike: float,
+    weights: NDArray[np.float64],
+    maturity: float,
+    asset_ids: tuple[str, ...] | None = None,
+) -> SpreadOption:
+    """Create a two-leg spread call with non-normalized coefficients."""
+    return SpreadOption(
+        strike=strike,
+        weights=weights,
+        maturity=maturity,
+        option_type="call",
+        asset_ids=asset_ids,
+    )
+
+
+def create_spread_put(
+    strike: float,
+    weights: NDArray[np.float64],
+    maturity: float,
+    asset_ids: tuple[str, ...] | None = None,
+) -> SpreadOption:
+    """Create a two-leg spread put with non-normalized coefficients."""
+    return SpreadOption(
         strike=strike,
         weights=weights,
         maturity=maturity,

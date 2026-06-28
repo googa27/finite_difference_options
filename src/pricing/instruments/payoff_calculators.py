@@ -90,7 +90,7 @@ class BasketPayoffCalculator(PayoffCalculator):
         arrays = [np.asarray(grid, dtype=np.float64) for grid in grids]
         if len(arrays) == 1:
             return weights[0] * arrays[0]
-        if all(array.shape == arrays[0].shape for array in arrays):
+        if arrays[0].ndim > 1 and all(array.shape == arrays[0].shape for array in arrays):
             basket_value = np.zeros_like(arrays[0], dtype=np.float64)
             for weight, grid in zip(weights, arrays, strict=True):
                 basket_value += weight * grid
@@ -98,10 +98,12 @@ class BasketPayoffCalculator(PayoffCalculator):
 
         if not all(array.ndim == 1 for array in arrays):
             raise ValidationError("Basket grids must be one-dimensional coordinate arrays or matching pointwise arrays")
-        mesh_grids = np.meshgrid(*arrays, indexing='ij')
-        basket_value = np.zeros_like(mesh_grids[0], dtype=np.float64)
-        for weight, grid in zip(weights, mesh_grids, strict=True):
-            basket_value += weight * grid
+        output_shape = tuple(array.shape[0] for array in arrays)
+        basket_value = np.zeros(output_shape, dtype=np.float64)
+        for axis, (weight, grid) in enumerate(zip(weights, arrays, strict=True)):
+            view_shape = [1] * len(arrays)
+            view_shape[axis] = grid.shape[0]
+            basket_value += weight * grid.reshape(view_shape)
         return basket_value
 
     @staticmethod
@@ -135,11 +137,11 @@ class PayoffCalculatorFactory:
             Appropriate payoff calculator for the instrument.
         """
         # Import here to avoid circular imports
-        from .options import StandardBasketOption, UnifiedEuropeanOption, UnifiedBasketOption
+        from .options import SpreadOption, StandardBasketOption, UnifiedEuropeanOption, UnifiedBasketOption
         
         if isinstance(instrument, UnifiedEuropeanOption):
             return EuropeanPayoffCalculator()
-        elif isinstance(instrument, (UnifiedBasketOption, StandardBasketOption)):
+        elif isinstance(instrument, (UnifiedBasketOption, StandardBasketOption, SpreadOption)):
             return BasketPayoffCalculator()
         else:
             raise ValidationError(f"Unsupported instrument type: {type(instrument)}")
