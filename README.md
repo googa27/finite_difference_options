@@ -154,7 +154,7 @@ The service allows cross-origin requests from `http://localhost:5173`.
 uvicorn api.main:app --reload
 ```
 
-Pricing requests use a versioned schema with explicit model/payoff/process contracts, explicit `spot`, enum `option_type`, finite/range numeric validation, a pre-solve node budget, and full-grid output disabled by default:
+Pricing requests use a versioned schema with explicit model/payoff/process contracts, explicit `spot`, enum `option_type`, finite/range numeric validation, deployable compute/output/response-size budgets, a cooperative local timeout, and full-grid output disabled by default:
 
 ```json
 {
@@ -163,6 +163,7 @@ Pricing requests use a versioned schema with explicit model/payoff/process contr
   "payoff_family": "vanilla_european",
   "exercise_style": "european",
   "underlying_factor_role": "tradable_spot",
+  "state_dimensions": 1,
   "option_type": "Call",
   "spot": 100.0,
   "strike": 100.0,
@@ -171,11 +172,16 @@ Pricing requests use a versioned schema with explicit model/payoff/process contr
   "sigma": 0.2,
   "s_steps": 101,
   "t_steps": 51,
-  "include_full_grid": false
+  "include_full_grid": false,
+  "max_output_nodes": 50000,
+  "max_response_bytes": 8000000,
+  "timeout_seconds": 2.0
 }
 ```
 
-All public responses use the stable `fd-api-v1` envelope. Successful scalar routes include top-level `schema_version`, `request_id`, `run_id`, and `metadata`; callers may supply `X-Request-ID` for trace propagation. `metadata` records route maturity, warnings, units, solver/grid dimensions, requested-state sampling diagnostics, and explicit `not_assessed` convergence status. This is a service-contract shape, not a production validation claim.
+All public responses use the stable `fd-api-v1` envelope. Successful scalar routes include top-level `schema_version`, `request_id`, `run_id`, and `metadata`; callers may supply `X-Request-ID` for trace propagation. `metadata` records route maturity, warnings, units, solver/grid dimensions, requested-state sampling diagnostics, resource-budget diagnostics, and explicit `not_assessed` convergence status. This is a service-contract shape, not a production validation claim.
+
+The default `local_demo` resource policy is process-local: one concurrent solve, one state dimension, up to 50,000 compute/output nodes, up to 8 MB estimated serialized numerical output, and a cooperative timeout capped at 5 seconds. The sync solver cannot be interrupted mid-kernel; the API checks deadlines before and after solve/sampling/assembly, releases the local concurrency slot on failure, and returns bounded HTTP 429/504 error envelopes when capacity or timeout limits are hit.
 
 Endpoints:
 
@@ -187,7 +193,7 @@ Endpoints:
 - `POST /reports/basel` → HTTP 501 `ErrorResponse` until a versioned Basel market-risk subset is implemented
 - `POST /reports/frtb` → HTTP 501 `ErrorResponse` until a versioned FRTB calculation subset is implemented
 
-Validation, bad-request, internal, and unsupported-route failures are concise machine-readable `ErrorResponse` objects with stable `error.code`, `error.http_status`, route, request/run IDs, and original diagnostic `detail`. The pricing, Greeks, and PDE routes currently execute only the explicit Black-Scholes / geometric-Brownian-motion / vanilla-European / tradable-spot contract; recognized but unsupported model, process, payoff, exercise-style, or factor-role combinations fail closed with HTTP 501 before numerical work. OpenAPI compatibility tests guard these public schema components from unreviewed drift.
+Validation, resource-limit, concurrency-limit, timeout, bad-request, internal, and unsupported-route failures are concise machine-readable `ErrorResponse` objects with stable `error.code`, `error.http_status`, route, request/run IDs, and original diagnostic `detail`. The pricing, Greeks, and PDE routes currently execute only the explicit Black-Scholes / geometric-Brownian-motion / vanilla-European / tradable-spot contract; recognized but unsupported model, process, payoff, exercise-style, or factor-role combinations fail closed with HTTP 501 before numerical work. OpenAPI compatibility tests guard these public schema components from unreviewed drift.
 
 ## Next.js Client
 
