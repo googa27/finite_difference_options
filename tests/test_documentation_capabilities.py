@@ -36,6 +36,7 @@ def test_capability_matrix_is_authoritative_and_cites_evidence_ids() -> None:
         assert evidence_id in text
     assert "Heston stochastic volatility" in text
     assert "basket option" in text
+    assert "two-leg spreads" in text
     assert "unsupported" in text
 
 
