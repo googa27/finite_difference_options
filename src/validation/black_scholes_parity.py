@@ -157,7 +157,10 @@ class BlackScholesParityReport:
         return {
             "schema_version": "arxiv-lab/fd-oracle-fixture/v0",
             "fixture_id": self.case.fixture_id,
-            "problem_spec": _build_public_problem_spec(self.case),
+            "problem_spec": _build_public_problem_spec(
+                self.case,
+                tuple((row.s_steps, row.t_steps) for row in self.observations),
+            ),
             "result_export": {
                 "time_axis": self.time_axis.as_dict(),
                 "domain": {
@@ -231,8 +234,35 @@ def black_scholes_call_greeks(
     }
 
 
-def _build_public_problem_spec(case: BlackScholesParityCase) -> dict[str, Any]:
+def _build_public_problem_spec(
+    case: BlackScholesParityCase,
+    grid_levels: tuple[tuple[int, int], ...],
+) -> dict[str, Any]:
     """Build a tiny public QuantProblemSpec payload for the deterministic fixture."""
+
+    max_s_steps = max(level[0] for level in grid_levels)
+    max_t_steps = max(level[1] for level in grid_levels)
+    coefficient_terms = [
+        {
+            "name": "drift",
+            "operator": "S * dV/dS",
+            "coefficient": case.rate,
+            "expression": "r S ∂V/∂S",
+        },
+        {
+            "name": "diffusion",
+            "operator": "S^2 * d²V/dS²",
+            "coefficient": 0.5 * case.sigma**2,
+            "variance": case.sigma**2,
+            "expression": "0.5 σ² S² ∂²V/∂S²",
+        },
+        {
+            "name": "reaction",
+            "operator": "V",
+            "coefficient": -case.rate,
+            "expression": "-r V",
+        },
+    ]
 
     return {
         "schema_version": "quant-problem-spec/v0",
@@ -262,26 +292,12 @@ def _build_public_problem_spec(case: BlackScholesParityCase) -> dict[str, Any]:
                     "coordinate": "spot",
                 }
             ],
-            "pde_terms": ["drift", "diffusion", "reaction"],
+            "pde_terms": [term["name"] for term in coefficient_terms],
+            "pde_operator_terms": coefficient_terms,
             "pde_coefficients": {
                 "risk_free_rate": case.rate,
                 "volatility": case.sigma,
-                "drift": {
-                    "operator": "S * dV/dS",
-                    "coefficient": case.rate,
-                    "expression": "r S ∂V/∂S",
-                },
-                "diffusion": {
-                    "operator": "S^2 * d²V/dS²",
-                    "coefficient": 0.5 * case.sigma**2,
-                    "variance": case.sigma**2,
-                    "expression": "0.5 σ² S² ∂²V/∂S²",
-                },
-                "reaction": {
-                    "operator": "V",
-                    "coefficient": -case.rate,
-                    "expression": "-r V",
-                },
+                "terms": coefficient_terms,
             },
             "boundary_conditions": {
                 "S=0": "second_derivative_zero_gamma",
@@ -299,9 +315,9 @@ def _build_public_problem_spec(case: BlackScholesParityCase) -> dict[str, Any]:
             # Keep metadata aligned with BlackScholesPDE's default Crank--Nicolson theta.
             "time_controls": {"theta": 0.5},
             "resource_controls": {
-                "grid_levels": 3,
-                "max_s_steps": 120,
-                "max_t_steps": 200,
+                "grid_levels": len(grid_levels),
+                "max_s_steps": max_s_steps,
+                "max_t_steps": max_t_steps,
             },
         },
         "financial_graph": {
@@ -422,10 +438,11 @@ def run_public_black_scholes_parity_fixture(
             expression="dV/dS=1",
         ),
     )
+    valuation_row_index = int(len(final_t_grid) - 1)
     time_axis = TimeAxisSpec(
         axis="time",
         direction="decreasing",
-        valuation_index=valuation_index,
+        valuation_index=valuation_row_index,
         maturity_index=maturity_index,
         valuation_time=0.0,
         maturity_time=case.maturity,

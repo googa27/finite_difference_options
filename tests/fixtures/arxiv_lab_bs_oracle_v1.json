@@ -80,25 +80,51 @@
       "dimension": 1,
       "exercise_style": "european",
       "pde_coefficients": {
-        "diffusion": {
+        "risk_free_rate": 0.05,
+        "terms": [
+          {
+            "coefficient": 0.05,
+            "expression": "r S \u2202V/\u2202S",
+            "name": "drift",
+            "operator": "S * dV/dS"
+          },
+          {
+            "coefficient": 0.020000000000000004,
+            "expression": "0.5 \u03c3\u00b2 S\u00b2 \u2202\u00b2V/\u2202S\u00b2",
+            "name": "diffusion",
+            "operator": "S^2 * d\u00b2V/dS\u00b2",
+            "variance": 0.04000000000000001
+          },
+          {
+            "coefficient": -0.05,
+            "expression": "-r V",
+            "name": "reaction",
+            "operator": "V"
+          }
+        ],
+        "volatility": 0.2
+      },
+      "pde_operator_terms": [
+        {
+          "coefficient": 0.05,
+          "expression": "r S \u2202V/\u2202S",
+          "name": "drift",
+          "operator": "S * dV/dS"
+        },
+        {
           "coefficient": 0.020000000000000004,
           "expression": "0.5 \u03c3\u00b2 S\u00b2 \u2202\u00b2V/\u2202S\u00b2",
+          "name": "diffusion",
           "operator": "S^2 * d\u00b2V/dS\u00b2",
           "variance": 0.04000000000000001
         },
-        "drift": {
-          "coefficient": 0.05,
-          "expression": "r S \u2202V/\u2202S",
-          "operator": "S * dV/dS"
-        },
-        "reaction": {
+        {
           "coefficient": -0.05,
           "expression": "-r V",
+          "name": "reaction",
           "operator": "V"
-        },
-        "risk_free_rate": 0.05,
-        "volatility": 0.2
-      },
+        }
+      ],
       "pde_terms": [
         "drift",
         "diffusion",
@@ -218,7 +244,7 @@
         "min": 0.005025125628140614
       },
       "t_steps": 200,
-      "valuation_time_index": -1
+      "valuation_time_index": 199
     },
     "no_arbitrage": {
       "delta_lower_bound_ok": true,
@@ -246,7 +272,7 @@
       "direction": "decreasing",
       "maturity_index": 0,
       "maturity_time": 1.0,
-      "valuation_index": -1,
+      "valuation_index": 199,
       "valuation_time": 0.0
     }
   },

@@ -108,11 +108,21 @@ def test_arxiv_lab_payload_is_static_file_and_consumable() -> None:
     assert cached["problem_spec"]["solver_plan"]["time_controls"] == {"theta": 0.5}
 
     coefficients = cached["problem_spec"]["mathematical_problem"]["pde_coefficients"]
+    operator_terms = cached["problem_spec"]["mathematical_problem"]["pde_operator_terms"]
+    terms_by_name = {term["name"]: term for term in operator_terms}
     assert coefficients["risk_free_rate"] == report.case.rate
     assert coefficients["volatility"] == report.case.sigma
-    assert coefficients["drift"]["coefficient"] == report.case.rate
-    assert coefficients["diffusion"]["variance"] == report.case.sigma**2
-    assert coefficients["reaction"]["coefficient"] == -report.case.rate
+    assert coefficients["terms"] == operator_terms
+    assert terms_by_name["drift"]["coefficient"] == report.case.rate
+    assert terms_by_name["diffusion"]["variance"] == report.case.sigma**2
+    assert terms_by_name["reaction"]["coefficient"] == -report.case.rate
+    assert cached["result_export"]["grid"]["valuation_time_index"] == 199
+    assert cached["result_export"]["time_axis"]["valuation_index"] == 199
+    assert cached["problem_spec"]["solver_plan"]["resource_controls"] == {
+        "grid_levels": len(report.observations),
+        "max_s_steps": report.observations[-1].s_steps,
+        "max_t_steps": report.observations[-1].t_steps,
+    }
 
     price_abs = cached["result_export"]["errors"]["price_abs"]
     price_rel = cached["result_export"]["errors"]["price_rel"]
