@@ -15,9 +15,12 @@ The Python job uses Python 3.12 and reports failures by command group:
 2. static smoke gate:
    - `python -m compileall -q api src tests`;
    - `ruff check . --select E9,F63,F7,F82`;
-3. architecture fitness gate:
+3. architecture and documentation contracts:
+   - `python scripts/check_architecture_contract.py`;
+   - `python scripts/check_markdown_links.py`;
+4. architecture fitness gate:
    - `pytest -q tests/architecture`;
-4. stable regression suite:
+5. stable regression suite:
    - `PYTHONPATH=. pytest -q` with API request guards, schema contracts, route validation, interpolation diagnostics, resource controls, deployment hardening, and regulatory fail-closed envelopes;
    - boundary conditions;
    - callable bond;

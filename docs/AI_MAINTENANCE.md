@@ -66,8 +66,8 @@ triggers:
 # Validate all code examples
 find docs/ -name "*.md" -exec python -m doctest {} \;
 
-# Check internal links
-grep -r "\[.*\](.*\.md)" docs/ | validate_links.py
+# Check internal Markdown links.
+python scripts/check_markdown_links.py
 
 # Verify template variables
 grep -r "TEMPLATE_" docs/ | check_populated.py
