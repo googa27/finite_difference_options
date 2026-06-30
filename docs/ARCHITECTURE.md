@@ -175,6 +175,7 @@ with domain, coordinate transform, time orientation, initial or terminal conditi
 
 The contract distinguishes:
 
+- problem identity/hash from FD method controls so Pinares, Haircut, and other consumers can ask different solvers to price the same claim;
 - covariance/diffusion matrix `A=[a_ij]` and its coordinate convention;
 - state-factor roles (`tradable_spot`, `variance`, `volatility`, `short_rate`, `auxiliary_state`) and payoff transforms used to validate payoff/process compatibility before payoff allocation;
 - drift `b`;
@@ -215,7 +216,7 @@ FDResult
 └── version and reproducibility metadata
 ```
 
-Contracts are immutable or snapshot-able and serialization-tested.
+Contracts are immutable or snapshot-able and serialization-tested. `tests/fixtures/quant_problem_specs/pinares_fixed_price_proxy.json` is the public-synthetic compatibility smoke for the Pinares fixed-price option proxy: it verifies that Pinares owns the financial problem and this backend owns only grid/time/stability controls.
 
 ## 9. Grid architecture
 
