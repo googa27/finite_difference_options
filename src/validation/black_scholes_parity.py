@@ -263,6 +263,26 @@ def _build_public_problem_spec(case: BlackScholesParityCase) -> dict[str, Any]:
                 }
             ],
             "pde_terms": ["drift", "diffusion", "reaction"],
+            "pde_coefficients": {
+                "risk_free_rate": case.rate,
+                "volatility": case.sigma,
+                "drift": {
+                    "operator": "S * dV/dS",
+                    "coefficient": case.rate,
+                    "expression": "r S ∂V/∂S",
+                },
+                "diffusion": {
+                    "operator": "S^2 * d²V/dS²",
+                    "coefficient": 0.5 * case.sigma**2,
+                    "variance": case.sigma**2,
+                    "expression": "0.5 σ² S² ∂²V/∂S²",
+                },
+                "reaction": {
+                    "operator": "V",
+                    "coefficient": -case.rate,
+                    "expression": "-r V",
+                },
+            },
             "boundary_conditions": {
                 "S=0": "second_derivative_zero_gamma",
                 "S=S_max": "neumann_delta_one",
@@ -378,7 +398,7 @@ def run_public_black_scholes_parity_fixture(
     gamma_abs_error = abs(fd_gamma - reference_greeks["gamma"])
     errors = {
         "price_abs": float(abs(fd_price - oracle_price)),
-        "price_rel": float(abs(fd_price - oracle_price) / max(1.0, abs(oracle_price))),
+        "price_rel": float(abs(fd_price - oracle_price) / max(1e-12, abs(oracle_price))),
         "delta_abs": float(delta_abs_error),
         "delta_rel": float(delta_abs_error / max(1e-12, abs(reference_greeks["delta"]))),
         "gamma_abs": float(gamma_abs_error),

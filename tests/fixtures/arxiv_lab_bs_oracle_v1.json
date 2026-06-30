@@ -79,6 +79,26 @@
       },
       "dimension": 1,
       "exercise_style": "european",
+      "pde_coefficients": {
+        "diffusion": {
+          "coefficient": 0.020000000000000004,
+          "expression": "0.5 \u03c3\u00b2 S\u00b2 \u2202\u00b2V/\u2202S\u00b2",
+          "operator": "S^2 * d\u00b2V/dS\u00b2",
+          "variance": 0.04000000000000001
+        },
+        "drift": {
+          "coefficient": 0.05,
+          "expression": "r S \u2202V/\u2202S",
+          "operator": "S * dV/dS"
+        },
+        "reaction": {
+          "coefficient": -0.05,
+          "expression": "-r V",
+          "operator": "V"
+        },
+        "risk_free_rate": 0.05,
+        "volatility": 0.2
+      },
       "pde_terms": [
         "drift",
         "diffusion",
@@ -179,7 +199,7 @@
       "gamma_rel": 0.002669991822535218,
       "max_abs_price_error": 0.0015034864453782049,
       "price_abs": 0.00010928850500550868,
-      "price_rel": 0.00010928850500550868
+      "price_rel": 0.0010457646144889188
     },
     "grid": {
       "maturity_time_index": 0,

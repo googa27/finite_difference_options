@@ -107,6 +107,18 @@ def test_arxiv_lab_payload_is_static_file_and_consumable() -> None:
     assert cached["result_export"]["time_axis"]["direction"] == "decreasing"
     assert cached["problem_spec"]["solver_plan"]["time_controls"] == {"theta": 0.5}
 
+    coefficients = cached["problem_spec"]["mathematical_problem"]["pde_coefficients"]
+    assert coefficients["risk_free_rate"] == report.case.rate
+    assert coefficients["volatility"] == report.case.sigma
+    assert coefficients["drift"]["coefficient"] == report.case.rate
+    assert coefficients["diffusion"]["variance"] == report.case.sigma**2
+    assert coefficients["reaction"]["coefficient"] == -report.case.rate
+
+    price_abs = cached["result_export"]["errors"]["price_abs"]
+    price_rel = cached["result_export"]["errors"]["price_rel"]
+    oracle_price = cached["result_export"]["reference"]["price"]
+    assert price_rel == price_abs / abs(oracle_price)
+
     assert cached["result_export"]["no_arbitrage"]["value_bound_ok"] is True
     assert cached["result_export"]["no_arbitrage"]["upper_bound_ok"] is True
 
