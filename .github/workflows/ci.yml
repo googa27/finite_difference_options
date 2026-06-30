@@ -26,6 +26,8 @@ jobs:
           ruff check . --select E9,F63,F7,F82
       - name: Architecture contract
         run: python scripts/check_architecture_contract.py
+      - name: Markdown link contract
+        run: python scripts/check_markdown_links.py
       - name: Architecture fitness gate
         run: pytest -q tests/architecture
       - name: Stable regression suite
