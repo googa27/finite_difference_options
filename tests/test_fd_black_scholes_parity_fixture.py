@@ -85,6 +85,14 @@ def test_public_black_scholes_fixture_emits_delta_gamma_reference_errors() -> No
     assert report.no_arbitrage["delta_upper_bound_ok"]
     assert report.no_arbitrage["gamma_non_negative_ok"]
 
+def test_public_black_scholes_fixture_spec_uses_case_maturity() -> None:
+    case = BlackScholesParityCase(maturity=2.0, maturity_date="2028-01-02")
+    report = run_public_black_scholes_parity_fixture(case=case, grid_levels=((20, 30),))
+    payload = report.as_dict()
+
+    assert payload["problem_spec"]["valuation_context"]["time_domain"] == "[0, 2]"
+    assert payload["result_export"]["domain"]["t_max"] == 2.0
+
 
 def test_arxiv_lab_payload_is_static_file_and_consumable() -> None:
     assert FIXTURE_PATH.exists(), "Fixture JSON expected under tests/fixtures."
