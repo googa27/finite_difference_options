@@ -1,0 +1,234 @@
+{
+  "convergence": [
+    {
+      "abs_error": 0.0015034864453782049,
+      "oracle_price": 0.10450583572185568,
+      "price": 0.10300234927647747,
+      "s_steps": 40,
+      "t_steps": 40
+    },
+    {
+      "abs_error": 0.00024191334351048033,
+      "oracle_price": 0.10450583572185568,
+      "price": 0.10474774906536616,
+      "s_steps": 80,
+      "t_steps": 120
+    },
+    {
+      "abs_error": 0.00010928850500550868,
+      "oracle_price": 0.10450583572185568,
+      "price": 0.10461512422686119,
+      "s_steps": 120,
+      "t_steps": 200
+    }
+  ],
+  "evidence": {
+    "backend_id": "finite_difference_options.fd_backend.v0",
+    "boundary_assumptions": [
+      "left boundary: zero call value at S=0",
+      "right boundary: derivative approaches one for call far field",
+      "uniform physical-price grid on [0, s_max]",
+      "theta time stepping"
+    ],
+    "code_version": "local-checkout",
+    "config_hash": "8a43d207ee4722fe226c51229a91a0146d74c03a66967babd2790bdcc88048c2",
+    "fixture_id": "public-synthetic.black-scholes-call.v0",
+    "maturity_date": "2027-01-02",
+    "measure": "risk_neutral",
+    "numeraire": "money_market_account",
+    "resource_controls": {
+      "deterministic": "true",
+      "grid_levels": 3,
+      "max_s_steps": 120,
+      "max_t_steps": 200
+    },
+    "route_id": "fd.black_scholes_1d.crank_nicolson",
+    "seed": null,
+    "units": {
+      "time": "ACT/365F",
+      "underlying": "synthetic_currency"
+    },
+    "valuation_date": "2026-01-02"
+  },
+  "fixture_id": "public-synthetic.black-scholes-call.v0",
+  "problem_spec": {
+    "artifact_manifest": {
+      "benchmark_ids": [
+        "BS-FD-ORACLE-V0",
+        "QPS-BS-CALL-PUBLIC-V0"
+      ],
+      "manifest_id": "public-synthetic-bs-call-oracle-fixture-v0",
+      "schema_version": "artifact-manifest/v0"
+    },
+    "benchmark_ids": [
+      "BS-FD-ORACLE-V0",
+      "QPS-BS-CALL-PUBLIC-V0"
+    ],
+    "financial_graph": {
+      "instrument": {
+        "currency": "synthetic_currency",
+        "kind": "european_call",
+        "maturity": 1.0,
+        "strike": 1.0
+      }
+    },
+    "mathematical_problem": {
+      "boundary_conditions": {
+        "S=0": "dirichlet",
+        "S=S_max": "neumann"
+      },
+      "dimension": 1,
+      "exercise_style": "european",
+      "pde_terms": [
+        "drift",
+        "diffusion",
+        "reaction"
+      ],
+      "requested_outputs": [
+        "value",
+        "delta",
+        "gamma"
+      ],
+      "state_variables": [
+        {
+          "coordinate": "spot",
+          "name": "S",
+          "role": "underlying",
+          "unit": "synthetic_currency"
+        }
+      ]
+    },
+    "problem_hash": "publicsyntheticbscall001",
+    "problem_id": "public-synthetic.black-scholes-call.v0",
+    "result_bundle": {
+      "benchmark_ids": [
+        "BS-FD-ORACLE-V0"
+      ],
+      "references": [
+        "BS-CALL-PARITY-V0"
+      ]
+    },
+    "schema_version": "quant-problem-spec/v0",
+    "solver_plan": {
+      "backend_id": "finite_difference_options.fd_backend.v0",
+      "grid_type": "uniform",
+      "method_id": "arxiv-lab-bs-oracle-fixture",
+      "requested_outputs": [
+        "value",
+        "delta",
+        "gamma"
+      ],
+      "resource_controls": {
+        "grid_levels": 3,
+        "max_s_steps": 120,
+        "max_t_steps": 200
+      },
+      "stability_controls": [
+        "theta"
+      ],
+      "time_controls": {
+        "theta": 0.6
+      }
+    },
+    "valuation_context": {
+      "maturity_date": "2027-01-02",
+      "measure": "risk_neutral",
+      "numeraire": "money_market_account",
+      "privacy_tier": "public_synthetic",
+      "time_domain": "[0, 1]",
+      "units": {
+        "time": "ACT/365F",
+        "underlying": "synthetic_currency"
+      },
+      "valuation_date": "2026-01-02"
+    }
+  },
+  "result_export": {
+    "boundary": {
+      "notes": [
+        "left boundary is hard value 0",
+        "right boundary is first derivative asymptote"
+      ],
+      "typed": [
+        {
+          "boundary_type": "dirichlet",
+          "coordinate": "S",
+          "expression": "v(0,t)=0",
+          "location": "S=0",
+          "value": 0.0
+        },
+        {
+          "boundary_type": "neumann",
+          "coordinate": "S",
+          "expression": "dV/dS=1",
+          "location": "S=s_max",
+          "value": 1.0
+        }
+      ]
+    },
+    "domain": {
+      "s_max": 3.0,
+      "s_min": 0.0,
+      "t_max": 1.0,
+      "t_min": 0.0
+    },
+    "errors": {
+      "delta_abs": 0.0008620162349055605,
+      "delta_rel": 0.0013536035574202314,
+      "gamma_abs": 0.005009443288767512,
+      "gamma_rel": 0.002669991822535218,
+      "max_abs_price_error": 0.0015034864453782049,
+      "price_abs": 0.00010928850500550868,
+      "price_rel": 0.00010928850500550868
+    },
+    "grid": {
+      "maturity_time_index": 0,
+      "monotone": true,
+      "s_grid_family": "uniform",
+      "s_spacing": {
+        "max": 0.0252100840336138,
+        "mean": 0.025210084033613446,
+        "min": 0.025210084033613356
+      },
+      "s_steps": 120,
+      "t_grid_family": "uniform",
+      "t_spacing": {
+        "max": 0.005025125628140725,
+        "mean": 0.005025125628140704,
+        "min": 0.005025125628140614
+      },
+      "t_steps": 200,
+      "valuation_time_index": -1
+    },
+    "no_arbitrage": {
+      "delta_lower_bound_ok": true,
+      "delta_upper_bound_ok": true,
+      "gamma_non_negative_ok": true,
+      "monotone_call_parity_hint": "call value must be monotone increasing in spot (single-point check)",
+      "upper_bound_ok": true,
+      "upper_gap": 0.8953848757731389,
+      "value_bound_ok": true,
+      "value_minus_intrinsic": 0.10461512422686119
+    },
+    "reference": {
+      "delta": 0.6368306511756191,
+      "gamma": 1.8762017345846895,
+      "price": 0.10450583572185568
+    },
+    "solution": {
+      "delta": 0.6359686349407135,
+      "gamma": 1.871192291295922,
+      "price": 0.10461512422686119,
+      "spot": 1.0
+    },
+    "time_axis": {
+      "axis": "time",
+      "direction": "decreasing",
+      "maturity_index": 0,
+      "maturity_time": 1.0,
+      "valuation_index": -1,
+      "valuation_time": 0.0
+    }
+  },
+  "schema_version": "arxiv-lab/fd-oracle-fixture/v0"
+}
