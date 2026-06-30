@@ -98,6 +98,28 @@ def test_haircut_engine_vanilla_call_fixture_maps_to_supported_fd_route() -> Non
     assert diagnose_unsupported_route(request) == ()
 
 
+def test_pinares_fixed_price_problem_fixture_maps_to_supported_fd_route() -> None:
+    """Pinares publishes the problem; FD only chooses grid/time controls."""
+
+    payload = json.loads((FIXTURE_DIR / "pinares_fixed_price_proxy.json").read_text())
+
+    request = FDRouteRequest.from_quant_problem_spec(payload)
+
+    assert payload["problem_id"] == "pinares.fixed_price_option_proxy.v1"
+    assert request.source_schema_version == "quant-problem-spec/v0"
+    assert request.dimension == 1
+    assert request.grid_type == "uniform"
+    assert request.pde_terms == ("drift", "diffusion", "reaction")
+    assert request.boundary_conditions == ("dirichlet", "neumann")
+    assert request.requested_outputs == ("value", "delta", "gamma")
+    assert request.measure == "Q*"
+    assert request.numeraire == "UF_money_market_account_proxy"
+    assert request.units["S"] == "UF"
+    assert request.valuation_date == "2026-06-30"
+    assert request.time_domain == "[0, 1]"
+    assert diagnose_unsupported_route(request) == ()
+
+
 def test_unsupported_terms_dimensions_boundaries_and_exercise_fail_closed() -> None:
     payload = _supported_payload()
     payload["mathematical_problem"] = {
