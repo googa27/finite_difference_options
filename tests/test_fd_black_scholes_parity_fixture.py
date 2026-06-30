@@ -99,6 +99,7 @@ def test_arxiv_lab_payload_is_static_file_and_consumable() -> None:
     assert typed_boundary[0]["boundary_type"] == "dirichlet"
     assert typed_boundary[1]["boundary_type"] == "neumann"
     assert cached["result_export"]["time_axis"]["direction"] == "decreasing"
+    assert cached["problem_spec"]["solver_plan"]["time_controls"] == {"theta": 0.5}
 
     assert cached["result_export"]["no_arbitrage"]["value_bound_ok"] is True
     assert cached["result_export"]["no_arbitrage"]["upper_bound_ok"] is True

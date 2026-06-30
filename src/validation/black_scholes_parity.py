@@ -285,7 +285,8 @@ def _build_public_problem_spec(case: BlackScholesParityCase) -> dict[str, Any]:
             "method_id": "arxiv-lab-bs-oracle-fixture",
             "stability_controls": ["theta"],
             "requested_outputs": ["value", "delta", "gamma"],
-            "time_controls": {"theta": 0.6},
+            # Keep metadata aligned with BlackScholesPDE's default Crank--Nicolson theta.
+            "time_controls": {"theta": 0.5},
             "resource_controls": {
                 "grid_levels": 3,
                 "max_s_steps": 120,
