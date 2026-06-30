@@ -294,7 +294,7 @@ def _build_public_problem_spec(
             "numeraire": case.numeraire,
             "valuation_date": case.valuation_date,
             "maturity_date": case.maturity_date,
-            "time_domain": "[0, 1]",
+            "time_domain": f"[0, {case.maturity:g}]",
             "units": case.normalized_units(),
             "privacy_tier": "public_synthetic",
         },
