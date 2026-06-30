@@ -57,6 +57,15 @@ class TimeAxisSpec:
         return asdict(self)
 
 
+def _portable_row_index(index: int, row_count: int) -> int:
+    """Return a nonnegative row index for JSON consumers outside Python."""
+
+    portable_index = index if index >= 0 else row_count + index
+    if portable_index < 0 or portable_index >= row_count:
+        raise IndexError(f"row index {index} is outside a grid with {row_count} rows")
+    return int(portable_index)
+
+
 @dataclass(frozen=True)
 class BlackScholesParityCase:
     """Public-synthetic Black--Scholes call-option fixture definition."""
@@ -152,9 +161,16 @@ class BlackScholesParityReport:
 
         final_s_steps = self.observations[-1].s_steps
         final_t_steps = self.observations[-1].t_steps
+        valuation_time_index = _portable_row_index(self.time_axis.valuation_index, final_t_steps)
+        maturity_time_index = _portable_row_index(self.time_axis.maturity_index, final_t_steps)
+        time_axis_payload = {
+            **self.time_axis.as_dict(),
+            "valuation_index": valuation_time_index,
+            "maturity_index": maturity_time_index,
+        }
         grid = self.grid_metadata
-
         return {
+
             "schema_version": "arxiv-lab/fd-oracle-fixture/v0",
             "fixture_id": self.case.fixture_id,
             "problem_spec": _build_public_problem_spec(
@@ -162,7 +178,7 @@ class BlackScholesParityReport:
                 tuple((row.s_steps, row.t_steps) for row in self.observations),
             ),
             "result_export": {
-                "time_axis": self.time_axis.as_dict(),
+                "time_axis": time_axis_payload,
                 "domain": {
                     "s_min": grid["s_min"],
                     "s_max": grid["s_max"],
@@ -185,8 +201,8 @@ class BlackScholesParityReport:
                     "s_grid_family": "uniform",
                     "t_grid_family": "uniform",
                     "monotone": True,
-                    "valuation_time_index": self.time_axis.valuation_index,
-                    "maturity_time_index": self.time_axis.maturity_index,
+                    "valuation_time_index": valuation_time_index,
+                    "maturity_time_index": maturity_time_index,
                 },
                 "boundary": {
                     "typed": tuple(spec.as_dict() for spec in self.boundary_specs),
