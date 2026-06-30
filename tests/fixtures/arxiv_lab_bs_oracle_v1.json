@@ -25,7 +25,7 @@
   "evidence": {
     "backend_id": "finite_difference_options.fd_backend.v0",
     "boundary_assumptions": [
-      "left boundary: zero call value at S=0",
+      "left boundary: zero gamma at S=0, matching BlackScholesBoundaryBuilder",
       "right boundary: derivative approaches one for call far field",
       "uniform physical-price grid on [0, s_max]",
       "theta time stepping"
@@ -74,8 +74,8 @@
     },
     "mathematical_problem": {
       "boundary_conditions": {
-        "S=0": "dirichlet",
-        "S=S_max": "neumann"
+        "S=0": "second_derivative_zero_gamma",
+        "S=S_max": "neumann_delta_one"
       },
       "dimension": 1,
       "exercise_style": "european",
@@ -146,14 +146,14 @@
   "result_export": {
     "boundary": {
       "notes": [
-        "left boundary is hard value 0",
+        "left boundary follows solver gamma-zero condition",
         "right boundary is first derivative asymptote"
       ],
       "typed": [
         {
-          "boundary_type": "dirichlet",
+          "boundary_type": "second_derivative",
           "coordinate": "S",
-          "expression": "v(0,t)=0",
+          "expression": "d\u00b2V/dS\u00b2=0",
           "location": "S=0",
           "value": 0.0
         },

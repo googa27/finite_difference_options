@@ -188,7 +188,7 @@ class BlackScholesParityReport:
                 "boundary": {
                     "typed": tuple(spec.as_dict() for spec in self.boundary_specs),
                     "notes": [
-                        "left boundary is hard value 0",
+                        "left boundary follows solver gamma-zero condition",
                         "right boundary is first derivative asymptote",
                     ],
                 },
@@ -211,15 +211,10 @@ class BlackScholesParityReport:
         }
 
 
-
-def black_scholes_call_oracle(
-    spot: float, strike: float, rate: float, sigma: float, maturity: float
-) -> float:
+def black_scholes_call_oracle(spot: float, strike: float, rate: float, sigma: float, maturity: float) -> float:
     """Analytical Black--Scholes call price used as the public oracle."""
 
-    d1 = (
-        log(spot / strike) + (rate + 0.5 * sigma**2) * maturity
-    ) / (sigma * sqrt(maturity))
+    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
     d2 = d1 - sigma * sqrt(maturity)
     return float(spot * norm.cdf(d1) - strike * exp(-rate * maturity) * norm.cdf(d2))
 
@@ -229,14 +224,10 @@ def black_scholes_call_greeks(
 ) -> dict[str, float]:
     """Analytical Black--Scholes call delta and gamma used for benchmark deltas."""
 
-    d1 = (
-        log(spot / strike) + (rate + 0.5 * sigma**2) * maturity
-    ) / (sigma * sqrt(maturity))
+    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
     return {
         "delta": float(norm.cdf(d1)),
-        "gamma": float(
-            norm.pdf(d1) / (spot * sigma * sqrt(maturity))
-        ),
+        "gamma": float(norm.pdf(d1) / (spot * sigma * sqrt(maturity))),
     }
 
 
@@ -273,8 +264,8 @@ def _build_public_problem_spec(case: BlackScholesParityCase) -> dict[str, Any]:
             ],
             "pde_terms": ["drift", "diffusion", "reaction"],
             "boundary_conditions": {
-                "S=0": "dirichlet",
-                "S=S_max": "neumann",
+                "S=0": "second_derivative_zero_gamma",
+                "S=S_max": "neumann_delta_one",
             },
             "exercise_style": "european",
             "requested_outputs": ["value", "delta", "gamma"],
@@ -322,12 +313,8 @@ def run_public_black_scholes_parity_fixture(
     """
 
     case = case or BlackScholesParityCase()
-    oracle_price = black_scholes_call_oracle(
-        case.spot, case.strike, case.rate, case.sigma, case.maturity
-    )
-    reference_greeks = black_scholes_call_greeks(
-        case.spot, case.strike, case.rate, case.sigma, case.maturity
-    )
+    oracle_price = black_scholes_call_oracle(case.spot, case.strike, case.rate, case.sigma, case.maturity)
+    reference_greeks = black_scholes_call_greeks(case.spot, case.strike, case.rate, case.sigma, case.maturity)
 
     model = GeometricBrownianMotion(mu=case.rate, sigma=case.sigma)
     instrument = EuropeanCall(strike=case.strike, maturity=case.maturity, model=model)
@@ -395,9 +382,7 @@ def run_public_black_scholes_parity_fixture(
         "delta_abs": float(delta_abs_error),
         "delta_rel": float(delta_abs_error / max(1e-12, abs(reference_greeks["delta"]))),
         "gamma_abs": float(gamma_abs_error),
-        "gamma_rel": float(
-            gamma_abs_error / max(1e-12, abs(reference_greeks["gamma"]))
-        ),
+        "gamma_rel": float(gamma_abs_error / max(1e-12, abs(reference_greeks["gamma"]))),
         "max_abs_price_error": float(max(row.abs_error for row in observations)),
     }
 
@@ -405,9 +390,9 @@ def run_public_black_scholes_parity_fixture(
         BoundarySpec(
             coordinate="S",
             location="S=0",
-            boundary_type="dirichlet",
+            boundary_type="second_derivative",
             value=0.0,
-            expression="v(0,t)=0",
+            expression="d²V/dS²=0",
         ),
         BoundarySpec(
             coordinate="S",
@@ -439,7 +424,7 @@ def run_public_black_scholes_parity_fixture(
         numeraire=case.numeraire,
         units=case.normalized_units(),
         boundary_assumptions=(
-            "left boundary: zero call value at S=0",
+            "left boundary: zero gamma at S=0, matching BlackScholesBoundaryBuilder",
             "right boundary: derivative approaches one for call far field",
             "uniform physical-price grid on [0, s_max]",
             "theta time stepping",
@@ -470,7 +455,6 @@ def run_public_black_scholes_parity_fixture(
     )
 
 
-
 def export_public_black_scholes_fixture_json(
     *,
     path: Path | str,
@@ -486,11 +470,8 @@ def export_public_black_scholes_fixture_json(
     report = run_public_black_scholes_parity_fixture(case=case, grid_levels=grid_levels)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(report.as_dict(), indent=2, sort_keys=True), encoding="utf-8"
-    )
+    output_path.write_text(json.dumps(report.as_dict(), indent=2, sort_keys=True), encoding="utf-8")
     return output_path
-
 
 
 def _compute_no_arbitrage_assertions(
@@ -509,7 +490,6 @@ def _compute_no_arbitrage_assertions(
         "gamma_non_negative_ok": gamma >= -1e-12,
         "monotone_call_parity_hint": "call value must be monotone increasing in spot (single-point check)",
     }
-
 
 
 def _config_hash(case: BlackScholesParityCase, grid_levels: tuple[tuple[int, int], ...]) -> str:
