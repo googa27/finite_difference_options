@@ -303,7 +303,6 @@ class HestonBoundaryBuilder:
         option_type = BlackScholesBoundaryBuilder._option_type(option)
         rate = BlackScholesBoundaryBuilder._finite_rate(risk_free_rate, "explicit")
         carry = BlackScholesBoundaryBuilder._dividend_yield(option, dividend_yield)
-        s_min = float(np.exp(x[0]))
         s_max = float(np.exp(x[-1]))
 
         lower_spot = 0.0 if option_type == "call" else strike * exp(-rate * tau)

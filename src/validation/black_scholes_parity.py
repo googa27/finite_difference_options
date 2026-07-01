@@ -477,8 +477,8 @@ def run_public_black_scholes_parity_fixture(
         numeraire=case.numeraire,
         units=case.normalized_units(),
         boundary_assumptions=(
-            "left boundary: zero gamma at S=0, matching BlackScholesBoundaryBuilder",
-            "right boundary: derivative approaches one for call far field",
+            "left boundary: Dirichlet vanilla-call value V(0,tau)=0",
+            "right boundary: strike/rate/time-aware far-spot Dirichlet asymptotic",
             "uniform physical-price grid on [0, s_max]",
             "theta time stepping",
         ),
