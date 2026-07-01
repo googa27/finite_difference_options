@@ -30,6 +30,7 @@ Maintained documentation set:
 - Product requirements: `docs/PRD.md`
 - Architecture and migration map: `docs/ARCHITECTURE.md`
 - Capability matrix: this file
+- Benchmark evidence registry: `docs/BENCHMARK_REGISTRY.md`
 - CI policy: `docs/CI_POLICY.md`
 
 Archived planning material under `docs/planning/` and `docs/archive/` is not a current capability source of truth.
