@@ -207,8 +207,8 @@ class BlackScholesParityReport:
                 "boundary": {
                     "typed": tuple(spec.as_dict() for spec in self.boundary_specs),
                     "notes": [
-                        "left boundary follows solver gamma-zero condition",
-                        "right boundary is first derivative asymptote",
+                        "left boundary is the vanilla-call Dirichlet value",
+                        "right boundary is the strike/rate/time-aware far-spot asymptotic",
                     ],
                 },
                 "solution": {
@@ -316,8 +316,8 @@ def _build_public_problem_spec(
                 "terms": coefficient_terms,
             },
             "boundary_conditions": {
-                "S=0": "second_derivative_zero_gamma",
-                "S=S_max": "neumann_delta_one",
+                "S=0": "dirichlet_call_zero",
+                "S=S_max": "dirichlet_far_call_asymptotic_Smax_minus_discounted_strike",
             },
             "exercise_style": "european",
             "requested_outputs": ["value", "delta", "gamma"],
@@ -442,16 +442,16 @@ def run_public_black_scholes_parity_fixture(
         BoundarySpec(
             coordinate="S",
             location="S=0",
-            boundary_type="second_derivative",
+            boundary_type="dirichlet",
             value=0.0,
-            expression="d²V/dS²=0",
+            expression="V(0,tau)=0",
         ),
         BoundarySpec(
             coordinate="S",
             location="S=s_max",
-            boundary_type="neumann",
-            value=1.0,
-            expression="dV/dS=1",
+            boundary_type="dirichlet",
+            value=float(case.s_max - case.strike * exp(-case.rate * case.maturity)),
+            expression="V(Smax,tau)=Smax-K*exp(-r*tau)",
         ),
     )
     valuation_row_index = int(len(final_t_grid) - 1)
@@ -477,8 +477,8 @@ def run_public_black_scholes_parity_fixture(
         numeraire=case.numeraire,
         units=case.normalized_units(),
         boundary_assumptions=(
-            "left boundary: zero gamma at S=0, matching BlackScholesBoundaryBuilder",
-            "right boundary: derivative approaches one for call far field",
+            "left boundary: Dirichlet vanilla-call value V(0,tau)=0",
+            "right boundary: strike/rate/time-aware far-spot Dirichlet asymptotic",
             "uniform physical-price grid on [0, s_max]",
             "theta time stepping",
         ),

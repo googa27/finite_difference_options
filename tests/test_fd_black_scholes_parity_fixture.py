@@ -105,12 +105,12 @@ def test_arxiv_lab_payload_is_static_file_and_consumable() -> None:
     assert cached["problem_spec"]["schema_version"] == "quant-problem-spec/v0"
 
     typed_boundary = cached["result_export"]["boundary"]["typed"]
-    assert typed_boundary[0]["boundary_type"] == "second_derivative"
-    assert typed_boundary[0]["expression"] == "d²V/dS²=0"
-    assert typed_boundary[1]["boundary_type"] == "neumann"
+    assert typed_boundary[0]["boundary_type"] == "dirichlet"
+    assert typed_boundary[0]["expression"] == "V(0,tau)=0"
+    assert typed_boundary[1]["boundary_type"] == "dirichlet"
     assert cached["problem_spec"]["mathematical_problem"]["boundary_conditions"] == {
-        "S=0": "second_derivative_zero_gamma",
-        "S=S_max": "neumann_delta_one",
+        "S=0": "dirichlet_call_zero",
+        "S=S_max": "dirichlet_far_call_asymptotic_Smax_minus_discounted_strike",
     }
     assert cached["result_export"]["time_axis"]["direction"] == "decreasing"
     assert cached["problem_spec"]["solver_plan"]["time_controls"] == {"theta": 0.5}

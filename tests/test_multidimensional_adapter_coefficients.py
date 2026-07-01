@@ -31,6 +31,7 @@ class RecordingADISolver:
         time_grid,
         spatial_grids,
         boundary_conditions=None,
+        reaction=None,
     ):
         self.calls.append(
             {
@@ -40,6 +41,7 @@ class RecordingADISolver:
                 "time_grid": np.array(time_grid, copy=True),
                 "spatial_grids": tuple(np.array(grid, copy=True) for grid in spatial_grids),
                 "boundary_conditions": boundary_conditions,
+                "reaction": None if reaction is None else np.array(reaction, copy=True),
             }
         )
         solution = np.zeros((len(time_grid), *initial_condition.shape), dtype=float)
@@ -87,13 +89,16 @@ def _expected_process_coefficients(process, time_grid, grids):
     mesh = np.meshgrid(*grids, indexing="ij")
     grid_shape = mesh[0].shape
     states = np.stack([axis.reshape(-1) for axis in mesh], axis=-1)
-    drift = process.drift(float(time_grid[-1]), states).reshape(*grid_shape, process.dimension.value)
+    drift = process.drift(float(time_grid[-1]), states).reshape(
+        *grid_shape, process.dimension.value
+    )
     covariance = process.covariance(float(time_grid[-1]), states).reshape(
         *grid_shape,
         process.dimension.value,
         process.dimension.value,
     )
-    return drift, covariance
+    reaction = process.discount(float(time_grid[-1]), states).reshape(*grid_shape)
+    return drift, covariance, reaction
 
 
 def test_multidimensional_adapter_passes_heston_process_coefficients_to_adi() -> None:
@@ -112,9 +117,10 @@ def test_multidimensional_adapter_passes_heston_process_coefficients_to_adi() ->
 
     assert len(recording_solver.calls) == 1
     call = recording_solver.calls[0]
-    expected_drift, expected_covariance = _expected_process_coefficients(process, time_grid, grids)
+    expected_drift, expected_covariance, expected_reaction = _expected_process_coefficients(process, time_grid, grids)
     assert_allclose(call["drift"], expected_drift)
     assert_allclose(call["covariance"], expected_covariance)
+    assert_allclose(call["reaction"], expected_reaction)
 
     covariance = call["covariance"]
     assert np.any(covariance[..., 0, 1] != 0.0), "Heston mixed covariance must reach ADI assembly"
@@ -129,14 +135,17 @@ def test_multidimensional_adapter_coefficients_change_with_selected_process() ->
     low_vol_process = create_standard_heston(r=0.03, kappa=4.0, theta=0.08, sigma=0.2, rho=-0.1)
     high_vol_process = create_standard_heston(r=0.03, kappa=8.0, theta=0.06, sigma=0.8, rho=-0.7)
 
-    _, low_covariance = ADISolverWrapper(RecordingADISolver(), process=low_vol_process)._build_process_coefficients(
+    _, low_covariance, low_reaction = ADISolverWrapper(RecordingADISolver(), process=low_vol_process)._build_process_coefficients(
         float(time_grid[-1]),
         (spot_grid, variance_grid),
     )
-    _, high_covariance = ADISolverWrapper(RecordingADISolver(), process=high_vol_process)._build_process_coefficients(
+    _, high_covariance, high_reaction = ADISolverWrapper(RecordingADISolver(), process=high_vol_process)._build_process_coefficients(
         float(time_grid[-1]),
         (spot_grid, variance_grid),
     )
+
+    assert_allclose(low_reaction, 0.03)
+    assert_allclose(high_reaction, 0.03)
 
     assert not np.allclose(low_covariance, high_covariance)
     expected_shape = low_covariance[..., 1, 1].shape

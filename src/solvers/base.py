@@ -4,6 +4,7 @@ This module defines the unified solver abstraction and concrete adapters used by
 pricing engines. Adapters translate the generic ":class:`Solver`" contract into
 underlying numerical implementations for finite differences and ADI.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -13,6 +14,7 @@ import numpy as np
 from findiff import BoundaryConditions, FinDiff
 from numpy.typing import NDArray
 
+from ..boundary_conditions import BlackScholesBoundaryBuilder
 from ..instruments.operators import SpatialOperator
 from ..pricing.instruments.base import UnifiedInstrument
 from ..processes.base import StochasticProcess
@@ -31,7 +33,7 @@ class Solver(ABC):
     Implementations should accept a terminal/initial payoff and return a full time
     profile in the canonical orientation used by the rest of the stack.
     """
-    
+
     @abstractmethod
     def solve(
         self,
@@ -41,7 +43,7 @@ class Solver(ABC):
         time_grid: Optional[NDArray[np.float64]] = None,
     ) -> NDArray[np.float64]:
         """Solve PDE for instrument pricing.
-        
+
         Parameters
         ----------
         initial_condition : NDArray[np.float64]
@@ -52,7 +54,7 @@ class Solver(ABC):
             Spatial grids for each dimension.
         time_grid : NDArray[np.float64], optional
             Time grid for evolution.
-            
+
         Returns
         -------
         NDArray[np.float64]
@@ -109,13 +111,15 @@ class FiniteDifferenceSolverAdapter(Solver):
         and ``prices[-1]`` at maturity, consistent with unified API docs.
         """
         if len(grids) != 1:
-            raise ValidationError("1D finite difference solver expects a single spatial grid")
+            raise ValidationError(
+                "1D finite difference solver expects a single spatial grid"
+            )
 
         if time_grid is None or len(time_grid) == 0:
             time_grid = np.linspace(0.0, instrument.maturity, 50)
 
         spatial_grid = grids[0]
-        generator = self._build_generator(spatial_grid)
+        generator = self._build_generator(spatial_grid, instrument)
         boundary_conditions = self._build_boundary_conditions(spatial_grid, instrument)
 
         solution = self._solver.solve(
@@ -127,8 +131,15 @@ class FiniteDifferenceSolverAdapter(Solver):
         self.last_step_schedule = self._solver.last_step_schedule
         return solution[::-1]
 
-    def _build_generator(self, spatial_grid: NDArray[np.float64]) -> FinDiff:
-        operator = SpatialOperator(self._process)
+    def _build_generator(
+        self,
+        spatial_grid: NDArray[np.float64],
+        instrument: UnifiedInstrument,
+    ) -> FinDiff:
+        operator = SpatialOperator(
+            self._process,
+            discount_rate=self._risk_free_rate_for(instrument),
+        )
         return operator.build(spatial_grid)
 
     def _build_boundary_conditions(
@@ -141,22 +152,34 @@ class FiniteDifferenceSolverAdapter(Solver):
             if isinstance(candidate, BoundaryConditions):
                 return candidate
 
-        ds = spatial_grid[1] - spatial_grid[0] if len(spatial_grid) > 1 else 1.0
-        bc = BoundaryConditions(spatial_grid.shape)
-        d1 = FinDiff(0, ds, 1)
-        d2 = FinDiff(0, ds, 2)
+        builder = BlackScholesBoundaryBuilder()
+        return builder.build(
+            spatial_grid,
+            instrument,
+            time_to_maturity=getattr(instrument, "maturity", None),
+            risk_free_rate=self._risk_free_rate_for(instrument),
+            dividend_yield=self._dividend_yield_for(instrument),
+        )
 
-        bc[0] = d2, 0.0
+    def _risk_free_rate_for(self, instrument: UnifiedInstrument) -> float:
+        explicit = getattr(instrument, "risk_free_rate", None)
+        if explicit is None:
+            explicit = getattr(instrument, "discount_rate", None)
+        if explicit is not None:
+            return float(explicit)
+        model_rate = getattr(self._process, "risk_free_rate", None)
+        if model_rate is not None:
+            return float(model_rate)
+        legacy_mu = getattr(self._process, "mu", None)
+        if legacy_mu is not None:
+            return float(legacy_mu)
+        return 0.0
 
-        option_type = getattr(instrument, "option_type", "").lower()
-        if option_type == "call":
-            bc[-1] = d1, 1.0
-        elif option_type == "put":
-            bc[-1] = d1, 0.0
-        else:
-            bc[-1] = d2, 0.0
-
-        return bc
+    def _dividend_yield_for(self, instrument: UnifiedInstrument) -> float:
+        explicit = getattr(instrument, "dividend_yield", None)
+        if explicit is not None:
+            return float(explicit)
+        return float(getattr(self._process, "dividend_yield", 0.0))
 
 
 class ADISolverWrapper(Solver):
@@ -193,11 +216,17 @@ class ADISolverWrapper(Solver):
 
         dimension = self._process.dimension.value
         if dimension not in {2, 3}:
-            raise ValidationError(f"ADI wrapper supports only 2D and 3D processes, got {dimension}D")
+            raise ValidationError(
+                f"ADI wrapper supports only 2D and 3D processes, got {dimension}D"
+            )
         if len(grids) != dimension:
-            raise ValidationError(f"Expected {dimension} grids for ADI solve, got {len(grids)}")
+            raise ValidationError(
+                f"Expected {dimension} grids for ADI solve, got {len(grids)}"
+            )
 
-        drift, covariance = self._build_process_coefficients(float(time_grid[-1]), grids)
+        drift, covariance, reaction = self._build_process_coefficients(
+            float(time_grid[-1]), grids
+        )
 
         if dimension == 2:
             return self._adi_solver.solve_2d(
@@ -206,6 +235,7 @@ class ADISolverWrapper(Solver):
                 covariance=covariance,
                 time_grid=time_grid,
                 spatial_grids=grids,
+                reaction=reaction,
             )
 
         return self._adi_solver.solve_3d(
@@ -214,14 +244,15 @@ class ADISolverWrapper(Solver):
             covariance=covariance,
             time_grid=time_grid,
             spatial_grids=grids,
+            reaction=reaction,
         )
 
     def _build_process_coefficients(
         self,
         time: float,
         grids: tuple[NDArray[np.float64], ...],
-    ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
-        """Evaluate drift and covariance on the full tensor product grid."""
+    ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+        """Evaluate drift, covariance, and reaction on the full tensor grid."""
         dimension = self._process.dimension.value
         grid_shape = tuple(len(grid) for grid in grids)
         mesh = np.meshgrid(*grids, indexing="ij")
@@ -229,9 +260,11 @@ class ADISolverWrapper(Solver):
 
         drift = np.asarray(self._process.drift(time, states), dtype=float)
         covariance = np.asarray(self._process.covariance(time, states), dtype=float)
+        reaction = np.asarray(self._process.discount(time, states), dtype=float)
 
         expected_drift_shape = (states.shape[0], dimension)
         expected_covariance_shape = (states.shape[0], dimension, dimension)
+        expected_reaction_shape = (states.shape[0],)
         if drift.shape != expected_drift_shape:
             raise ValidationError(
                 "process drift must have shape "
@@ -242,12 +275,29 @@ class ADISolverWrapper(Solver):
                 "process covariance must have shape "
                 f"{expected_covariance_shape} on the ADI state grid, got {covariance.shape}"
             )
+        if reaction.shape != expected_reaction_shape:
+            raise ValidationError(
+                "process reaction/discount must have shape "
+                f"{expected_reaction_shape} on the ADI state grid, got {reaction.shape}"
+            )
         if not np.all(np.isfinite(drift)):
-            raise ValidationError("process drift contains non-finite values on the ADI state grid")
+            raise ValidationError(
+                "process drift contains non-finite values on the ADI state grid"
+            )
         if not np.all(np.isfinite(covariance)):
-            raise ValidationError("process covariance contains non-finite values on the ADI state grid")
-        if not np.allclose(covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12):
-            raise ValidationError("process covariance must be symmetric on the ADI state grid")
+            raise ValidationError(
+                "process covariance contains non-finite values on the ADI state grid"
+            )
+        if not np.all(np.isfinite(reaction)):
+            raise ValidationError(
+                "process reaction/discount contains non-finite values on the ADI state grid"
+            )
+        if not np.allclose(
+            covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12
+        ):
+            raise ValidationError(
+                "process covariance must be symmetric on the ADI state grid"
+            )
         min_eigenvalue = float(np.min(np.linalg.eigvalsh(covariance)))
         if min_eigenvalue < -1e-10:
             raise ValidationError(
@@ -258,6 +308,7 @@ class ADISolverWrapper(Solver):
         return (
             drift.reshape(*grid_shape, dimension),
             covariance.reshape(*grid_shape, dimension, dimension),
+            reaction.reshape(*grid_shape),
         )
 
 
@@ -269,7 +320,7 @@ class SolverFactory:
     - 2D/3D processes route to ADI.
     - Any unsupported dimension intentionally fails with a typed validation error.
     """
-    
+
     @staticmethod
     def create_solver(
         process: StochasticProcess,
@@ -293,7 +344,7 @@ class SolverFactory:
             Appropriate solver for the process.
         """
         from ..solvers.adi import ADISolver
-        
+
         if process.dimension.is_univariate:
             return FiniteDifferenceSolverAdapter(
                 process,

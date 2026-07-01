@@ -1,53 +1,108 @@
-"""Tests for boundary condition construction."""
+"""Tests for typed, model-aware boundary condition construction."""
+
+from __future__ import annotations
+
+import math
 import pathlib
 import sys
+from types import SimpleNamespace
 
-# Ensure project root on path
 sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
-from findiff import FinDiff
-from src.boundary_conditions import BlackScholesBoundaryBuilder
+import pytest
+from numpy.testing import assert_allclose
+
+from src.boundary_conditions import BlackScholesBoundaryBuilder, HestonBoundaryBuilder
+from src.exceptions import BoundaryConditionError
 from src.instruments.base import EuropeanCall, EuropeanPut
 from src.processes.affine import GeometricBrownianMotion
 
 
-def test_call_boundary_conditions():
-    s = np.linspace(0.0, 1.0, 5)
-    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
-    option = EuropeanCall(strike=1.0, maturity=1.0, model=model)
-    bc = BlackScholesBoundaryBuilder().build(s, option)
-
-    ds = s[1] - s[0]
-    shape = s.shape
-
-    expected_left = FinDiff(0, ds, 2).matrix(shape).toarray()[0]
-    expected_right = FinDiff(0, ds, 1).matrix(shape).toarray()[-1]
-
-    lhs = bc.lhs.toarray()
-
-    assert np.allclose(lhs[0], expected_left)
-    assert np.allclose(lhs[-1], expected_right)
-    assert np.allclose(bc.rhs.toarray().ravel()[0], 0.0)
-    assert np.allclose(bc.rhs.toarray().ravel()[-1], 1.0)
+def _rhs_values(boundary_conditions):
+    return boundary_conditions.rhs.toarray().ravel()
 
 
-def test_put_boundary_conditions():
-    s = np.linspace(0.0, 1.0, 5)
-    from src.processes.affine import GeometricBrownianMotion
-    model = GeometricBrownianMotion(mu=0.05, sigma=0.2)
-    option = EuropeanPut(strike=1.0, maturity=1.0, model=model)
-    bc = BlackScholesBoundaryBuilder().build(s, option)
+def test_call_boundary_conditions_include_strike_rate_carry_and_maturity() -> None:
+    grid = np.linspace(0.0, 200.0, 5)
+    option = EuropeanCall(
+        strike=100.0,
+        maturity=1.5,
+        model=GeometricBrownianMotion(mu=0.03, sigma=0.2),
+    )
+    builder = BlackScholesBoundaryBuilder()
 
-    ds = s[1] - s[0]
-    shape = s.shape
+    resolution = builder.resolve(
+        grid,
+        option,
+        risk_free_rate=0.05,
+        dividend_yield=0.02,
+    )
+    bc = builder.build(
+        grid,
+        option,
+        risk_free_rate=0.05,
+        dividend_yield=0.02,
+    )
 
-    expected_left = FinDiff(0, ds, 2).matrix(shape).toarray()[0]
-    expected_right = FinDiff(0, ds, 1).matrix(shape).toarray()[-1]
+    expected_upper = grid[-1] * math.exp(-0.02 * 1.5) - option.strike * math.exp(
+        -0.05 * 1.5
+    )
+    rhs = _rhs_values(bc)
+    assert_allclose(rhs[0], 0.0)
+    assert_allclose(rhs[-1], expected_upper)
+    assert resolution.specs[0].kind == "dirichlet"
+    assert (
+        resolution.specs[1].expression == "V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)"
+    )
+    assert resolution.discount_source == "explicit"
 
-    lhs = bc.lhs.toarray()
 
-    assert np.allclose(lhs[0], expected_left)
-    assert np.allclose(lhs[-1], expected_right)
-    assert np.allclose(bc.rhs.toarray().ravel()[0], 0.0)
-    assert np.allclose(bc.rhs.toarray().ravel()[-1], 0.0)
+def test_put_boundary_conditions_include_discounted_strike() -> None:
+    grid = np.linspace(0.0, 200.0, 5)
+    option = EuropeanPut(
+        strike=100.0,
+        maturity=2.0,
+        model=GeometricBrownianMotion(mu=0.03, sigma=0.2),
+    )
+
+    bc = BlackScholesBoundaryBuilder().build(grid, option, risk_free_rate=0.07)
+
+    rhs = _rhs_values(bc)
+    assert_allclose(rhs[0], option.strike * math.exp(-0.07 * option.maturity))
+    assert_allclose(rhs[-1], 0.0)
+
+
+def test_unsupported_or_ambiguous_boundary_set_fails_closed() -> None:
+    grid = np.linspace(0.0, 200.0, 5)
+    unsupported = SimpleNamespace(option_type="digital", strike=100.0, maturity=1.0)
+
+    with pytest.raises(BoundaryConditionError, match="only vanilla call/put"):
+        BlackScholesBoundaryBuilder(allow_legacy_mu_rate=False).build(
+            grid,
+            unsupported,
+            risk_free_rate=0.05,
+        )
+
+
+def test_heston_boundary_specs_are_coordinate_and_model_aware() -> None:
+    option = SimpleNamespace(option_type="call", strike=100.0, maturity=1.0)
+    resolution = HestonBoundaryBuilder().resolve(
+        np.log(np.array([25.0, 100.0, 400.0])),
+        np.array([0.0, 0.04, 0.25]),
+        option,
+        risk_free_rate=0.05,
+        dividend_yield=0.01,
+    )
+
+    payload = [spec.as_dict() for spec in resolution.specs]
+    assert [item["coordinate"] for item in payload] == [
+        "log_spot",
+        "log_spot",
+        "variance",
+        "variance",
+    ]
+    assert payload[2]["kind"] == "degenerate"
+    assert payload[3]["kind"] == "extrapolated"
+    assert resolution.risk_free_rate == 0.05
+    assert resolution.dividend_yield == 0.01
