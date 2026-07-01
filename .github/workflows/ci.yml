@@ -39,6 +39,7 @@ jobs:
             tests/test_api_interpolation_diagnostics.py \
             tests/test_api_resource_controls.py \
             tests/test_api_deployment_hardening.py \
+            tests/test_adi_solver_operator_split.py \
             tests/test_regulatory_fail_closed.py \
             tests/test_boundary_conditions.py \
             tests/test_callable_bond.py \

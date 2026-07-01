@@ -1,616 +1,650 @@
 """ADI (Alternating Direction Implicit) solver for multi-dimensional PDEs.
 
-This module implements efficient solvers for 2D and 3D parabolic PDEs arising
-in multi-dimensional option pricing models like Heston stochastic volatility.
+This module implements a conservative Douglas ADI route for 2D/3D linear
+parabolic problems on monotone tensor-product grids. The public solver API uses
+calendar-time output order (``solution[0]`` valuation, ``solution[-1]``
+terminal/payoff) while the numerical march is performed in forward
+``tau = T - t`` time from the terminal condition.
+
+The semi-discrete operator convention is
+
+    u_tau = sum_i A_i u + A_mixed u - reaction * u + source
+
+where each directional component ``A_i`` contains the drift and diagonal
+covariance term for one coordinate and ``A_mixed`` contains every off-diagonal
+covariance contribution exactly once.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Tuple, Optional, Dict, Any
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional, Tuple
+
 import numpy as np
 from numpy.typing import NDArray
 
 from src.exceptions import ValidationError
 
 
+Array = NDArray[np.float64]
+
+
 @dataclass
 class ADISolver:
-    """Alternating Direction Implicit (ADI) solver for multi-dimensional PDEs.
-    
-    The ADI method splits multi-dimensional operators into a sequence of 
-    1D problems that can be solved efficiently using tridiagonal solvers.
-    
+    """Douglas ADI solver for 2D/3D parabolic PDEs.
+
     Parameters
     ----------
-    theta : float, optional
-        Implicitness parameter (0=explicit, 0.5=Crank-Nicolson, 1=implicit).
-        Default is 0.5 for second-order accuracy.
-    max_iterations : int, optional
-        Maximum iterations for iterative methods (default: 1000).
-    tolerance : float, optional
-        Convergence tolerance for iterative methods (default: 1e-8).
+    theta
+        Douglas implicitness parameter. ``0.5`` is the standard directional
+        correction used by the repository's experimental ADI route.
+    max_iterations
+        Reserved for future iterative ADI/LCP variants; validated here so the
+        public constructor remains fail-closed.
+    tolerance
+        Linear-pivot tolerance for direct tridiagonal line solves.
+    scheme
+        Currently only ``"douglas"`` is implemented and advertised.
     """
-    
+
     theta: float = 0.5
     max_iterations: int = 1000
     tolerance: float = 1e-8
+    scheme: str = "douglas"
+    last_diagnostics: dict[str, Any] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
-        """Validate ADI solver parameters."""
         if not 0.0 <= self.theta <= 1.0:
             raise ValidationError(f"theta must be between 0 and 1, got {self.theta}")
-        
         if self.max_iterations <= 0:
-            raise ValidationError(f"max_iterations must be positive, got {self.max_iterations}")
-        
+            raise ValidationError(
+                f"max_iterations must be positive, got {self.max_iterations}"
+            )
         if self.tolerance <= 0:
             raise ValidationError(f"tolerance must be positive, got {self.tolerance}")
+        if self.scheme != "douglas":
+            raise ValidationError(
+                f"unsupported ADI scheme {self.scheme!r}; only 'douglas' is implemented"
+            )
 
     def solve_2d(
         self,
-        initial_condition: NDArray[np.float64],
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        time_grid: NDArray[np.float64],
-        spatial_grids: Tuple[NDArray[np.float64], NDArray[np.float64]],
-        boundary_conditions: Optional[Dict[str, Any]] = None
-    ) -> NDArray[np.float64]:
-        """Solve 2D parabolic PDE using ADI method.
-        
-        The 2D PDE is: ∂u/∂t = L_x u + L_y u + mixed terms
-        ADI splits this into: (I - θΔt L_x)(I - θΔt L_y)u^{n+1} = RHS
+        initial_condition: Array,
+        drift: Array,
+        covariance: Array,
+        time_grid: Array,
+        spatial_grids: Tuple[Array, Array],
+        boundary_conditions: Optional[Dict[str, Any]] = None,
+        *,
+        reaction: Optional[Array | float] = None,
+        source: Optional[Array | float] = None,
+    ) -> Array:
+        """Solve a 2D forward-time parabolic PDE with calendar-time output.
+
+        ``initial_condition`` is the terminal payoff at ``tau=0``. The returned
+        array is reversed into public calendar order so that ``result[-1]`` is
+        exactly the supplied terminal/payoff surface.
         """
-        x_grid, y_grid = spatial_grids
-        nx, ny = len(x_grid), len(y_grid)
-        nt = len(time_grid)
-        
-        # Validate input shapes
+        grids = self._validate_grids(spatial_grids)
+        nt = self._validate_time_grid(time_grid)
+        nx, ny = len(grids[0]), len(grids[1])
         self._validate_2d_inputs(drift, covariance, initial_condition, nx, ny)
-        
-        # Initialize solution array
-        solution = np.zeros((nt, nx, ny))
-        # Set terminal condition at final time step
-        solution[-1] = initial_condition.copy()
-        
-        # Compute grid spacings
-        dx = x_grid[1] - x_grid[0] if nx > 1 else 1.0
-        dy = y_grid[1] - y_grid[0] if ny > 1 else 1.0
-        
-        # Time stepping - solve backward from maturity to initial time
-        for n in range(nt - 2, -1, -1):  # Go from nt-2 down to 0
-            dt = time_grid[n + 1] - time_grid[n]  # Positive time step
-            
-            # ADI step: solve in x-direction, then y-direction
-            intermediate = self._adi_step_x(
-                solution[n + 1], drift, covariance, dx, dy, dt, nx, ny
+        reaction_field = self._coerce_field("reaction", reaction, (nx, ny), default=0.0)
+        source_field = self._coerce_field("source", source, (nx, ny), default=0.0)
+
+        tau_solution = np.zeros((nt, nx, ny), dtype=float)
+        positivity_floor = self._uses_positivity_floor(initial_condition, source_field)
+        tau_solution[0] = self._apply_boundary_conditions_2d(
+            np.asarray(initial_condition, dtype=float).copy(),
+            grids,
+            boundary_conditions,
+        )
+
+        for step in range(nt - 1):
+            dt = float(time_grid[step + 1] - time_grid[step])
+            next_solution = self._douglas_step_2d(
+                tau_solution[step],
+                drift,
+                covariance,
+                reaction_field,
+                source_field,
+                grids,
+                dt,
+                boundary_conditions,
             )
-            
-            solution[n] = self._adi_step_y(
-                intermediate, drift, covariance, dx, dy, dt, nx, ny
+            tau_solution[step + 1] = self._apply_positivity_floor(
+                next_solution, enabled=positivity_floor
             )
-            
-            # Apply boundary conditions if provided
-            if boundary_conditions is not None:
-                solution[n] = self._apply_boundary_conditions_2d(
-                    solution[n], spatial_grids, boundary_conditions
-                )
-        
-        return solution
+
+        self.last_diagnostics = self._diagnostics(
+            dimension=2,
+            time_grid=time_grid,
+            grids=grids,
+            positivity_floor=positivity_floor,
+        )
+        return tau_solution[::-1]
 
     def solve_3d(
         self,
-        initial_condition: NDArray[np.float64],
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        time_grid: NDArray[np.float64],
-        spatial_grids: Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]],
-        boundary_conditions: Optional[Dict[str, Any]] = None
-    ) -> NDArray[np.float64]:
-        """Solve 3D parabolic PDE using ADI method.
-        
-        The 3D PDE is split into three 1D problems solved sequentially.
-        """
-        x_grid, y_grid, z_grid = spatial_grids
-        nx, ny, nz = len(x_grid), len(y_grid), len(z_grid)
-        nt = len(time_grid)
-        
-        # Validate input shapes
+        initial_condition: Array,
+        drift: Array,
+        covariance: Array,
+        time_grid: Array,
+        spatial_grids: Tuple[Array, Array, Array],
+        boundary_conditions: Optional[Dict[str, Any]] = None,
+        *,
+        reaction: Optional[Array | float] = None,
+        source: Optional[Array | float] = None,
+    ) -> Array:
+        """Solve a 3D forward-time parabolic PDE with calendar-time output."""
+        grids = self._validate_grids(spatial_grids)
+        nt = self._validate_time_grid(time_grid)
+        nx, ny, nz = len(grids[0]), len(grids[1]), len(grids[2])
         self._validate_3d_inputs(drift, covariance, initial_condition, nx, ny, nz)
-        
-        # Initialize solution array
-        solution = np.zeros((nt, nx, ny, nz))
-        solution[0] = initial_condition.copy()
-        
-        # Compute grid spacings
-        dx = x_grid[1] - x_grid[0] if nx > 1 else 1.0
-        dy = y_grid[1] - y_grid[0] if ny > 1 else 1.0
-        dz = z_grid[1] - z_grid[0] if nz > 1 else 1.0
-        
-        # Time stepping
-        for n in range(nt - 1):
-            dt = time_grid[n + 1] - time_grid[n]
-            
-            # ADI step: solve in x, y, then z directions
-            temp1 = self._adi_step_x_3d(
-                solution[n], drift, covariance, dx, dy, dz, dt, nx, ny, nz
+        reaction_field = self._coerce_field(
+            "reaction", reaction, (nx, ny, nz), default=0.0
+        )
+        source_field = self._coerce_field("source", source, (nx, ny, nz), default=0.0)
+
+        tau_solution = np.zeros((nt, nx, ny, nz), dtype=float)
+        positivity_floor = self._uses_positivity_floor(initial_condition, source_field)
+        tau_solution[0] = self._apply_boundary_conditions_3d(
+            np.asarray(initial_condition, dtype=float).copy(),
+            grids,
+            boundary_conditions,
+        )
+
+        for step in range(nt - 1):
+            dt = float(time_grid[step + 1] - time_grid[step])
+            next_solution = self._douglas_step_3d(
+                tau_solution[step],
+                drift,
+                covariance,
+                reaction_field,
+                source_field,
+                grids,
+                dt,
+                boundary_conditions,
             )
-            
-            temp2 = self._adi_step_y_3d(
-                temp1, drift, covariance, dx, dy, dz, dt, nx, ny, nz
+            tau_solution[step + 1] = self._apply_positivity_floor(
+                next_solution, enabled=positivity_floor
             )
-            
-            solution[n + 1] = self._adi_step_z_3d(
-                temp2, drift, covariance, dx, dy, dz, dt, nx, ny, nz
+
+        self.last_diagnostics = self._diagnostics(
+            dimension=3,
+            time_grid=time_grid,
+            grids=grids,
+            positivity_floor=positivity_floor,
+        )
+        return tau_solution[::-1]
+
+    def _douglas_step_2d(
+        self,
+        u_old: Array,
+        drift: Array,
+        covariance: Array,
+        reaction: Array,
+        source: Array,
+        grids: tuple[Array, ...],
+        dt: float,
+        boundary_conditions: Optional[Dict[str, Any]],
+    ) -> Array:
+        directional_old = [
+            self._directional_operator(u_old, drift, covariance, grids, axis=0),
+            self._directional_operator(u_old, drift, covariance, grids, axis=1),
+        ]
+        full_old = directional_old[0] + directional_old[1]
+        full_old += self._mixed_operator(u_old, covariance, grids)
+        full_old += -reaction * u_old + source
+
+        predictor = self._apply_boundary_conditions_2d(
+            u_old + dt * full_old, grids, boundary_conditions
+        )
+        rhs_x = predictor - self.theta * dt * directional_old[0]
+        x_solved = self._solve_direction(rhs_x, drift, covariance, grids, dt, axis=0)
+        x_solved = self._apply_boundary_conditions_2d(
+            x_solved, grids, boundary_conditions
+        )
+
+        rhs_y = x_solved - self.theta * dt * directional_old[1]
+        y_solved = self._solve_direction(rhs_y, drift, covariance, grids, dt, axis=1)
+        return self._apply_boundary_conditions_2d(y_solved, grids, boundary_conditions)
+
+    def _douglas_step_3d(
+        self,
+        u_old: Array,
+        drift: Array,
+        covariance: Array,
+        reaction: Array,
+        source: Array,
+        grids: tuple[Array, ...],
+        dt: float,
+        boundary_conditions: Optional[Dict[str, Any]],
+    ) -> Array:
+        directional_old = [
+            self._directional_operator(u_old, drift, covariance, grids, axis=0),
+            self._directional_operator(u_old, drift, covariance, grids, axis=1),
+            self._directional_operator(u_old, drift, covariance, grids, axis=2),
+        ]
+        full_old = directional_old[0] + directional_old[1] + directional_old[2]
+        full_old += self._mixed_operator(u_old, covariance, grids)
+        full_old += -reaction * u_old + source
+
+        current = self._apply_boundary_conditions_3d(
+            u_old + dt * full_old, grids, boundary_conditions
+        )
+        for axis, old_directional in enumerate(directional_old):
+            rhs = current - self.theta * dt * old_directional
+            current = self._solve_direction(
+                rhs, drift, covariance, grids, dt, axis=axis
             )
-            
-            # Apply boundary conditions if provided
-            if boundary_conditions is not None:
-                solution[n + 1] = self._apply_boundary_conditions_3d(
-                    solution[n + 1], spatial_grids, boundary_conditions
-                )
-        
-        return solution
+            current = self._apply_boundary_conditions_3d(
+                current, grids, boundary_conditions
+            )
+        return current
 
     def _validate_2d_inputs(
         self,
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        initial_condition: NDArray[np.float64],
+        drift: Array,
+        covariance: Array,
+        initial_condition: Array,
         nx: int,
-        ny: int
+        ny: int,
     ) -> None:
-        """Validate 2D input arrays."""
         if drift.shape != (nx, ny, 2):
-            raise ValidationError(f"drift must have shape ({nx}, {ny}, 2), got {drift.shape}")
-        
+            raise ValidationError(
+                f"drift must have shape ({nx}, {ny}, 2), got {drift.shape}"
+            )
         if covariance.shape != (nx, ny, 2, 2):
-            raise ValidationError(f"covariance must have shape ({nx}, {ny}, 2, 2), got {covariance.shape}")
-        
+            raise ValidationError(
+                f"covariance must have shape ({nx}, {ny}, 2, 2), got {covariance.shape}"
+            )
         if initial_condition.shape != (nx, ny):
-            raise ValidationError(f"initial_condition must have shape ({nx}, {ny}), got {initial_condition.shape}")
+            raise ValidationError(
+                f"initial_condition must have shape ({nx}, {ny}), got {initial_condition.shape}"
+            )
+        self._validate_finite_and_psd(drift, covariance)
 
     def _validate_3d_inputs(
         self,
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        initial_condition: NDArray[np.float64],
+        drift: Array,
+        covariance: Array,
+        initial_condition: Array,
         nx: int,
         ny: int,
-        nz: int
+        nz: int,
     ) -> None:
-        """Validate 3D input arrays."""
         if drift.shape != (nx, ny, nz, 3):
-            raise ValidationError(f"drift must have shape ({nx}, {ny}, {nz}, 3), got {drift.shape}")
-        
+            raise ValidationError(
+                f"drift must have shape ({nx}, {ny}, {nz}, 3), got {drift.shape}"
+            )
         if covariance.shape != (nx, ny, nz, 3, 3):
-            raise ValidationError(f"covariance must have shape ({nx}, {ny}, {nz}, 3, 3), got {covariance.shape}")
-        
+            raise ValidationError(
+                f"covariance must have shape ({nx}, {ny}, {nz}, 3, 3), got {covariance.shape}"
+            )
         if initial_condition.shape != (nx, ny, nz):
-            raise ValidationError(f"initial_condition must have shape ({nx}, {ny}, {nz}), got {initial_condition.shape}")
+            raise ValidationError(
+                f"initial_condition must have shape ({nx}, {ny}, {nz}), got {initial_condition.shape}"
+            )
+        self._validate_finite_and_psd(drift, covariance)
 
-    def _adi_step_x(
+    def _validate_finite_and_psd(self, drift: Array, covariance: Array) -> None:
+        if not np.all(np.isfinite(drift)):
+            raise ValidationError("ADI drift contains non-finite values")
+        if not np.all(np.isfinite(covariance)):
+            raise ValidationError("ADI covariance contains non-finite values")
+        if not np.allclose(
+            covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12
+        ):
+            raise ValidationError("ADI covariance must be symmetric")
+        eigenvalues = np.linalg.eigvalsh(
+            covariance.reshape(-1, covariance.shape[-1], covariance.shape[-1])
+        )
+        min_eigenvalue = float(np.min(eigenvalues))
+        if min_eigenvalue < -1e-10:
+            raise ValidationError(
+                "ADI covariance must be positive semi-definite; "
+                f"minimum eigenvalue is {min_eigenvalue:.2e}"
+            )
+
+    def _validate_time_grid(self, time_grid: Array) -> int:
+        if time_grid.ndim != 1 or len(time_grid) < 2:
+            raise ValidationError(
+                "time_grid must be a one-dimensional array with at least two nodes"
+            )
+        if not np.all(np.isfinite(time_grid)):
+            raise ValidationError("time_grid contains non-finite values")
+        if not np.all(np.diff(time_grid) > 0.0):
+            raise ValidationError(
+                "time_grid must be strictly increasing in calendar time"
+            )
+        return len(time_grid)
+
+    def _validate_grids(self, grids: tuple[Array, ...]) -> tuple[Array, ...]:
+        validated: list[Array] = []
+        for axis, grid in enumerate(grids):
+            candidate = np.asarray(grid, dtype=float)
+            if candidate.ndim != 1 or len(candidate) < 3:
+                raise ValidationError(
+                    f"grid axis {axis} must be one-dimensional with at least three nodes"
+                )
+            if not np.all(np.isfinite(candidate)):
+                raise ValidationError(f"grid axis {axis} contains non-finite values")
+            if not np.all(np.diff(candidate) > 0.0):
+                raise ValidationError(f"grid axis {axis} must be strictly increasing")
+            validated.append(candidate)
+        return tuple(validated)
+
+    def _coerce_field(
         self,
-        u: NDArray[np.float64],
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        dx: float,
-        dy: float,
-        dt: float,
-        nx: int,
-        ny: int
-    ) -> NDArray[np.float64]:
-        """Perform ADI step in x-direction."""
-        result = u.copy()
-        
-        # For each y-slice, solve tridiagonal system in x-direction
-        for j in range(ny):
-            if nx <= 2:
-                continue  # Skip if too few points
-                
-            # Extract coefficients for this y-slice
-            mu_x = drift[:, j, 0]  # x-drift
-            sigma_xx = covariance[:, j, 0, 0]  # xx-covariance
-            
-            # Build tridiagonal matrix for x-direction
-            # Second-order finite differences: a*u_{i-1} + b*u_i + c*u_{i+1}
-            a = np.zeros(nx)
-            b = np.ones(nx)
-            c = np.zeros(nx)
-            
-            for i in range(1, nx - 1):
-                # Coefficients for second derivative term
-                coeff_2nd = self.theta * dt * sigma_xx[i] / (2 * dx * dx)
-                # Coefficients for first derivative term  
-                coeff_1st = self.theta * dt * mu_x[i] / (2 * dx)
-                
-                a[i] = -coeff_2nd + coeff_1st
-                b[i] = 1 + 2 * coeff_2nd
-                c[i] = -coeff_2nd - coeff_1st
-            
-            # Solve tridiagonal system
-            rhs = u[:, j].copy()
-            result[:, j] = self._solve_tridiagonal(a, b, c, rhs)
-        
+        name: str,
+        value: Optional[Array | float],
+        shape: tuple[int, ...],
+        *,
+        default: float,
+    ) -> Array:
+        if value is None:
+            return np.full(shape, default, dtype=float)
+        field_value = np.asarray(value, dtype=float)
+        try:
+            result = np.broadcast_to(field_value, shape).astype(float, copy=True)
+        except ValueError as exc:
+            raise ValidationError(
+                f"{name} must be scalar or broadcastable to shape {shape}, got {field_value.shape}"
+            ) from exc
+        if not np.all(np.isfinite(result)):
+            raise ValidationError(f"{name} contains non-finite values")
         return result
 
-    def _adi_step_y(
+    def _directional_operator(
         self,
-        u: NDArray[np.float64],
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        dx: float,
-        dy: float,
-        dt: float,
-        nx: int,
-        ny: int
-    ) -> NDArray[np.float64]:
-        """Perform ADI step in y-direction."""
-        result = u.copy()
-        
-        # For each x-slice, solve tridiagonal system in y-direction
-        for i in range(nx):
-            if ny <= 2:
-                continue  # Skip if too few points
-                
-            # Extract coefficients for this x-slice
-            mu_y = drift[i, :, 1]  # y-drift
-            sigma_yy = covariance[i, :, 1, 1]  # yy-covariance
-            
-            # Build tridiagonal matrix for y-direction
-            a = np.zeros(ny)
-            b = np.ones(ny)
-            c = np.zeros(ny)
-            
-            for j in range(1, ny - 1):
-                # Coefficients for second derivative term
-                coeff_2nd = self.theta * dt * sigma_yy[j] / (2 * dy * dy)
-                # Coefficients for first derivative term
-                coeff_1st = self.theta * dt * mu_y[j] / (2 * dy)
-                
-                a[j] = -coeff_2nd + coeff_1st
-                b[j] = 1 + 2 * coeff_2nd
-                c[j] = -coeff_2nd - coeff_1st
-            
-            # Solve tridiagonal system
-            rhs = u[i, :].copy()
-            result[i, :] = self._solve_tridiagonal(a, b, c, rhs)
-        
+        u: Array,
+        drift: Array,
+        covariance: Array,
+        grids: tuple[Array, ...],
+        *,
+        axis: int,
+    ) -> Array:
+        first, second = self._axis_first_second(u, grids[axis], axis=axis)
+        return 0.5 * covariance[..., axis, axis] * second + drift[..., axis] * first
+
+    def _mixed_operator(
+        self, u: Array, covariance: Array, grids: tuple[Array, ...]
+    ) -> Array:
+        result = np.zeros_like(u, dtype=float)
+        for axis_a in range(len(grids)):
+            first_a = self._axis_first_derivative(u, grids[axis_a], axis=axis_a)
+            for axis_b in range(axis_a + 1, len(grids)):
+                cross = self._axis_first_derivative(first_a, grids[axis_b], axis=axis_b)
+                result += covariance[..., axis_a, axis_b] * cross
         return result
 
-    def _adi_step_x_3d(
+    def _axis_first_second(
+        self, u: Array, grid: Array, *, axis: int
+    ) -> tuple[Array, Array]:
+        first = np.zeros_like(u, dtype=float)
+        second = np.zeros_like(u, dtype=float)
+        for idx in range(1, len(grid) - 1):
+            hm = float(grid[idx] - grid[idx - 1])
+            hp = float(grid[idx + 1] - grid[idx])
+            wl1, wc1, wu1 = self._first_weights(hm, hp)
+            wl2, wc2, wu2 = self._second_weights(hm, hp)
+            lower, center, upper = self._axis_slices(axis, u.ndim, idx)
+            first[center] = wl1 * u[lower] + wc1 * u[center] + wu1 * u[upper]
+            second[center] = wl2 * u[lower] + wc2 * u[center] + wu2 * u[upper]
+        return first, second
+
+    def _axis_first_derivative(self, u: Array, grid: Array, *, axis: int) -> Array:
+        first, _ = self._axis_first_second(u, grid, axis=axis)
+        return first
+
+    def _solve_direction(
         self,
-        u: NDArray[np.float64],
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        dx: float,
-        dy: float,
-        dz: float,
+        rhs: Array,
+        drift: Array,
+        covariance: Array,
+        grids: tuple[Array, ...],
         dt: float,
-        nx: int,
-        ny: int,
-        nz: int
-    ) -> NDArray[np.float64]:
-        """Perform ADI step in x-direction for 3D."""
-        result = u.copy()
-        
-        # For each (y,z) pair, solve tridiagonal system in x-direction
-        for j in range(ny):
-            for k in range(nz):
-                if nx <= 2:
-                    continue
-                    
-                # Extract coefficients
-                mu_x = drift[:, j, k, 0]
-                sigma_xx = covariance[:, j, k, 0, 0]
-                
-                # Build tridiagonal matrix
-                a = np.zeros(nx)
-                b = np.ones(nx)
-                c = np.zeros(nx)
-                
-                for i in range(1, nx - 1):
-                    coeff_2nd = self.theta * dt * sigma_xx[i] / (2 * dx * dx)
-                    coeff_1st = self.theta * dt * mu_x[i] / (2 * dx)
-                    
-                    a[i] = -coeff_2nd + coeff_1st
-                    b[i] = 1 + 2 * coeff_2nd
-                    c[i] = -coeff_2nd - coeff_1st
-                
-                # Solve tridiagonal system
-                rhs = u[:, j, k].copy()
-                result[:, j, k] = self._solve_tridiagonal(a, b, c, rhs)
-        
+        *,
+        axis: int,
+    ) -> Array:
+        result = rhs.copy()
+        other_axes = [range(size) for dim, size in enumerate(rhs.shape) if dim != axis]
+        for fixed_indices in np.ndindex(
+            *(len(axis_values) for axis_values in other_axes)
+        ):
+            line_selector: list[Any] = [slice(None)] * rhs.ndim
+            fixed_iter = iter(fixed_indices)
+            for dim in range(rhs.ndim):
+                if dim != axis:
+                    line_selector[dim] = next(fixed_iter)
+            selector = tuple(line_selector)
+            drift_line = drift[selector + (axis,)]
+            covariance_line = covariance[selector + (axis, axis)]
+            lower, diag, upper = self._line_system(
+                drift_line, covariance_line, grids[axis], dt
+            )
+            result[selector] = self._solve_tridiagonal(
+                lower, diag, upper, rhs[selector]
+            )
         return result
 
-    def _adi_step_y_3d(
-        self,
-        u: NDArray[np.float64],
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        dx: float,
-        dy: float,
-        dz: float,
-        dt: float,
-        nx: int,
-        ny: int,
-        nz: int
-    ) -> NDArray[np.float64]:
-        """Perform ADI step in y-direction for 3D."""
-        result = u.copy()
-        
-        # For each (x,z) pair, solve tridiagonal system in y-direction
-        for i in range(nx):
-            for k in range(nz):
-                if ny <= 2:
-                    continue
-                    
-                # Extract coefficients
-                mu_y = drift[i, :, k, 1]
-                sigma_yy = covariance[i, :, k, 1, 1]
-                
-                # Build tridiagonal matrix
-                a = np.zeros(ny)
-                b = np.ones(ny)
-                c = np.zeros(ny)
-                
-                for j in range(1, ny - 1):
-                    coeff_2nd = self.theta * dt * sigma_yy[j] / (2 * dy * dy)
-                    coeff_1st = self.theta * dt * mu_y[j] / (2 * dy)
-                    
-                    a[j] = -coeff_2nd + coeff_1st
-                    b[j] = 1 + 2 * coeff_2nd
-                    c[j] = -coeff_2nd - coeff_1st
-                
-                # Solve tridiagonal system
-                rhs = u[i, :, k].copy()
-                result[i, :, k] = self._solve_tridiagonal(a, b, c, rhs)
-        
-        return result
+    def _line_system(
+        self, drift_line: Array, covariance_line: Array, grid: Array, dt: float
+    ) -> tuple[Array, Array, Array]:
+        n = len(grid)
+        lower = np.zeros(n, dtype=float)
+        diag = np.ones(n, dtype=float)
+        upper = np.zeros(n, dtype=float)
+        for idx in range(1, n - 1):
+            hm = float(grid[idx] - grid[idx - 1])
+            hp = float(grid[idx + 1] - grid[idx])
+            wl1, wc1, wu1 = self._first_weights(hm, hp)
+            wl2, wc2, wu2 = self._second_weights(hm, hp)
+            diffusion = 0.5 * covariance_line[idx]
+            advection = drift_line[idx]
+            low_op = diffusion * wl2 + advection * wl1
+            diag_op = diffusion * wc2 + advection * wc1
+            high_op = diffusion * wu2 + advection * wu1
+            lower[idx] = -self.theta * dt * low_op
+            diag[idx] = 1.0 - self.theta * dt * diag_op
+            upper[idx] = -self.theta * dt * high_op
+        return lower, diag, upper
 
-    def _adi_step_z_3d(
-        self,
-        u: NDArray[np.float64],
-        drift: NDArray[np.float64],
-        covariance: NDArray[np.float64],
-        dx: float,
-        dy: float,
-        dz: float,
-        dt: float,
-        nx: int,
-        ny: int,
-        nz: int
-    ) -> NDArray[np.float64]:
-        """Perform ADI step in z-direction for 3D."""
-        result = u.copy()
-        
-        # For each (x,y) pair, solve tridiagonal system in z-direction
-        for i in range(nx):
-            for j in range(ny):
-                if nz <= 2:
-                    continue
-                    
-                # Extract coefficients
-                mu_z = drift[i, j, :, 2]
-                sigma_zz = covariance[i, j, :, 2, 2]
-                
-                # Build tridiagonal matrix
-                a = np.zeros(nz)
-                b = np.ones(nz)
-                c = np.zeros(nz)
-                
-                for k in range(1, nz - 1):
-                    coeff_2nd = self.theta * dt * sigma_zz[k] / (2 * dz * dz)
-                    coeff_1st = self.theta * dt * mu_z[k] / (2 * dz)
-                    
-                    a[k] = -coeff_2nd + coeff_1st
-                    b[k] = 1 + 2 * coeff_2nd
-                    c[k] = -coeff_2nd - coeff_1st
-                
-                # Solve tridiagonal system
-                rhs = u[i, j, :].copy()
-                result[i, j, :] = self._solve_tridiagonal(a, b, c, rhs)
-        
-        return result
+    def _first_weights(self, hm: float, hp: float) -> tuple[float, float, float]:
+        return (
+            -hp / (hm * (hm + hp)),
+            (hp - hm) / (hm * hp),
+            hm / (hp * (hm + hp)),
+        )
 
-    def _solve_tridiagonal(
-        self,
-        a: NDArray[np.float64],
-        b: NDArray[np.float64],
-        c: NDArray[np.float64],
-        d: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
-        """Solve tridiagonal system using Thomas algorithm.
-        
-        Solves: a[i]*x[i-1] + b[i]*x[i] + c[i]*x[i+1] = d[i]
+    def _second_weights(self, hm: float, hp: float) -> tuple[float, float, float]:
+        return (
+            2.0 / (hm * (hm + hp)),
+            -2.0 / (hm * hp),
+            2.0 / (hp * (hm + hp)),
+        )
+
+    def _axis_slices(
+        self, axis: int, ndim: int, idx: int
+    ) -> tuple[tuple[Any, ...], tuple[Any, ...], tuple[Any, ...]]:
+        lower: list[Any] = [slice(None)] * ndim
+        center: list[Any] = [slice(None)] * ndim
+        upper: list[Any] = [slice(None)] * ndim
+        lower[axis] = idx - 1
+        center[axis] = idx
+        upper[axis] = idx + 1
+        return tuple(lower), tuple(center), tuple(upper)
+
+    def _solve_tridiagonal(self, a: Array, b: Array, c: Array, d: Array) -> Array:
+        """Solve a tridiagonal system using the Thomas algorithm.
+
+        Solves ``a[i] * x[i-1] + b[i] * x[i] + c[i] * x[i+1] = d[i]`` and
+        fails closed on near-singular pivots instead of returning plausible
+        values from an arbitrary epsilon clamp.
         """
         n = len(d)
         if n <= 1:
-            if n == 1 and abs(b[0]) > 1e-14:
+            if n == 1 and abs(b[0]) > self.tolerance:
                 return np.array([d[0] / b[0]])
+            if n == 1:
+                raise ValidationError("singular one-point tridiagonal system")
             return d.copy()
-        
-        # Forward elimination
-        c_prime = np.zeros(n)
-        d_prime = np.zeros(n)
-        
-        c_prime[0] = c[0] / b[0] if abs(b[0]) > 1e-14 else 0.0
-        d_prime[0] = d[0] / b[0] if abs(b[0]) > 1e-14 else d[0]
-        
-        for i in range(1, n):
-            denom = b[i] - a[i] * c_prime[i - 1]
-            if abs(denom) < 1e-14:
-                denom = 1e-14  # Avoid division by zero
-            
-            if i < n - 1:
-                c_prime[i] = c[i] / denom
-            d_prime[i] = (d[i] - a[i] * d_prime[i - 1]) / denom
-        
-        # Back substitution
-        x = np.zeros(n)
-        x[n - 1] = d_prime[n - 1]
-        
-        for i in range(n - 2, -1, -1):
-            x[i] = d_prime[i] - c_prime[i] * x[i + 1]
-        
+
+        c_prime = np.zeros(n, dtype=float)
+        d_prime = np.zeros(n, dtype=float)
+        if abs(b[0]) <= self.tolerance:
+            raise ValidationError("singular tridiagonal pivot at row 0")
+        c_prime[0] = c[0] / b[0]
+        d_prime[0] = d[0] / b[0]
+
+        for idx in range(1, n):
+            denom = b[idx] - a[idx] * c_prime[idx - 1]
+            if abs(denom) <= self.tolerance:
+                raise ValidationError(f"singular tridiagonal pivot at row {idx}")
+            if idx < n - 1:
+                c_prime[idx] = c[idx] / denom
+            d_prime[idx] = (d[idx] - a[idx] * d_prime[idx - 1]) / denom
+
+        x = np.zeros(n, dtype=float)
+        x[-1] = d_prime[-1]
+        for idx in range(n - 2, -1, -1):
+            x[idx] = d_prime[idx] - c_prime[idx] * x[idx + 1]
         return x
 
     def _apply_boundary_conditions_2d(
         self,
-        u: NDArray[np.float64],
-        grids: Tuple[NDArray[np.float64], NDArray[np.float64]],
-        boundary_conditions: Dict[str, Any]
-    ) -> NDArray[np.float64]:
-        """Apply boundary conditions for 2D problem.
-        
-        Parameters
-        ----------
-        u : NDArray[np.float64]
-            Solution array.
-        grids : Tuple[NDArray[np.float64], NDArray[np.float64]]
-            Spatial grids (x_grid, y_grid).
-        boundary_conditions : Dict[str, Any] or BoundaryManager2D
-            Boundary condition specifications or manager.
-            
-        Returns
-        -------
-        NDArray[np.float64]
-            Solution with boundary conditions applied.
-        """
-        # Handle both dictionary and BoundaryManager2D formats
+        u: Array,
+        grids: tuple[Array, ...],
+        boundary_conditions: Optional[Dict[str, Any]],
+    ) -> Array:
         if boundary_conditions is None:
             return u
-            
-        # If it's a boundary manager object, use its apply_boundaries method
-        if hasattr(boundary_conditions, 'apply_boundaries'):
+        if hasattr(boundary_conditions, "apply_boundaries"):
             try:
                 return boundary_conditions.apply_boundaries(u, grids)
-            except Exception:
-                # If applying boundaries fails, return unchanged
-                return u
-                
-        # If it's a dictionary, apply simple boundary conditions
-        if isinstance(boundary_conditions, dict):
-            result = u.copy()
-            x_grid, y_grid = grids
-            nx, ny = len(x_grid), len(y_grid)
-            
-            # Apply simple boundary conditions if specified
-            for boundary_location, boundary_spec in boundary_conditions.items():
-                if boundary_location == 'left':
-                    # Left boundary (x = x_min)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[0, :] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[0, :] = result[1, :]
-                elif boundary_location == 'right':
-                    # Right boundary (x = x_max)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[-1, :] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[-1, :] = result[-2, :]
-                elif boundary_location == 'bottom':
-                    # Bottom boundary (y = y_min)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[:, 0] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[:, 0] = result[:, 1]
-                elif boundary_location == 'top':
-                    # Top boundary (y = y_max)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[:, -1] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[:, -1] = result[:, -2]
-                        
-            return result
-            
-        # Default: return unchanged
-        return u
+            except Exception as exc:  # pragma: no cover - manager-specific path
+                raise ValidationError(
+                    "2D boundary manager failed during ADI substep"
+                ) from exc
+        if not isinstance(boundary_conditions, dict):
+            raise ValidationError(
+                "2D boundary_conditions must be a dict or boundary manager"
+            )
+
+        result = u.copy()
+        for boundary_location, boundary_spec in boundary_conditions.items():
+            kind = boundary_spec.get("type")
+            value = boundary_spec.get("value", 0.0)
+            if boundary_location == "left":
+                result[0, :] = self._boundary_values(kind, value, result[1, :])
+            elif boundary_location == "right":
+                result[-1, :] = self._boundary_values(kind, value, result[-2, :])
+            elif boundary_location == "bottom":
+                result[:, 0] = self._boundary_values(kind, value, result[:, 1])
+            elif boundary_location == "top":
+                result[:, -1] = self._boundary_values(kind, value, result[:, -2])
+            else:
+                raise ValidationError(
+                    f"unsupported 2D boundary location {boundary_location!r}"
+                )
+        return result
 
     def _apply_boundary_conditions_3d(
         self,
-        u: NDArray[np.float64],
-        grids: Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]],
-        boundary_conditions: Dict[str, Any]
-    ) -> NDArray[np.float64]:
-        """Apply boundary conditions for 3D problem.
-        
-        Parameters
-        ----------
-        u : NDArray[np.float64]
-            Solution array.
-        grids : Tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]
-            Spatial grids (x_grid, y_grid, z_grid).
-        boundary_conditions : Dict[str, Any] or BoundaryManager3D
-            Boundary condition specifications or manager.
-            
-        Returns
-        -------
-        NDArray[np.float64]
-            Solution with boundary conditions applied.
-        """
-        # Handle both dictionary and BoundaryManager3D formats
+        u: Array,
+        grids: tuple[Array, ...],
+        boundary_conditions: Optional[Dict[str, Any]],
+    ) -> Array:
         if boundary_conditions is None:
             return u
-            
-        # If it's a boundary manager object, use its apply_boundaries method
-        if hasattr(boundary_conditions, 'apply_boundaries'):
+        if hasattr(boundary_conditions, "apply_boundaries"):
             try:
                 return boundary_conditions.apply_boundaries(u, grids)
-            except Exception:
-                # If applying boundaries fails, return unchanged
-                return u
-                
-        # If it's a dictionary, apply simple boundary conditions
-        if isinstance(boundary_conditions, dict):
-            result = u.copy()
-            x_grid, y_grid, z_grid = grids
-            nx, ny, nz = len(x_grid), len(y_grid), len(z_grid)
-            
-            # Apply simple boundary conditions if specified
-            for boundary_location, boundary_spec in boundary_conditions.items():
-                if boundary_location == 'left':
-                    # Left boundary (x = x_min)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[0, :, :] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[0, :, :] = result[1, :, :]
-                elif boundary_location == 'right':
-                    # Right boundary (x = x_max)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[-1, :, :] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[-1, :, :] = result[-2, :, :]
-                elif boundary_location == 'bottom':
-                    # Bottom boundary (y = y_min)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[:, 0, :] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[:, 0, :] = result[:, 1, :]
-                elif boundary_location == 'top':
-                    # Top boundary (y = y_max)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[:, -1, :] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[:, -1, :] = result[:, -2, :]
-                elif boundary_location == 'front':
-                    # Front boundary (z = z_min)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[:, :, 0] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[:, :, 0] = result[:, :, 1]
-                elif boundary_location == 'back':
-                    # Back boundary (z = z_max)
-                    if boundary_spec.get('type') == 'dirichlet':
-                        result[:, :, -1] = boundary_spec.get('value', 0.0)
-                    elif boundary_spec.get('type') == 'zero_gradient':
-                        result[:, :, -1] = result[:, :, -2]
-                        
-            return result
-            
-        # Default: return unchanged
-        return u
+            except Exception as exc:  # pragma: no cover - manager-specific path
+                raise ValidationError(
+                    "3D boundary manager failed during ADI substep"
+                ) from exc
+        if not isinstance(boundary_conditions, dict):
+            raise ValidationError(
+                "3D boundary_conditions must be a dict or boundary manager"
+            )
+
+        result = u.copy()
+        for boundary_location, boundary_spec in boundary_conditions.items():
+            kind = boundary_spec.get("type")
+            value = boundary_spec.get("value", 0.0)
+            if boundary_location == "left":
+                result[0, :, :] = self._boundary_values(kind, value, result[1, :, :])
+            elif boundary_location == "right":
+                result[-1, :, :] = self._boundary_values(kind, value, result[-2, :, :])
+            elif boundary_location == "bottom":
+                result[:, 0, :] = self._boundary_values(kind, value, result[:, 1, :])
+            elif boundary_location == "top":
+                result[:, -1, :] = self._boundary_values(kind, value, result[:, -2, :])
+            elif boundary_location == "front":
+                result[:, :, 0] = self._boundary_values(kind, value, result[:, :, 1])
+            elif boundary_location == "back":
+                result[:, :, -1] = self._boundary_values(kind, value, result[:, :, -2])
+            else:
+                raise ValidationError(
+                    f"unsupported 3D boundary location {boundary_location!r}"
+                )
+        return result
+
+    def _boundary_values(
+        self, kind: str, value: Any, neighbour: Array
+    ) -> Array | float:
+        if kind == "dirichlet":
+            return value
+        if kind == "zero_gradient":
+            return neighbour
+        raise ValidationError(f"unsupported ADI boundary condition type {kind!r}")
+
+    def _uses_positivity_floor(self, initial_condition: Array, source: Array) -> bool:
+        """Enable a disclosed positivity limiter for nonnegative pricing routes.
+
+        Linear parabolic pricing equations with nonnegative payoff/source satisfy
+        a maximum-principle lower bound. The finite-grid Douglas route can create
+        roundoff/pre-asymptotic undershoots near nonsmooth payoffs; flooring only
+        this explicitly nonnegative route prevents negative option values without
+        changing signed manufactured-PDE tests.
+        """
+        return bool(np.all(initial_condition >= 0.0) and np.all(source >= 0.0))
+
+    def _apply_positivity_floor(self, solution: Array, *, enabled: bool) -> Array:
+        if not enabled:
+            return solution
+        return np.maximum(solution, 0.0)
+
+    def _diagnostics(
+        self,
+        *,
+        dimension: int,
+        time_grid: Array,
+        grids: tuple[Array, ...],
+        positivity_floor: bool,
+    ) -> dict[str, Any]:
+        return {
+            "scheme": "douglas",
+            "dimension": dimension,
+            "theta": self.theta,
+            "time_orientation": "forward_tau_internal_calendar_output",
+            "steps": len(time_grid) - 1,
+            "mixed_derivative_pairs": [
+                (a, b) for a in range(dimension) for b in range(a + 1, dimension)
+            ],
+            "grid_uniformity": [
+                bool(np.allclose(np.diff(grid), np.diff(grid)[0])) for grid in grids
+            ],
+            "reaction_treatment": "explicit_predictor_once",
+            "source_treatment": "explicit_predictor_once",
+            "positivity_floor": positivity_floor,
+            "boundary_treatment": "payoff_predictor_and_each_directional_substep",
+        }
 
 
+# Backwards-compatible helper aliases used by legacy tests/docs.
 def create_adi_solver(theta: float = 0.5) -> ADISolver:
     """Create ADI solver with specified parameters."""
     return ADISolver(theta=theta)
