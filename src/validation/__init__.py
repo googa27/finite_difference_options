@@ -2,6 +2,21 @@
 
 This package contains validation functions for the unified pricing framework.
 """
+
+from .benchmark_registry import (
+    BenchmarkCase,
+    BenchmarkRegistryError,
+    BenchmarkRunResult,
+    OracleSpec,
+    TolerancePolicy,
+    default_benchmark_registry,
+    registry_as_dict,
+    registry_by_id,
+    run_registered_benchmark,
+    validate_benchmark_registry,
+    write_benchmark_result_json,
+    write_registry_json,
+)
 from .validators import (
     validate_positive,
     validate_non_negative,
@@ -14,6 +29,18 @@ from .validators import (
 )
 
 __all__ = [
+    "BenchmarkCase",
+    "BenchmarkRegistryError",
+    "BenchmarkRunResult",
+    "OracleSpec",
+    "TolerancePolicy",
+    "default_benchmark_registry",
+    "registry_as_dict",
+    "registry_by_id",
+    "run_registered_benchmark",
+    "validate_benchmark_registry",
+    "write_benchmark_result_json",
+    "write_registry_json",
     "validate_positive",
     "validate_non_negative",
     "validate_probability",

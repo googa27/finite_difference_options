@@ -326,7 +326,7 @@ Adapter lifecycle:
 4. Select only explicit validated native policies.
 5. Reject absent coefficients, unsupported BCs or invalid covariance before operator work.
 6. Solve and normalize values, Greeks and diagnostics.
-7. Record package, contract, benchmark and environment identity.
+7. Record package, contract, benchmark-registry and environment identity.
 
 The adapter imports no Haircut domain/application, PDP or delivery modules and advertises only tested capabilities.
 
