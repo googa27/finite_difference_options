@@ -1,23 +1,23 @@
 {
   "convergence": [
     {
-      "abs_error": 0.0015034864453782049,
+      "abs_error": 0.0015034724143622447,
       "oracle_price": 0.10450583572185568,
-      "price": 0.10300234927647747,
+      "price": 0.10300236330749343,
       "s_steps": 40,
       "t_steps": 40
     },
     {
-      "abs_error": 0.00024191334351048033,
+      "abs_error": 0.00024191966108828844,
       "oracle_price": 0.10450583572185568,
-      "price": 0.10474774906536616,
+      "price": 0.10474775538294397,
       "s_steps": 80,
       "t_steps": 120
     },
     {
-      "abs_error": 0.00010928850500550868,
+      "abs_error": 0.0001092933164004023,
       "oracle_price": 0.10450583572185568,
-      "price": 0.10461512422686119,
+      "price": 0.10461512903825608,
       "s_steps": 120,
       "t_steps": 200
     }
@@ -74,8 +74,8 @@
     },
     "mathematical_problem": {
       "boundary_conditions": {
-        "S=0": "second_derivative_zero_gamma",
-        "S=S_max": "neumann_delta_one"
+        "S=0": "dirichlet_call_zero",
+        "S=S_max": "dirichlet_far_call_asymptotic_Smax_minus_discounted_strike"
       },
       "dimension": 1,
       "exercise_style": "european",
@@ -192,23 +192,23 @@
   "result_export": {
     "boundary": {
       "notes": [
-        "left boundary follows solver gamma-zero condition",
-        "right boundary is first derivative asymptote"
+        "left boundary is the vanilla-call Dirichlet value",
+        "right boundary is the strike/rate/time-aware far-spot asymptotic"
       ],
       "typed": [
         {
-          "boundary_type": "second_derivative",
+          "boundary_type": "dirichlet",
           "coordinate": "S",
-          "expression": "d\u00b2V/dS\u00b2=0",
+          "expression": "V(0,tau)=0",
           "location": "S=0",
           "value": 0.0
         },
         {
-          "boundary_type": "neumann",
+          "boundary_type": "dirichlet",
           "coordinate": "S",
-          "expression": "dV/dS=1",
+          "expression": "V(Smax,tau)=Smax-K*exp(-r*tau)",
           "location": "S=s_max",
-          "value": 1.0
+          "value": 2.0487705754992858
         }
       ]
     },
@@ -219,13 +219,13 @@
       "t_min": 0.0
     },
     "errors": {
-      "delta_abs": 0.0008620162349055605,
-      "delta_rel": 0.0013536035574202314,
-      "gamma_abs": 0.005009443288767512,
-      "gamma_rel": 0.002669991822535218,
-      "max_abs_price_error": 0.0015034864453782049,
-      "price_abs": 0.00010928850500550868,
-      "price_rel": 0.0010457646144889188
+      "delta_abs": 0.0008618817908638832,
+      "delta_rel": 0.0013533924431445145,
+      "gamma_abs": 0.005006001870237364,
+      "gamma_rel": 0.0026681575749344876,
+      "max_abs_price_error": 0.0015034724143622447,
+      "price_abs": 0.0001092933164004023,
+      "price_rel": 0.0010458106539742774
     },
     "grid": {
       "maturity_time_index": 0,
@@ -252,9 +252,9 @@
       "gamma_non_negative_ok": true,
       "monotone_call_parity_hint": "call value must be monotone increasing in spot (single-point check)",
       "upper_bound_ok": true,
-      "upper_gap": 0.8953848757731389,
+      "upper_gap": 0.8953848709617439,
       "value_bound_ok": true,
-      "value_minus_intrinsic": 0.10461512422686119
+      "value_minus_intrinsic": 0.10461512903825608
     },
     "reference": {
       "delta": 0.6368306511756191,
@@ -262,9 +262,9 @@
       "price": 0.10450583572185568
     },
     "solution": {
-      "delta": 0.6359686349407135,
-      "gamma": 1.871192291295922,
-      "price": 0.10461512422686119,
+      "delta": 0.6359687693847552,
+      "gamma": 1.8711957327144522,
+      "price": 0.10461512903825608,
       "spot": 1.0
     },
     "time_axis": {

@@ -48,6 +48,7 @@ jobs:
             tests/test_finite_difference_greeks.py \
             tests/test_greeks.py \
             tests/test_multidimensional_adapter_coefficients.py \
+            tests/test_model_aware_reaction_terms.py \
             tests/test_option_pricer.py \
             tests/test_option_pricer_result.py \
             tests/test_options.py \

@@ -342,6 +342,13 @@ class HestonModel(AffineProcess, BaseModel):
         covariance = AffineCovarianceForm.from_coefficients(constant, linear).evaluate(state_array)
         return covariance[0] if state_array.ndim == 1 else covariance
 
+    def discount(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Return the Heston pricing reaction field, independent of drift."""
+
+        _ = time
+        _, states, _ = self._canonical_state_batch(state)
+        return np.full(states.shape[0], self.risk_free_rate, dtype=float)
+
     @staticmethod
     def state_from_spot(
         spot: float | NDArray[np.float64],
