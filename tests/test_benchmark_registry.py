@@ -131,6 +131,56 @@ def test_black_scholes_runner_fails_when_declared_greek_tolerance_is_violated(
     assert result.invariants["gamma_abs_tolerance_ok"]
 
 
+def test_black_scholes_runner_fails_when_declared_invariant_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.validation import black_scholes_parity
+
+    report = black_scholes_parity.run_public_black_scholes_parity_fixture()
+    incomplete_report = replace(
+        report,
+        no_arbitrage={
+            key: value
+            for key, value in report.no_arbitrage.items()
+            if key != "gamma_non_negative_ok"
+        },
+    )
+    monkeypatch.setattr(
+        black_scholes_parity,
+        "run_public_black_scholes_parity_fixture",
+        lambda: incomplete_report,
+    )
+
+    result = run_registered_benchmark("BS-CALL-PARITY-V0")
+
+    assert not result.passed
+    assert result.invariants["gamma_non_negative_ok"] is False
+
+
+def test_qps_runner_fails_when_declared_price_tolerance_is_violated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.validation import black_scholes_parity
+
+    report = black_scholes_parity.run_public_black_scholes_parity_fixture()
+    bad_final_row = replace(report.observations[-1], abs_error=1.0)
+    bad_report = replace(
+        report,
+        observations=(*report.observations[:-1], bad_final_row),
+        errors={**report.errors, "price_abs": 1.0},
+    )
+    monkeypatch.setattr(
+        black_scholes_parity,
+        "run_public_black_scholes_parity_fixture",
+        lambda: bad_report,
+    )
+
+    result = run_registered_benchmark("QPS-VANILLA-CALL-V0")
+
+    assert not result.passed
+    assert result.invariants["price_abs_tolerance_ok"] is False
+
+
 def test_validated_route_parity_benchmarks_execute_real_runners() -> None:
     qps = run_registered_benchmark("QPS-VANILLA-CALL-V0")
     heston_limit = run_registered_benchmark("HESTON-BS-LIMIT-V0")
@@ -141,6 +191,7 @@ def test_validated_route_parity_benchmarks_execute_real_runners() -> None:
         "problem_hash": True,
         "typed_boundary": True,
         "calendar_time_orientation": True,
+        "price_abs_tolerance_ok": True,
     }
     assert qps.metrics["typed_boundary_count"] == 2
 

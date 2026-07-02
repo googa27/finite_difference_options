@@ -775,6 +775,14 @@ def write_benchmark_result_json(path: str | Path, result: BenchmarkRunResult) ->
     )
 
 
+def _reported_invariants(
+    names: tuple[str, ...], reported: dict[str, Any]
+) -> dict[str, bool]:
+    """Evaluate declared invariants fail-closed against a reported payload."""
+
+    return {name: bool(reported.get(name, False)) for name in names}
+
+
 def _tolerance_invariants(
     case: BenchmarkCase, metrics: dict[str, float | bool | int | str]
 ) -> dict[str, bool]:
@@ -805,11 +813,7 @@ def _black_scholes_parity_result(case: BenchmarkCase) -> BenchmarkRunResult:
         "gamma_abs": report.errors["gamma_abs"],
         "grid_levels": len(report.convergence_table()),
     }
-    invariants = {
-        name: bool(report.no_arbitrage[name])
-        for name in case.invariants
-        if name in report.no_arbitrage
-    }
+    invariants = _reported_invariants(case.invariants, report.no_arbitrage)
     invariants.update(_tolerance_invariants(case, metrics))
     passed = all(invariants.values())
     return BenchmarkRunResult(
@@ -831,21 +835,23 @@ def _black_scholes_qps_contract_result(case: BenchmarkCase) -> BenchmarkRunResul
     problem = payload["problem_spec"]
     result = payload["result_export"]
     typed_boundary = result["boundary"]["typed"]
+    metrics: dict[str, float | bool | int | str] = {
+        "price_abs": report.final_abs_error,
+        "grid_levels": len(report.convergence_table()),
+        "typed_boundary_count": len(typed_boundary),
+    }
     invariants = {
         "schema_version": problem["schema_version"] == "quant-problem-spec/v0",
         "problem_hash": bool(problem["problem_hash"]),
         "typed_boundary": all("boundary_type" in item for item in typed_boundary),
         "calendar_time_orientation": result["time_axis"]["direction"] == "decreasing",
     }
-    passed = report.converged and all(invariants.values())
+    invariants.update(_tolerance_invariants(case, metrics))
+    passed = all(invariants.values())
     return BenchmarkRunResult(
         benchmark_id=case.benchmark_id,
         passed=passed,
-        metrics={
-            "price_abs": report.final_abs_error,
-            "grid_levels": len(report.convergence_table()),
-            "typed_boundary_count": len(typed_boundary),
-        },
+        metrics=metrics,
         evidence=report.evidence.as_dict(),
         invariants=invariants,
     )
