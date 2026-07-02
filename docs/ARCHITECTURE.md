@@ -338,6 +338,8 @@ Issue #80 adds the public-synthetic Black-Scholes call parity fixture in `src/va
 
 Issue #76 extends the adapter tests to consume the same public-synthetic `QuantProblemSpec` vanilla-call JSON fixture validated by `haircut-engine` #91. The fixture is vendored under `tests/fixtures/quant_problem_specs/` as a data contract, not as a Python import, and the adapter must preserve schema version, measure, numeraire, units, valuation/vintage timing, boundary details, and requested outputs before route support is claimed.
 
+Issue #59 adds the transitional `src.integrations.haircut_backend` factory as the current executable Haircut backend seam. The adapter exposes backend identity, a serializable capability manifest, pre-solve route screening, explicit unsupported-route diagnostics, and an executable public-synthetic Black-Scholes evidence bundle using `BS-CALL-PARITY-V0` and `QPS-VANILLA-CALL-V0`. It deliberately refuses supported-looking private or unknown payloads unless they cite a validated executable fixture, so no coefficients, boundaries, grids, or fallback routes are fabricated. Until #51/#52 publish the final package namespace, the documented entry-point target remains `src.integrations.haircut_backend:create_backend`; the future wheel entry point will move to `finite_difference_options.integrations.haircut_backend:create_backend` without changing the adapter contract.
+
 ## 17. Canonical implementation consolidation
 
 For every duplicated capability, choose one canonical path based on correctness evidence, API clarity and maintainability. The other path becomes:

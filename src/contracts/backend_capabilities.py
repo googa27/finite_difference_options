@@ -34,6 +34,7 @@ class UnsupportedReason(str, Enum):
     UNSUPPORTED_OUTPUT = "unsupported_output"
     UNSUPPORTED_STABILITY_CONTROL = "unsupported_stability_control"
     UNSUPPORTED_BACKEND = "unsupported_backend"
+    UNSUPPORTED_BENCHMARK = "unsupported_benchmark"
     MISSING_CONVENTION = "missing_convention"
 
 
@@ -120,63 +121,105 @@ class FDRouteRequest:
         domain = _mapping(math.get("domain"))
         boundary_details = _mapping(math.get("boundary_conditions"))
 
-        dimension = int(
+        dimension = _coerce_dimension(
             _first_present(
                 math,
                 ("dimension", "dimensions", "state_dimension"),
                 default=_state_dimension(math.get("state_variables")),
             )
         )
-        grid_type = str(_first_present(solver, ("grid_type", "grid", "grid_family"), default="uniform"))
-        exercise_style = str(_first_present(math, ("exercise_style", "exercise"), default="european"))
+        grid_type = str(
+            _first_present(
+                solver, ("grid_type", "grid", "grid_family"), default="uniform"
+            )
+        )
+        exercise_style = str(
+            _first_present(math, ("exercise_style", "exercise"), default="european")
+        )
 
         return cls(
             dimension=dimension,
             grid_type=grid_type,
             pde_terms=_tuple_of_strings(
-                _first_present(math, ("pde_terms", "terms"), default=("drift", "diffusion", "reaction"))
+                _first_present(
+                    math,
+                    ("pde_terms", "terms"),
+                    default=("drift", "diffusion", "reaction"),
+                )
             ),
             boundary_conditions=_boundary_condition_classes(
-                _first_present(math, ("boundary_types", "boundaries", "boundary_conditions"), default=("dirichlet",))
+                _first_present(
+                    math,
+                    ("boundary_types", "boundaries", "boundary_conditions"),
+                    default=("dirichlet",),
+                )
             ),
             exercise_style=exercise_style,
             requested_outputs=_tuple_of_strings(
-                _first_present(solver, ("requested_outputs", "required_outputs", "outputs"), default=("value",))
+                _first_present(
+                    solver,
+                    ("requested_outputs", "required_outputs", "outputs"),
+                    default=("value",),
+                )
             ),
             stability_controls=_tuple_of_strings(
-                _first_present(solver, ("stability_controls", "stability"), default=("theta",))
+                _first_present(
+                    solver, ("stability_controls", "stability"), default=("theta",)
+                )
             ),
             measure=_optional_string(
                 _first_present(
                     context,
                     ("measure",),
-                    default=_first_present(math, ("measure_id", "measure"), default=conventions.get("measure")),
+                    default=_first_present(
+                        math,
+                        ("measure_id", "measure"),
+                        default=conventions.get("measure"),
+                    ),
                 )
             ),
             numeraire=_optional_string(
                 _first_present(
                     context,
                     ("numeraire",),
-                    default=_first_present(math, ("numeraire_id", "numeraire"), default=conventions.get("numeraire")),
+                    default=_first_present(
+                        math,
+                        ("numeraire_id", "numeraire"),
+                        default=conventions.get("numeraire"),
+                    ),
                 )
             ),
             units=_mapping(
                 _first_present(
                     context,
                     ("units",),
-                    default=_first_present(math, ("units",), default=conventions.get("units", {})),
+                    default=_first_present(
+                        math, ("units",), default=conventions.get("units", {})
+                    ),
                 )
             ),
-            boundary_details={str(key): str(value) for key, value in boundary_details.items()},
+            boundary_details={
+                str(key): str(value) for key, value in boundary_details.items()
+            },
             valuation_date=_optional_string(
-                _first_present(context, ("valuation_date", "as_of_date"), default=vintage.get("valuation_date"))
+                _first_present(
+                    context,
+                    ("valuation_date", "as_of_date"),
+                    default=vintage.get("valuation_date"),
+                )
             ),
             maturity_date=_optional_string(
-                _first_present(context, ("maturity_date",), default=vintage.get("maturity_date"))
+                _first_present(
+                    context, ("maturity_date",), default=vintage.get("maturity_date")
+                )
             ),
-            time_domain=_optional_string(_first_present(context, ("time_domain",), default=domain.get("t"))),
+            time_domain=_optional_string(
+                _first_present(context, ("time_domain",), default=domain.get("t"))
+            ),
             source_schema_version=_optional_string(payload.get("schema_version")),
-            backend_id=_optional_string(_first_present(solver, ("backend_id", "backend"), default=None)),
+            backend_id=_optional_string(
+                _first_present(solver, ("backend_id", "backend"), default=None)
+            ),
         )
 
 
@@ -190,8 +233,20 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
     boundary_conditions=("dirichlet", "neumann", "robin", "second_derivative"),
     exercise_styles=("european",),
     outputs=("value", "delta", "gamma"),
-    stability_controls=("theta", "crank_nicolson", "rannacher", "explicit_euler", "adi_psor"),
-    required_conventions=("measure", "numeraire", "units", "valuation_date", "maturity_date"),
+    stability_controls=(
+        "theta",
+        "crank_nicolson",
+        "rannacher",
+        "explicit_euler",
+        "adi_psor",
+    ),
+    required_conventions=(
+        "measure",
+        "numeraire",
+        "units",
+        "valuation_date",
+        "maturity_date",
+    ),
     diagnostics=(
         "unsupported dimension",
         "unsupported PDE term",
@@ -362,7 +417,9 @@ def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
-def _first_present(mapping: Mapping[str, Any], keys: tuple[str, ...], *, default: Any) -> Any:
+def _first_present(
+    mapping: Mapping[str, Any], keys: tuple[str, ...], *, default: Any
+) -> Any:
     for key in keys:
         if key in mapping:
             return mapping[key]
@@ -386,6 +443,23 @@ def _state_dimension(value: Any) -> int:
     return 1
 
 
+def _coerce_dimension(value: Any) -> int:
+    """Return a positive integer dimension, or -1 for fail-closed diagnostics."""
+
+    if isinstance(value, bool):
+        return -1
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        return int(text) if text.isdigit() else -1
+    if isinstance(value, Iterable) and not isinstance(value, Mapping):
+        return _state_dimension(value)
+    return -1
+
+
 def _boundary_condition_classes(value: Any) -> tuple[str, ...]:
     """Normalize public schema boundary formulas to FD capability classes."""
 
@@ -406,7 +480,9 @@ def _boundary_condition_classes(value: Any) -> tuple[str, ...]:
             boundary_class = "neumann"
         elif "neumann" in text:
             boundary_class = "neumann"
-        elif "dirichlet" in text or "absorbing" in text or text.strip() in {"0", "zero"}:
+        elif (
+            "dirichlet" in text or "absorbing" in text or text.strip() in {"0", "zero"}
+        ):
             boundary_class = "dirichlet"
         else:
             boundary_class = text

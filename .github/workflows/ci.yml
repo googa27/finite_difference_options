@@ -48,6 +48,7 @@ jobs:
             tests/test_fd_black_scholes_parity_fixture.py \
             tests/test_finite_difference_greeks.py \
             tests/test_greeks.py \
+            tests/test_haircut_backend_adapter.py \
             tests/test_multidimensional_adapter_coefficients.py \
             tests/test_model_aware_reaction_terms.py \
             tests/test_option_pricer.py \

@@ -110,7 +110,7 @@ A single endpoint price comparison is insufficient.
 
 ### FR-FD-012 — Haircut backend plugin
 
-After package, consolidation and correctness blockers pass, publish an optional `haircut.solver_backends` entry point. The adapter exposes identity/version/maturity/capabilities, preserves conventions, rejects unsupported requests before operator work, returns complete diagnostics, uses canonical public FD APIs and imports no Haircut domain/application, PDP or delivery modules. Owner: #59.
+After package, consolidation and correctness blockers pass, publish an optional `haircut.solver_backends` entry point. The adapter exposes identity/version/maturity/capabilities, preserves conventions, rejects unsupported requests before operator work, returns complete diagnostics, uses canonical public FD APIs and imports no Haircut domain/application, PDP or delivery modules. Owner: #59. Current transitional implementation: `src.integrations.haircut_backend:create_backend` provides the same backend contract and fail-closed semantics while the final package namespace is tracked by #51/#52.
 
 ### FR-FD-013 — Canonical implementation
 
