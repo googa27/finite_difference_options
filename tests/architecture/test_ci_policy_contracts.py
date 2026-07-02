@@ -72,7 +72,8 @@ def test_issue_triage_ai_output_is_schema_validated_before_additive_label_writes
         assert "TRIAGE_LABEL_EXISTS === 'true' && labels.length > 0" in workflow
         assert "github.rest.issues.setLabels" not in workflow
         assert "Raw labels JSON" not in workflow
-        assert "protected labels that require human approval" in workflow
+        assert "protected labels that require deterministic handling" in workflow
+        assert "status/needs-triage" in workflow
 
 
 def test_issue_triage_apply_job_is_separate_from_ai_credentials() -> None:

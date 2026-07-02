@@ -115,7 +115,7 @@ jobs:
             - Include at most one entry per candidate issue and no issue outside the trusted candidate array.
             - labels_to_set may contain at most 6 labels per issue.
             - Every label must be copied exactly from the trusted allowlist.
-            - Do not choose protected labels that require human approval: priority:P0, security, type:security.
+            - Do not choose protected labels that require deterministic handling: priority:P0, security, type:security, status/needs-triage.
             - Omit issues that cannot be classified with high confidence.
 
       - name: 'Classify unavailable Gemini scheduled issue triage as advisory'

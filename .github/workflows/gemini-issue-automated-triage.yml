@@ -132,7 +132,7 @@ jobs:
             Rules:
             - labels_to_set may contain at most 6 labels.
             - Every label must be copied exactly from the trusted allowlist.
-            - Do not choose protected labels that require human approval: priority:P0, security, type:security.
+            - Do not choose protected labels that require deterministic handling: priority:P0, security, type:security, status/needs-triage.
             - If unsure, return {"labels_to_set":[],"explanation":"insufficient confidence"}.
 
       - name: 'Classify unavailable Gemini issue triage as advisory'

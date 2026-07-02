@@ -117,6 +117,17 @@ def test_high_impact_labels_require_human_approval() -> None:
         )
 
 
+def test_triage_marker_cannot_be_the_only_ai_applied_label() -> None:
+    with pytest.raises(TriageValidationError, match="protected label"):
+        validate_triage_output(
+            '{"labels_to_set":["status/needs-triage"]}',
+            mode="single",
+            allowed_labels=ALLOWED,
+            candidate_numbers={123},
+            default_issue_number=123,
+        )
+
+
 def test_output_size_limit_is_enforced() -> None:
     with pytest.raises(TriageValidationError, match="limit is 10 bytes"):
         validate_triage_output(

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
-DEFAULT_PROTECTED_LABEL_RE = r"^(priority:P0|security|type:security)$"
+DEFAULT_PROTECTED_LABEL_RE = r"^(priority:P0|security|type:security|status/needs-triage)$"
 
 
 class TriageValidationError(ValueError):
