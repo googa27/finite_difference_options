@@ -406,8 +406,8 @@ class CallableBondPDEModel(PDEModel):
             else:
                 time, price = raw
                 entry = CallScheduleEntry(time=float(time), price=float(price))
-            if entry.time < self.settlement_time or entry.time > self._maturity:
-                raise PricingError("call dates must lie between settlement and maturity")
+            if entry.time < self.settlement_time or entry.time >= self._maturity:
+                raise PricingError("call dates must lie between settlement and strictly before maturity")
             entries.append(entry)
 
         if self.call_price is not None and not entries:
@@ -550,8 +550,6 @@ class CallableBondPDEModel(PDEModel):
         values = np.empty((len(tau_grid), len(rate_grid)))
         current = self.payoff(rate_grid)
         records: list[CallableBondExerciseRecord] = []
-        if include_calls:
-            current = self._apply_calls(current, self._maturity, records)
         values[0] = current
 
         for index in range(len(tau_grid) - 1):

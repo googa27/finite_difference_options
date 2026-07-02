@@ -165,6 +165,20 @@ def test_clean_call_on_coupon_date_does_not_double_count_coupon() -> None:
     assert bond_model.last_exercise_diagnostics[0].settlement_value == 100.0
 
 
+def test_maturity_call_dates_fail_closed() -> None:
+    with pytest.raises(PricingError, match="strictly before maturity"):
+        CallableBondPDEModel(
+            face_value=100.0,
+            call_price=100.0,
+            market=Market(rate=0.04),
+            model=_short_rate_model(),
+            _maturity=1.0,
+            coupon_rate=0.06,
+            coupon_times=(1.0,),
+            call_schedule=(CallScheduleEntry(time=1.0, price=100.0),),
+        )
+
+
 def test_option_pricer_dispatches_callable_bond_price_grid() -> None:
     bond_model = _callable_bond(call_price=101.0)
     pricer = OptionPricer(instrument=bond_model)
