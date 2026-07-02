@@ -15,9 +15,7 @@ FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures" / "quant_problem_specs"
 
 
 def _vanilla_payload() -> dict[str, object]:
-    payload = json.loads(
-        (FIXTURE_DIR / "vanilla_call.json").read_text(encoding="utf-8")
-    )
+    payload = json.loads((FIXTURE_DIR / "vanilla_call.json").read_text(encoding="utf-8"))
     assert isinstance(payload, dict)
     return payload
 
@@ -100,15 +98,12 @@ def test_haircut_backend_screen_fails_closed_for_malformed_dimension() -> None:
 
     assert not result.supported
     assert any(
-        diagnostic["field"] == "dimension"
-        and diagnostic["reason"] == "unsupported_dimension"
+        diagnostic["field"] == "dimension" and diagnostic["reason"] == "unsupported_dimension"
         for diagnostic in result.diagnostics
     )
 
 
-def test_haircut_backend_screen_rejects_supported_route_without_executable_fixture() -> (
-    None
-):
+def test_haircut_backend_screen_rejects_supported_route_without_executable_fixture() -> None:
     backend = create_backend()
     payload = _vanilla_payload()
     payload["problem_id"] = "external-private-supported-looking-problem"
@@ -129,6 +124,8 @@ def test_haircut_backend_screen_rejects_supported_route_without_executable_fixtu
             "value": "PRIVATE-BENCHMARK-V0",
             "supported": (
                 "BS-FD-ORACLE-V0",
+                "PINARES-FD-FIXED-PRICE-PROXY-V0",
+                "PINARES-QPS-FIXED-PRICE-PROXY-V0",
                 "QPS-BS-CALL-PUBLIC-V0",
             ),
             "message": (
@@ -156,26 +153,16 @@ def test_haircut_backend_results_are_json_serializable() -> None:
 
 
 def test_haircut_backend_module_keeps_validation_runners_lazy() -> None:
-    source = pathlib.Path(
-        "src/finite_difference_options/integrations/haircut_backend.py"
-    ).read_text(encoding="utf-8")
+    source = pathlib.Path("src/finite_difference_options/integrations/haircut_backend.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
-    top_level_imports = [
-        node
-        for node in tree.body
-        if isinstance(node, ast.ImportFrom) and node.module is not None
-    ]
+    top_level_imports = [node for node in tree.body if isinstance(node, ast.ImportFrom) and node.module is not None]
 
     assert not [
-        node.module
-        for node in top_level_imports
-        if node.module.startswith("finite_difference_options.validation")
+        node.module for node in top_level_imports if node.module.startswith("finite_difference_options.validation")
     ]
 
 
-def test_haircut_backend_solve_executes_only_validated_public_synthetic_fixture() -> (
-    None
-):
+def test_haircut_backend_solve_executes_only_validated_public_synthetic_fixture() -> None:
     backend = create_backend()
 
     result = backend.solve(_executable_payload())
@@ -183,9 +170,7 @@ def test_haircut_backend_solve_executes_only_validated_public_synthetic_fixture(
     assert result.passed
     assert result.problem_id == "public-synthetic.black-scholes-call.v0"
     assert result.benchmark_ids == ("BS-CALL-PARITY-V0", "QPS-VANILLA-CALL-V0")
-    assert result.values["price"] == pytest.approx(
-        result.values["oracle_price"], abs=1.0e-2
-    )
+    assert result.values["price"] == pytest.approx(result.values["oracle_price"], abs=1.0e-2)
     assert result.diagnostics["fallbacks"] == ()
     assert result.evidence["privacy_class"] == "public_synthetic"
     assert result.evidence["valuation_date"] == result.request["valuation_date"]
@@ -204,9 +189,7 @@ def test_haircut_backend_rejects_public_benchmark_on_private_payload() -> None:
     assert not screen.supported
     assert screen.diagnostics[0]["reason"] == "unsupported_benchmark"
 
-    with pytest.raises(
-        UnsupportedRouteError, match="validated public-synthetic executable benchmark"
-    ):
+    with pytest.raises(UnsupportedRouteError, match="validated public-synthetic executable benchmark"):
         backend.solve(payload)
 
 
@@ -219,9 +202,7 @@ def test_haircut_backend_rejects_private_payload_even_with_public_fixture_ids() 
     assert not screen.supported
     assert screen.diagnostics[0]["reason"] == "unsupported_benchmark"
 
-    with pytest.raises(
-        UnsupportedRouteError, match="validated public-synthetic executable benchmark"
-    ):
+    with pytest.raises(UnsupportedRouteError, match="validated public-synthetic executable benchmark"):
         backend.solve(payload)
 
 
@@ -238,15 +219,11 @@ def test_haircut_backend_rejects_mutated_public_fixture_fields() -> None:
     assert not screen.supported
     assert screen.diagnostics[0]["reason"] == "unsupported_benchmark"
 
-    with pytest.raises(
-        UnsupportedRouteError, match="validated public-synthetic executable benchmark"
-    ):
+    with pytest.raises(UnsupportedRouteError, match="validated public-synthetic executable benchmark"):
         backend.solve(payload)
 
 
-def test_haircut_backend_solve_rejects_supported_screen_without_executable_fixture() -> (
-    None
-):
+def test_haircut_backend_solve_rejects_supported_screen_without_executable_fixture() -> None:
     backend = create_backend()
     payload = _vanilla_payload()
     payload["problem_id"] = "external-private-supported-looking-problem"
@@ -259,7 +236,5 @@ def test_haircut_backend_solve_rejects_supported_screen_without_executable_fixtu
     payload["result_bundle"] = {"benchmark_ids": ["PRIVATE-BENCHMARK-V0"]}
     payload["financial_graph"] = {}
 
-    with pytest.raises(
-        UnsupportedRouteError, match="validated public-synthetic executable benchmark"
-    ):
+    with pytest.raises(UnsupportedRouteError, match="validated public-synthetic executable benchmark"):
         backend.solve(payload)
