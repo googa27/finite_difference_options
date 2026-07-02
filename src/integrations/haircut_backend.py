@@ -29,13 +29,11 @@ AdapterStatus = Literal["supported", "unsupported"]
 SolveStatus = Literal["passed", "failed"]
 
 _EXECUTABLE_PUBLIC_BENCHMARKS = {
-    "black-scholes-call-001",
-    "BS-CALL-PARITY-V0",
-    "QPS-VANILLA-CALL-V0",
+    "BS-FD-ORACLE-V0",
+    "QPS-BS-CALL-PUBLIC-V0",
 }
 _EXECUTED_REGISTRY_BENCHMARKS = ("BS-CALL-PARITY-V0", "QPS-VANILLA-CALL-V0")
 _PUBLIC_SYNTHETIC_PROBLEM_IDS = {
-    "public-synthetic-vanilla-call-v0",
     "public-synthetic.black-scholes-call.v0",
 }
 
@@ -281,10 +279,11 @@ def _diagnostic_as_dict(diagnostic: UnsupportedRouteDiagnostic) -> dict[str, Any
 
 def _benchmark_ids(payload: Mapping[str, Any]) -> tuple[str, ...]:
     ids: list[str] = []
-    for section_name in ("solver_plan", "result_bundle"):
+    for section_name in ("artifact_manifest", "solver_plan", "result_bundle"):
         section = payload.get(section_name)
         if isinstance(section, Mapping):
             ids.extend(str(item) for item in _tuple(section.get("benchmark_ids")))
+    ids.extend(str(item) for item in _tuple(payload.get("benchmark_ids")))
     financial_graph = payload.get("financial_graph")
     if isinstance(financial_graph, Mapping):
         valuation_graph = financial_graph.get("valuation_graph")
@@ -310,36 +309,29 @@ def _is_executable_public_synthetic_payload(
 
 
 def _matches_public_vanilla_call_fixture(payload: Mapping[str, Any]) -> bool:
-    math = _mapping_value(payload.get("mathematical_problem"))
-    metadata = _mapping_value(payload.get("metadata"))
-    financial_graph = _mapping_value(payload.get("financial_graph"))
-    valuation_graph = _mapping_value(financial_graph.get("valuation_graph"))
-    solver = _mapping_value(payload.get("solver_plan"))
-    boundaries = _mapping_value(math.get("boundary_conditions"))
-    domain = _mapping_value(math.get("domain"))
+    from src.validation.black_scholes_parity import public_black_scholes_problem_spec
 
-    return (
-        payload.get("schema_version") == "quant-problem-spec/v0"
-        and payload.get("family") == "vanilla_option"
-        and metadata.get("fixture_kind") == "public_synthetic"
-        and valuation_graph.get("graph_id") == "public-synthetic-vanilla-call-graph-v0"
-        and tuple(str(item) for item in _tuple(math.get("state_variables"))) == ("S",)
-        and math.get("operator")
-        == "Black-Scholes parabolic PDE with constant volatility"
-        and math.get("terminal_condition") == "max(S-K,0)"
-        and math.get("measure_id") == "risk_neutral_money_market"
-        and math.get("numeraire_id") == "money_market_account_CLP"
-        and domain.get("S") == "[0, 400]"
-        and domain.get("t") == "[0, 1]"
-        and boundaries.get("S=0") == "0"
-        and boundaries.get("S=S_max") == "linear growth"
-        and tuple(str(item) for item in _tuple(solver.get("required_outputs")))
-        == ("value", "delta", "gamma")
-    )
+    expected = _canonical_fixture_shape(public_black_scholes_problem_spec())
+    actual = _canonical_fixture_shape(payload)
+    return actual == expected
 
 
-def _mapping_value(value: Any) -> Mapping[str, Any]:
-    return value if isinstance(value, Mapping) else {}
+def _canonical_fixture_shape(payload: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        key: payload.get(key)
+        for key in (
+            "schema_version",
+            "artifact_manifest",
+            "problem_id",
+            "problem_hash",
+            "valuation_context",
+            "mathematical_problem",
+            "solver_plan",
+            "financial_graph",
+            "result_bundle",
+            "benchmark_ids",
+        )
+    }
 
 
 def _tuple(value: Any) -> tuple[Any, ...]:

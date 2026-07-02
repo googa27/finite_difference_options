@@ -22,6 +22,14 @@ def _vanilla_payload() -> dict[str, object]:
     return payload
 
 
+def _executable_payload() -> dict[str, object]:
+    from src.validation.black_scholes_parity import public_black_scholes_problem_spec
+
+    payload = public_black_scholes_problem_spec()
+    payload["privacy_class"] = "public_synthetic"
+    return payload
+
+
 def _section(payload: dict[str, object], name: str) -> dict[str, object]:
     section = payload[name]
     assert isinstance(section, dict)
@@ -45,15 +53,15 @@ def test_haircut_backend_identity_and_manifest_are_lightweight() -> None:
 
 def test_haircut_backend_screen_preserves_quant_problem_spec_without_solving() -> None:
     backend = create_backend()
-    result = backend.screen(_vanilla_payload())
+    result = backend.screen(_executable_payload())
 
     assert result.supported
     assert result.diagnostics == ()
     assert result.request["source_schema_version"] == "quant-problem-spec/v0"
-    assert result.request["measure"] == "risk_neutral_money_market"
-    assert result.request["numeraire"] == "money_market_account_CLP"
-    assert result.request["units"]["S"] == "CLP"
-    assert result.request["valuation_date"] == "2026-06-30"
+    assert result.request["measure"] == "risk_neutral"
+    assert result.request["numeraire"] == "money_market_account"
+    assert result.request["units"]["underlying"] == "synthetic_currency"
+    assert result.request["valuation_date"] == "2026-01-02"
     assert result.request["requested_outputs"] == ("value", "delta", "gamma")
 
 
@@ -118,9 +126,8 @@ def test_haircut_backend_screen_rejects_supported_route_without_executable_fixtu
             "field": "benchmark_ids",
             "value": "PRIVATE-BENCHMARK-V0",
             "supported": (
-                "BS-CALL-PARITY-V0",
-                "QPS-VANILLA-CALL-V0",
-                "black-scholes-call-001",
+                "BS-FD-ORACLE-V0",
+                "QPS-BS-CALL-PUBLIC-V0",
             ),
             "message": (
                 "FD backend adapter currently executes only registered public-synthetic "
@@ -132,8 +139,8 @@ def test_haircut_backend_screen_rejects_supported_route_without_executable_fixtu
 
 def test_haircut_backend_results_are_json_serializable() -> None:
     backend = create_backend()
-    screen = backend.screen(_vanilla_payload())
-    solved = backend.solve(_vanilla_payload())
+    screen = backend.screen(_executable_payload())
+    solved = backend.solve(_executable_payload())
 
     screen_payload = json.loads(json.dumps(screen.as_dict()))
     solve_payload = json.loads(json.dumps(solved.as_dict()))
@@ -141,7 +148,8 @@ def test_haircut_backend_results_are_json_serializable() -> None:
     assert screen_payload["status"] == "supported"
     assert solve_payload["status"] == "passed"
     assert solve_payload["diagnostics"]["requested_benchmark_ids"] == [
-        "black-scholes-call-001"
+        "BS-FD-ORACLE-V0",
+        "QPS-BS-CALL-PUBLIC-V0",
     ]
 
 
@@ -168,22 +176,25 @@ def test_haircut_backend_solve_executes_only_validated_public_synthetic_fixture(
 ):
     backend = create_backend()
 
-    result = backend.solve(_vanilla_payload())
+    result = backend.solve(_executable_payload())
 
     assert result.passed
-    assert result.problem_id == "public-synthetic-vanilla-call-v0"
+    assert result.problem_id == "public-synthetic.black-scholes-call.v0"
     assert result.benchmark_ids == ("BS-CALL-PARITY-V0", "QPS-VANILLA-CALL-V0")
     assert result.values["price"] == pytest.approx(
         result.values["oracle_price"], abs=1.0e-2
     )
     assert result.diagnostics["fallbacks"] == ()
     assert result.evidence["privacy_class"] == "public_synthetic"
-    assert result.request["boundary_conditions"] == ("dirichlet", "neumann")
+    assert result.evidence["valuation_date"] == result.request["valuation_date"]
+    assert result.evidence["numeraire"] == result.request["numeraire"]
+    assert result.evidence["units"] == result.request["units"]
+    assert result.request["boundary_conditions"] == ("dirichlet",)
 
 
 def test_haircut_backend_rejects_public_benchmark_on_private_payload() -> None:
     backend = create_backend()
-    payload = _vanilla_payload()
+    payload = _executable_payload()
     payload["problem_id"] = "external-private-supported-looking-problem"
     payload["privacy_class"] = "private"
 
@@ -199,7 +210,7 @@ def test_haircut_backend_rejects_public_benchmark_on_private_payload() -> None:
 
 def test_haircut_backend_rejects_private_payload_even_with_public_fixture_ids() -> None:
     backend = create_backend()
-    payload = _vanilla_payload()
+    payload = _executable_payload()
     payload["privacy_class"] = "private"
 
     screen = backend.screen(payload)
@@ -214,7 +225,7 @@ def test_haircut_backend_rejects_private_payload_even_with_public_fixture_ids() 
 
 def test_haircut_backend_rejects_mutated_public_fixture_fields() -> None:
     backend = create_backend()
-    payload = _vanilla_payload()
+    payload = _executable_payload()
     math_section = _section(payload, "mathematical_problem")
     payload["mathematical_problem"] = {
         **math_section,
