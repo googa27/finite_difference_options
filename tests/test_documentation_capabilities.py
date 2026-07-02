@@ -1,12 +1,20 @@
 """Documentation maturity and README example safety tests."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import numpy as np
 
-from src.processes.affine import create_black_scholes_process, create_standard_heston
-from src.pricing import create_log_grid, create_unified_european_call, create_unified_pricing_engine
+from finite_difference_options.processes.affine import (
+    create_black_scholes_process,
+    create_standard_heston,
+)
+from finite_difference_options.pricing import (
+    create_log_grid,
+    create_unified_european_call,
+    create_unified_pricing_engine,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
@@ -17,7 +25,9 @@ def test_readme_has_live_links_and_no_placeholder_badges() -> None:
     text = README.read_text(encoding="utf-8")
 
     assert "PLACEHOLDER" not in text
-    assert "github.com/googa27/finite_difference_options/actions/workflows/ci.yml" in text
+    assert (
+        "github.com/googa27/finite_difference_options/actions/workflows/ci.yml" in text
+    )
     assert "docs/CAPABILITY_MATRIX.md" in text
 
 
@@ -72,12 +82,14 @@ def test_readme_black_scholes_quickstart_executes() -> None:
 def test_readme_heston_example_is_not_a_basket_proxy() -> None:
     text = README.read_text(encoding="utf-8")
 
-    heston_section = text.split("### Heston stochastic-volatility smoke example", maxsplit=1)[1].split(
-        "### Unsupported basket payoff route", maxsplit=1
-    )[0]
+    heston_section = text.split(
+        "### Heston stochastic-volatility smoke example", maxsplit=1
+    )[1].split("### Unsupported basket payoff route", maxsplit=1)[0]
     assert "create_unified_basket_call" not in heston_section
 
-    process = create_standard_heston(r=0.03, kappa=1.8, theta=0.05, sigma=0.35, rho=-0.35)
+    process = create_standard_heston(
+        r=0.03, kappa=1.8, theta=0.05, sigma=0.35, rho=-0.35
+    )
     option = create_unified_european_call(strike=100.0, maturity=0.25)
     engine = create_unified_pricing_engine(process)
     spot_grid = create_log_grid(40.0, 220.0, 17, center=100.0)

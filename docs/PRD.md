@@ -58,7 +58,7 @@ Capabilities are `production`, `validated`, `experimental`, `scaffold`, `depreca
 
 ### FR-FD-001 — Installable package
 
-Define complete PEP 621 project/build metadata and a real `finite_difference_options` package under `src/`. Built wheels must work outside the repository. The public API cannot use the literal package `src`, mixed `src.*` imports, path injection or requirements files as its only runtime metadata. Owners: #51 and #52.
+Define complete PEP 621 project/build metadata and a real `finite_difference_options` package under `src/`. Built wheels must work outside the repository. The public API cannot use the literal package `src`, mixed `finite_difference_options.*` imports, path injection or requirements files as its only runtime metadata. Owners: #51 and #52.
 
 ### FR-FD-002 — Explicit PDE contracts
 
@@ -110,7 +110,7 @@ A single endpoint price comparison is insufficient.
 
 ### FR-FD-012 — Haircut backend plugin
 
-After package, consolidation and correctness blockers pass, publish an optional `haircut.solver_backends` entry point. The adapter exposes identity/version/maturity/capabilities, preserves conventions, rejects unsupported requests before operator work, returns complete diagnostics, uses canonical public FD APIs and imports no Haircut domain/application, PDP or delivery modules. Owner: #59. Current transitional implementation: `src.integrations.haircut_backend:create_backend` provides the same backend contract and fail-closed semantics while the final package namespace is tracked by #51/#52.
+After package, consolidation and correctness blockers pass, publish an optional `haircut_engine.solver_backends` entry point. The adapter exposes identity/version/maturity/capabilities, preserves conventions, rejects unsupported requests before operator work, returns complete diagnostics, uses canonical public FD APIs and imports no Haircut domain/application, PDP or delivery modules. Owner: #59. Current wheel entry point: `finite_difference_options=finite_difference_options.integrations.haircut_backend:create_backend`.
 
 ### FR-FD-013 — Canonical implementation
 

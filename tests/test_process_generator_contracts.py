@@ -1,12 +1,13 @@
 """Executable process-generator contract tests for issue #44."""
+
 from __future__ import annotations
 
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from src.exceptions import ValidationError
-from src.processes import (
+from finite_difference_options.exceptions import ValidationError
+from finite_difference_options.processes import (
     AffineProcess,
     ProcessDimension,
     GeometricBrownianMotion,
@@ -15,7 +16,7 @@ from src.processes import (
     CoxIngersollRoss,
     ConstantElasticityVariance,
 )
-from src.processes.base import AffineCovarianceForm, ProcessType
+from finite_difference_options.processes.base import AffineCovarianceForm, ProcessType
 
 
 class TwoFactorLinearCovarianceProcess(AffineProcess):
@@ -37,6 +38,7 @@ class TwoFactorLinearCovarianceProcess(AffineProcess):
             ]
         )
         return a0, a_linear
+
 
 class NonPSDAffineProcess(TwoFactorLinearCovarianceProcess):
     """Process with explicit non-PSD covariance for negative tests."""
@@ -70,7 +72,9 @@ def test_affine_covariance_tensor_evaluates_a0_plus_sum_xk_ak_exactly() -> None:
     states = np.array([[1.0, 2.0], [3.0, 4.0]])
     a0, a_linear = process.affine_covariance_coefficients()
 
-    expected = np.stack([a0 + states[i, 0] * a_linear[0] + states[i, 1] * a_linear[1] for i in range(2)])
+    expected = np.stack(
+        [a0 + states[i, 0] * a_linear[0] + states[i, 1] * a_linear[1] for i in range(2)]
+    )
 
     form = process.affine_covariance_form()
     assert isinstance(form, AffineCovarianceForm)
@@ -149,7 +153,10 @@ def test_generator_application_matches_analytical_one_factor_processes() -> None
             gradient=gradient,
             hessian=hessian,
         )
-        expected = coefficients.covariance[:, 0, 0] + 2.0 * states[:, 0] * coefficients.drift[:, 0]
+        expected = (
+            coefficients.covariance[:, 0, 0]
+            + 2.0 * states[:, 0] * coefficients.drift[:, 0]
+        )
         assert_allclose(actual, expected)
 
 

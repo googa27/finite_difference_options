@@ -1,4 +1,5 @@
 """Factor-role and payoff compatibility tests for FDO issues #45/#62."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -6,22 +7,28 @@ import pytest
 from numpy.testing import assert_allclose
 import importlib
 
-from src.exceptions import ValidationError
-from src.pricing import (
+from finite_difference_options.exceptions import ValidationError
+from finite_difference_options.pricing import (
     create_linear_grid,
     create_log_grid,
     create_spread_call,
     create_unified_european_call,
     create_unified_pricing_engine,
 )
-from src.pricing.instruments.options import (
+from finite_difference_options.pricing.instruments.options import (
     create_unified_basket_call,
 )
-from src.processes import create_black_scholes_process, create_cir_process, create_sabr_model, create_standard_heston
+from finite_difference_options.processes import (
+    create_black_scholes_process,
+    create_cir_process,
+    create_sabr_model,
+    create_standard_heston,
+)
 
-
-process_base = importlib.import_module("src.processes.base")
-options_module = importlib.import_module("src.pricing.instruments.options")
+process_base = importlib.import_module("finite_difference_options.processes.base")
+options_module = importlib.import_module(
+    "finite_difference_options.pricing.instruments.options"
+)
 
 
 def test_heston_factor_metadata_identifies_spot_and_variance() -> None:
@@ -45,9 +52,16 @@ def test_heston_factor_metadata_identifies_spot_and_variance() -> None:
 def test_process_factor_roles_distinguish_spots_rates_and_volatility() -> None:
     factor_role = process_base.FactorRole
 
-    gbm_roles = [factor.role for factor in create_black_scholes_process(0.05, 0.2).factor_metadata()]
-    cir_roles = [factor.role for factor in create_cir_process(2.0, 0.04, 0.2).factor_metadata()]
-    sabr_roles = [factor.role for factor in create_sabr_model(0.3, 0.7, -0.2).factor_metadata()]
+    gbm_roles = [
+        factor.role
+        for factor in create_black_scholes_process(0.05, 0.2).factor_metadata()
+    ]
+    cir_roles = [
+        factor.role for factor in create_cir_process(2.0, 0.04, 0.2).factor_metadata()
+    ]
+    sabr_roles = [
+        factor.role for factor in create_sabr_model(0.3, 0.7, -0.2).factor_metadata()
+    ]
 
     assert gbm_roles == [factor_role.TRADABLE_SPOT]
     assert cir_roles == [factor_role.SHORT_RATE]
@@ -135,7 +149,9 @@ def test_standard_basket_one_leg_broadcasts_over_heston_variance() -> None:
     process = create_standard_heston()
     engine = create_unified_pricing_engine(process)
     create_standard_basket_call = options_module.create_standard_basket_call
-    option = create_standard_basket_call(strike=100.0, weights=np.array([1.0]), maturity=0.25)
+    option = create_standard_basket_call(
+        strike=100.0, weights=np.array([1.0]), maturity=0.25
+    )
     spot_grid = create_log_grid(80.0, 120.0, 7, center=100.0)
     x_grid = np.log(spot_grid)
     v_grid = create_linear_grid(0.01, 0.25, 5)
@@ -189,8 +205,14 @@ def test_spread_option_has_separate_identity_and_non_normalized_coefficients() -
         ({"strike": 100.0, "weights": np.array([1.0]), "maturity": np.nan}, "finite"),
         ({"strike": 100.0, "weights": np.array([1.0]), "maturity": np.inf}, "finite"),
         ({"strike": 100.0, "weights": np.array([]), "maturity": 1.0}, "nonempty"),
-        ({"strike": 100.0, "weights": np.array([0.5, np.nan]), "maturity": 1.0}, "finite"),
-        ({"strike": 100.0, "weights": np.array([[0.5, 0.5]]), "maturity": 1.0}, "one-dimensional"),
+        (
+            {"strike": 100.0, "weights": np.array([0.5, np.nan]), "maturity": 1.0},
+            "finite",
+        ),
+        (
+            {"strike": 100.0, "weights": np.array([[0.5, 0.5]]), "maturity": 1.0},
+            "one-dimensional",
+        ),
         ({"strike": 100.0, "weights": np.array([0.5, 0.25]), "maturity": 1.0}, "sum"),
         (
             {
@@ -203,12 +225,19 @@ def test_spread_option_has_separate_identity_and_non_normalized_coefficients() -
             "cross-currency",
         ),
         (
-            {"strike": 100.0, "weights": np.array([0.5, 0.5]), "maturity": 1.0, "asset_ids": ("a",)},
+            {
+                "strike": 100.0,
+                "weights": np.array([0.5, 0.5]),
+                "maturity": 1.0,
+                "asset_ids": ("a",),
+            },
             "asset_ids",
         ),
     ],
 )
-def test_standard_basket_validation_fails_before_payoff_allocation(kwargs: dict, match: str) -> None:
+def test_standard_basket_validation_fails_before_payoff_allocation(
+    kwargs: dict, match: str
+) -> None:
     assert hasattr(options_module, "StandardBasketOption")
     standard_basket_option = options_module.StandardBasketOption
 

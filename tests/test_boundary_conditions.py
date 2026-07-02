@@ -7,16 +7,18 @@ import pathlib
 import sys
 from types import SimpleNamespace
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from src.boundary_conditions import BlackScholesBoundaryBuilder, HestonBoundaryBuilder
-from src.exceptions import BoundaryConditionError
-from src.instruments.base import EuropeanCall, EuropeanPut
-from src.processes.affine import GeometricBrownianMotion
+from finite_difference_options.boundary_conditions import (
+    BlackScholesBoundaryBuilder,
+    HestonBoundaryBuilder,
+)
+from finite_difference_options.exceptions import BoundaryConditionError
+from finite_difference_options.instruments.base import EuropeanCall, EuropeanPut
+from finite_difference_options.processes.affine import GeometricBrownianMotion
 
 
 def _rhs_values(boundary_conditions):

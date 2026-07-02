@@ -1,16 +1,15 @@
 """Tests for OptionPricer.compute_grid."""
+
 import pathlib
 import sys
 
-# Ensure project root on path
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 from scipy.stats import norm
 
-from src.pricing import OptionPricer
-from src.processes.affine import GeometricBrownianMotion
-from src.instruments.base import EuropeanCall
+from finite_difference_options.pricing import OptionPricer
+from finite_difference_options.processes.affine import GeometricBrownianMotion
+from finite_difference_options.instruments.base import EuropeanCall
 
 
 def bs_call_price(s: float, k: float, r: float, sigma: float, T: float) -> float:

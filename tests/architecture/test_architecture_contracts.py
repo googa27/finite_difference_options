@@ -1,11 +1,4 @@
-"""Executable architecture gates for the FD backend transition.
-
-These checks intentionally ratchet the current transitional layout instead of
-pretending the target ``finite_difference_options`` namespace already exists.
-They implement the M0 gate from issue #60: architecture documentation exists,
-new package growth is visible, and numerical core code cannot start depending
-on app/UI/visualization stacks while the package migration proceeds.
-"""
+"""Executable architecture gates for the installable FD package topology."""
 
 from __future__ import annotations
 
@@ -20,14 +13,15 @@ pytestmark = pytest.mark.architecture
 
 ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = ROOT / "src"
+PACKAGE_ROOT = SRC_ROOT / "finite_difference_options"
 ARCHITECTURE_DOC = ROOT / "docs" / "ARCHITECTURE.md"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+DISTRIBUTION_PACKAGE = "finite_difference_options"
 
-# Transitional top-level packages present before the PEP 621/package-namespace
-# migration in #51/#52. Adding a new one is an architecture event and must be
-# reflected in docs/ARCHITECTURE.md before code lands.
-TRANSITIONAL_SRC_PACKAGES = {
+EXPECTED_PACKAGE_BOUNDARIES = {
+    "api",
     "boundary_conditions",
+    "cli",
     "contracts",
     "exceptions",
     "greeks",
@@ -82,7 +76,6 @@ REQUIRED_ARCHITECTURE_PHRASES = {
     "Architecture fitness gates",
     "No module imports the distribution as `src`",
     "No new root package under `src/`",
-    "deptry",
     "haircut-engine",
 }
 
@@ -147,97 +140,102 @@ def _imports(path: Path) -> set[str]:
     return _imports_from_tree(tree, path)
 
 
-def _without_src_prefix(import_name: str) -> str:
-    return import_name.removeprefix("src.")
+def _without_distribution_prefix(import_name: str) -> str:
+    if import_name == DISTRIBUTION_PACKAGE:
+        return import_name
+    return import_name.removeprefix(f"{DISTRIBUTION_PACKAGE}.")
 
 
 def _is_forbidden_core_import(import_name: str) -> bool:
-    if import_name == "src":
+    if import_name == "src" or import_name.startswith("src."):
         return True
 
     top_level = import_name.split(".")[0]
     if top_level in FORBIDDEN_EXTERNAL_STACKS:
         return True
 
-    normalized = _without_src_prefix(import_name)
+    normalized = _without_distribution_prefix(import_name)
     return any(
         normalized == package or normalized.startswith(f"{package}.")
         for package in FORBIDDEN_INTERNAL_APP_PACKAGES
     )
 
 
-def test_architecture_document_exists_and_covers_required_transition_rules() -> None:
+def test_architecture_document_exists_and_covers_required_package_rules() -> None:
     assert (
         ARCHITECTURE_DOC.is_file()
-    ), "docs/ARCHITECTURE.md is the M0 architecture source of truth."
+    ), "docs/ARCHITECTURE.md is the architecture source of truth."
     text = ARCHITECTURE_DOC.read_text(encoding="utf-8")
     missing = sorted(
         phrase for phrase in REQUIRED_ARCHITECTURE_PHRASES if phrase not in text
     )
     assert (
         not missing
-    ), "docs/ARCHITECTURE.md is missing required M0 transition language: " + ", ".join(
+    ), "docs/ARCHITECTURE.md is missing required package language: " + ", ".join(
         missing
     )
 
 
-def test_current_src_packages_are_declared_transition_baseline() -> None:
+def test_current_distribution_package_boundaries_are_declared() -> None:
     actual = {
         path.name
-        for path in SRC_ROOT.iterdir()
+        for path in PACKAGE_ROOT.iterdir()
         if path.is_dir() and not path.name.startswith("__") and any(path.rglob("*.py"))
     }
-    unexpected = actual - TRANSITIONAL_SRC_PACKAGES
-    missing = TRANSITIONAL_SRC_PACKAGES - actual
+    unexpected = actual - EXPECTED_PACKAGE_BOUNDARIES
+    missing = EXPECTED_PACKAGE_BOUNDARIES - actual
     assert not unexpected, (
-        "New top-level src packages must be added to docs/ARCHITECTURE.md and the architecture "
+        "New package boundaries must be added to docs/ARCHITECTURE.md and the architecture "
         f"baseline before code lands. Unexpected packages: {sorted(unexpected)}"
     )
     assert not missing, (
-        "Removed top-level src packages must shrink docs/ARCHITECTURE.md and the architecture "
+        "Removed package boundaries must shrink docs/ARCHITECTURE.md and the architecture "
         f"baseline in the same PR. Missing packages: {sorted(missing)}"
     )
 
 
-def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
+def test_import_parser_detects_distribution_and_relative_app_imports() -> None:
     tree = ast.parse(
-        "from src import plotting\n"
-        "from src.plotting import plot_surface\n"
+        "from finite_difference_options import plotting\n"
+        "from finite_difference_options.plotting import plot_surface\n"
         "from ..plotting import Plotter\n"
-        "from api import main\n"
-        "from cli.main import app\n"
-        "from src.risk.reporting_strategies import ReportFactory\n"
+        "from finite_difference_options.api import main\n"
+        "from finite_difference_options.cli.main import app\n"
+        "from finite_difference_options.risk.reporting_strategies import ReportFactory\n"
         "import matplotlib.pyplot\n"
+        "import src.validation\n"
     )
-    imports = _imports_from_tree(tree, SRC_ROOT / "pricing" / "example.py")
+    imports = _imports_from_tree(tree, PACKAGE_ROOT / "pricing" / "example.py")
     assert {
+        "finite_difference_options",
+        "finite_difference_options.plotting",
+        "finite_difference_options.plotting.plot_surface",
+        "finite_difference_options.plotting.Plotter",
+        "finite_difference_options.api",
+        "finite_difference_options.api.main",
+        "finite_difference_options.cli.main",
+        "finite_difference_options.cli.main.app",
+        "finite_difference_options.risk.reporting_strategies",
+        "finite_difference_options.risk.reporting_strategies.ReportFactory",
+        "matplotlib.pyplot",
         "src",
-        "src.plotting",
-        "src.plotting.plot_surface",
-        "plotting",
-        "plotting.Plotter",
-        "api",
-        "api.main",
-        "cli.main",
-        "cli.main.app",
-        "src.risk.reporting_strategies",
-        "src.risk.reporting_strategies.ReportFactory",
+        "src.validation",
     } <= imports
     assert all(
         _is_forbidden_core_import(name)
         for name in [
-            "src",
-            "src.plotting",
-            "src.plotting.plot_surface",
-            "plotting",
-            "plotting.Plotter",
-            "api",
-            "api.main",
-            "cli.main",
-            "cli.main.app",
-            "src.risk.reporting_strategies",
-            "src.risk.reporting_strategies.ReportFactory",
+            "finite_difference_options.plotting",
+            "finite_difference_options.plotting.plot_surface",
+            "finite_difference_options.plotting.Plotter",
+            "finite_difference_options.api",
+            "finite_difference_options.api.main",
+            "finite_difference_options.cli.main",
+            "finite_difference_options.cli.main.app",
+            "finite_difference_options.risk.reporting_strategies",
+            "finite_difference_options.risk.reporting_strategies.ReportFactory",
             "matplotlib.pyplot",
+            "src",
+            "src.validation",
         ]
     )
 
@@ -245,7 +243,7 @@ def test_import_parser_detects_src_prefixed_and_relative_app_imports() -> None:
 def test_numerical_core_does_not_import_optional_app_or_visualization_stacks() -> None:
     violations: dict[str, list[str]] = {}
     for package in sorted(NUMERICAL_CORE_PACKAGES):
-        package_root = SRC_ROOT / package
+        package_root = PACKAGE_ROOT / package
         if not package_root.exists():
             continue
         for path in _python_files(package_root):
@@ -266,17 +264,36 @@ def test_base_package_import_surface_does_not_import_app_or_visualization_stacks
 ):
     forbidden = sorted(
         name
-        for name in _imports(SRC_ROOT / "__init__.py")
+        for name in _imports(PACKAGE_ROOT / "__init__.py")
         if _is_forbidden_core_import(name)
     )
-    assert not forbidden, (
-        "Transitional src package initializer imported app/UI/reporting stacks: "
-        + repr(forbidden)
-    )
+    assert (
+        not forbidden
+    ), "Base package initializer imported app/UI/reporting stacks: " + repr(forbidden)
 
 
-def test_ci_exposes_architecture_gate() -> None:
+def test_no_public_code_or_tests_import_historical_src_package() -> None:
+    violations: list[str] = []
+    for root in [PACKAGE_ROOT, ROOT / "tests"]:
+        for path in _python_files(root):
+            historical = sorted(
+                name
+                for name in _imports(path)
+                if name == "src" or name.startswith("src.")
+            )
+            if historical:
+                violations.append(f"{path.relative_to(ROOT)}: {historical}")
+    assert not violations, "Historical src imports remain: " + repr(violations)
+
+
+def test_ci_exposes_packaging_and_architecture_gates() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
     assert (
         "tests/architecture" in workflow
     ), "CI must run the architecture gate from tests/architecture."
+    assert (
+        "tests/test_packaging_contract.py" in workflow
+    ), "CI must run the packaging contract."
+    assert (
+        "python -m build --sdist --wheel" in workflow
+    ), "CI must build the sdist and wheel."

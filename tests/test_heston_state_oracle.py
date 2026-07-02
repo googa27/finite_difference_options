@@ -1,4 +1,5 @@
 """Executable Heston state-convention and oracle tests for FDO issue #45."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -6,11 +7,16 @@ import pytest
 from numpy.testing import assert_allclose
 from scipy.stats import norm
 
-from src.exceptions import ValidationError
-from src.pricing import create_unified_european_call, create_unified_pricing_engine
-from src.processes import create_standard_heston
-from src.validation.black_scholes_parity import black_scholes_call_oracle
-from src.validation.heston_oracle import (
+from finite_difference_options.exceptions import ValidationError
+from finite_difference_options.pricing import (
+    create_unified_european_call,
+    create_unified_pricing_engine,
+)
+from finite_difference_options.processes import create_standard_heston
+from finite_difference_options.validation.black_scholes_parity import (
+    black_scholes_call_oracle,
+)
+from finite_difference_options.validation.heston_oracle import (
     HestonOracleCase,
     heston_call_oracle,
     heston_variance_boundary_benchmark,
@@ -40,9 +46,12 @@ def _black_scholes_call_with_dividend(
 
 
 def _deterministic_heston_integrated_variance(case: HestonOracleCase) -> float:
-    return case.theta * case.maturity + (case.variance - case.theta) * (
-        1.0 - np.exp(-case.kappa * case.maturity)
-    ) / case.kappa
+    return (
+        case.theta * case.maturity
+        + (case.variance - case.theta)
+        * (1.0 - np.exp(-case.kappa * case.maturity))
+        / case.kappa
+    )
 
 
 def test_heston_log_state_coefficients_match_documented_equations() -> None:
@@ -84,7 +93,9 @@ def test_heston_payoff_receives_spot_through_explicit_log_transform() -> None:
 
     terminal = engine._build_initial_condition(option, log_spot_grid, variance_grid)
 
-    expected = np.broadcast_to(np.maximum(spot_grid - 100.0, 0.0).reshape(-1, 1), (3, 2))
+    expected = np.broadcast_to(
+        np.maximum(spot_grid - 100.0, 0.0).reshape(-1, 1), (3, 2)
+    )
     assert_allclose(terminal, expected, atol=1e-12)
     metadata = process.factor_metadata()[0]
     assert metadata.coordinate == "log_spot"
@@ -100,7 +111,9 @@ def test_heston_variance_boundary_policy_is_explicit_and_fail_closed() -> None:
     assert benchmark.min_eigenvalue_at_lower_boundary >= -1e-12
     assert benchmark.clips_interior_variance is False
 
-    with pytest.raises(ValidationError, match="variance coordinate must be non-negative"):
+    with pytest.raises(
+        ValidationError, match="variance coordinate must be non-negative"
+    ):
         process.covariance(0.0, np.array([np.log(100.0), -1e-4]))
 
 

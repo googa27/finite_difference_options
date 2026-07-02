@@ -6,9 +6,16 @@ documentation and keep the documented examples runnable.
 
 import numpy as np
 
-from src.processes.affine import create_black_scholes_process, create_standard_heston
-from src.pricing import create_log_grid, create_unified_european_call, create_unified_pricing_engine
-from src.greeks.base import GreeksCalculatorFactory
+from finite_difference_options.processes.affine import (
+    create_black_scholes_process,
+    create_standard_heston,
+)
+from finite_difference_options.pricing import (
+    create_log_grid,
+    create_unified_european_call,
+    create_unified_pricing_engine,
+)
+from finite_difference_options.greeks.base import GreeksCalculatorFactory
 
 
 def test_docstring_example_black_scholes_price_smoke() -> None:
@@ -30,7 +37,9 @@ def test_docstring_example_black_scholes_price_smoke() -> None:
 
 def test_docstring_example_heston_price_smoke() -> None:
     """Smoke test for 2D Heston pricing example."""
-    process = create_standard_heston(r=0.03, kappa=1.8, theta=0.05, sigma=0.35, rho=-0.35)
+    process = create_standard_heston(
+        r=0.03, kappa=1.8, theta=0.05, sigma=0.35, rho=-0.35
+    )
     engine = create_unified_pricing_engine(process)
     option = create_unified_european_call(strike=100.0, maturity=0.25)
     spot_grid = create_log_grid(40.0, 220.0, 17, center=100.0)

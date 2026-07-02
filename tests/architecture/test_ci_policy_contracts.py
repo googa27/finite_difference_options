@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -11,19 +10,26 @@ def _read(relative_path: str) -> str:
 def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     workflow = _read(".github/workflows/ci.yml")
 
+    assert "Package / Python" in workflow
+    assert "python -m build --sdist --wheel" in workflow
+    assert "python -m twine check dist/*" in workflow
+    assert "Clean wheel import smoke outside checkout" in workflow
     assert "Static smoke gate" in workflow
-    assert "python -m compileall -q api src tests" in workflow
+    assert "python -m compileall -q src tests scripts" in workflow
     assert "ruff check . --select E9,F63,F7,F82" in workflow
-    assert "Architecture fitness gate" in workflow
-    assert "pytest -q tests/architecture" in workflow
+    assert "mypy --ignore-missing-imports" in workflow
+    assert "Architecture and packaging contracts" in workflow
+    assert (
+        "pytest -q tests/architecture tests/test_packaging_contract.py --no-cov"
+        in workflow
+    )
     assert "Stable regression suite" in workflow
-    assert "PYTHONPATH=. pytest -q" in workflow
-    assert "tests/test_api_schema_contracts.py" in workflow
-    assert "tests/test_api_route_validation.py" in workflow
-    assert "tests/test_api_interpolation_diagnostics.py" in workflow
-    assert "tests/test_api_resource_controls.py" in workflow
-    assert "tests/test_api_deployment_hardening.py" in workflow
-    assert "tests/test_unified_pricing_engine.py" in workflow
+    assert "pytest -q --cov=finite_difference_options" in workflow
+    assert "Optional profile /" in workflow
+    assert "python -m pip install -r requirements-dev.lock.txt" in workflow
+    assert "python -m pip check" in workflow
+    assert "python -m pip_audit --progress-spinner=off --skip-editable" in workflow
+    assert "cyclonedx-py environment --of JSON -o sbom.json" in workflow
 
 
 def test_node_profile_never_references_a_missing_lockfile_cache_path() -> None:

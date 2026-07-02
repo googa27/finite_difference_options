@@ -9,7 +9,7 @@ from dataclasses import replace
 
 import pytest
 
-from src.validation.benchmark_registry import (
+from finite_difference_options.validation.benchmark_registry import (
     BenchmarkCase,
     BenchmarkRegistryError,
     registry_as_dict,
@@ -106,7 +106,7 @@ def test_black_scholes_registered_benchmark_executes_real_runner(
 def test_black_scholes_runner_fails_when_declared_greek_tolerance_is_violated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from src.validation import black_scholes_parity
+    from finite_difference_options.validation import black_scholes_parity
 
     report = black_scholes_parity.run_public_black_scholes_parity_fixture()
     bad_report = replace(
@@ -134,7 +134,7 @@ def test_black_scholes_runner_fails_when_declared_greek_tolerance_is_violated(
 def test_black_scholes_runner_fails_when_declared_invariant_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from src.validation import black_scholes_parity
+    from finite_difference_options.validation import black_scholes_parity
 
     report = black_scholes_parity.run_public_black_scholes_parity_fixture()
     incomplete_report = replace(
@@ -160,7 +160,7 @@ def test_black_scholes_runner_fails_when_declared_invariant_is_missing(
 def test_qps_runner_fails_when_declared_price_tolerance_is_violated(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from src.validation import black_scholes_parity
+    from finite_difference_options.validation import black_scholes_parity
 
     report = black_scholes_parity.run_public_black_scholes_parity_fixture()
     bad_final_row = replace(report.observations[-1], abs_error=1.0)

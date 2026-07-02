@@ -5,12 +5,11 @@ from __future__ import annotations
 import pathlib
 import sys
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 from numpy.testing import assert_allclose
 
-from src.solvers.adi import ADISolver
+from finite_difference_options.solvers.adi import ADISolver
 
 
 def test_adi_mixed_operator_uses_off_diagonal_covariance_once() -> None:

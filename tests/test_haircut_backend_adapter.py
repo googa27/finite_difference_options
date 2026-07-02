@@ -8,8 +8,8 @@ import pathlib
 
 import pytest
 
-from src.contracts import UnsupportedRouteError
-from src.integrations.haircut_backend import create_backend
+from finite_difference_options.contracts import UnsupportedRouteError
+from finite_difference_options.integrations.haircut_backend import create_backend
 
 FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures" / "quant_problem_specs"
 
@@ -23,7 +23,9 @@ def _vanilla_payload() -> dict[str, object]:
 
 
 def _executable_payload() -> dict[str, object]:
-    from src.validation.black_scholes_parity import public_black_scholes_problem_spec
+    from finite_difference_options.validation.black_scholes_parity import (
+        public_black_scholes_problem_spec,
+    )
 
     payload = public_black_scholes_problem_spec()
     payload["privacy_class"] = "public_synthetic"
@@ -154,9 +156,9 @@ def test_haircut_backend_results_are_json_serializable() -> None:
 
 
 def test_haircut_backend_module_keeps_validation_runners_lazy() -> None:
-    source = pathlib.Path("src/integrations/haircut_backend.py").read_text(
-        encoding="utf-8"
-    )
+    source = pathlib.Path(
+        "src/finite_difference_options/integrations/haircut_backend.py"
+    ).read_text(encoding="utf-8")
     tree = ast.parse(source)
     top_level_imports = [
         node
@@ -167,7 +169,7 @@ def test_haircut_backend_module_keeps_validation_runners_lazy() -> None:
     assert not [
         node.module
         for node in top_level_imports
-        if node.module.startswith("src.validation")
+        if node.module.startswith("finite_difference_options.validation")
     ]
 
 

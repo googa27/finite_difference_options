@@ -8,10 +8,10 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from api.main import API_SCHEMA_VERSION, app
-from src.instruments.base import EuropeanCall, EuropeanPut
-from src.pricing import OptionPricer
-from src.processes.affine import GeometricBrownianMotion
+from finite_difference_options.api.main import API_SCHEMA_VERSION, app
+from finite_difference_options.instruments.base import EuropeanCall, EuropeanPut
+from finite_difference_options.pricing import OptionPricer
+from finite_difference_options.processes.affine import GeometricBrownianMotion
 
 
 def _payload(**overrides: object) -> dict[str, Any]:

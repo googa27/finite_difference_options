@@ -1,4 +1,5 @@
 """Rannacher startup tests for kinked payoff finite-difference routes."""
+
 from __future__ import annotations
 
 import pathlib
@@ -6,13 +7,14 @@ import sys
 
 import numpy as np
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
-from src.greeks import FiniteDifferenceGreeks  # noqa: E402
-from src.instruments.base import EuropeanCall  # noqa: E402
-from src.pricing.engines import BlackScholesPDE  # noqa: E402
-from src.processes.affine import GeometricBrownianMotion  # noqa: E402
-from src.solvers.finite_difference import (  # noqa: E402
+from finite_difference_options.greeks import FiniteDifferenceGreeks  # noqa: E402
+from finite_difference_options.instruments.base import EuropeanCall  # noqa: E402
+from finite_difference_options.pricing.engines import BlackScholesPDE  # noqa: E402
+from finite_difference_options.processes.affine import (
+    GeometricBrownianMotion,
+)  # noqa: E402
+from finite_difference_options.solvers.finite_difference import (  # noqa: E402
     FiniteDifferenceSolver,
     RannacherCrankNicolson,
     ThetaMethod,
@@ -74,7 +76,9 @@ def test_rannacher_startup_reduces_near_strike_gamma_roughness() -> None:
     )
     rannacher = rannacher_pricer.price(option=option, s=s_grid, t=time_grid)
 
-    assert _gamma_roughness(rannacher, s_grid) < 0.85 * _gamma_roughness(pure_cn, s_grid)
+    assert _gamma_roughness(rannacher, s_grid) < 0.85 * _gamma_roughness(
+        pure_cn, s_grid
+    )
     assert [entry.label for entry in rannacher_pricer.last_step_schedule[:4]] == [
         "rannacher_be_half_step"
     ] * 4

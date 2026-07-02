@@ -300,7 +300,7 @@
       ],
       "family": "analytical_oracle",
       "fixture_paths": [
-        "src/validation/heston_oracle.py"
+        "src/finite_difference_options/validation/heston_oracle.py"
       ],
       "grid_family": "not an FD grid; Fourier oracle reference",
       "instrument": "European call",
@@ -345,7 +345,7 @@
       ],
       "family": "route_parity",
       "fixture_paths": [
-        "src/validation/heston_oracle.py"
+        "src/finite_difference_options/validation/heston_oracle.py"
       ],
       "grid_family": "oracle parity, not production FD route",
       "instrument": "European call",
@@ -388,7 +388,7 @@
       ],
       "family": "capability_gate",
       "fixture_paths": [
-        "src/validation/heston_oracle.py"
+        "src/finite_difference_options/validation/heston_oracle.py"
       ],
       "grid_family": "variance grid diagnostics",
       "instrument": "European call smoke route",

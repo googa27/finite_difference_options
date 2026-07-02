@@ -13,9 +13,9 @@ done
 # Test import statements
 python -c "
 try:
-    from src.processes import *
-    from src.pricing import *
-    from src.solvers import *
+    from finite_difference_options.processes import *
+    from finite_difference_options.pricing import *
+    from finite_difference_options.solvers import *
     print('✅ All imports successful')
 except ImportError as e:
     print(f'❌ Import failed: {e}')
@@ -26,8 +26,8 @@ except ImportError as e:
 ```python
 # Validate API documentation matches actual code
 import inspect
-from src.processes import StochasticProcess
-from src.pricing import UnifiedPricingEngine
+from finite_difference_options.processes import StochasticProcess
+from finite_difference_options.pricing import UnifiedPricingEngine
 
 def validate_api_docs():
     # Check method signatures match documentation
@@ -125,8 +125,8 @@ done
 # Validate performance claims in documentation
 def validate_benchmarks():
     import time
-    from src.pricing import UnifiedPricingEngine
-    from src.processes import create_gbm_process
+    from finite_difference_options.pricing import UnifiedPricingEngine
+    from finite_difference_options.processes import create_gbm_process
     
     # Time a standard pricing operation
     process = create_gbm_process(r=0.05, sigma=0.2)

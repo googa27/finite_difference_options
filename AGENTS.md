@@ -62,7 +62,7 @@ API / CLI / UI / frontend / examples
 
 Rules:
 
-- The stable import package is `finite_difference_options`; no new public `src.*` imports.
+- The stable import package is `finite_difference_options`; no new public `finite_difference_options.*` imports.
 - Contracts do not import `findiff`, FastAPI, Typer, Streamlit, plotting, frontend code or Haircut.
 - Numerical core does not import products, API, CLI, UI, reporting or integration adapters.
 - Solvers consume explicit coefficient, grid and boundary records; they do not inspect product strings to invent semantics.
@@ -217,16 +217,24 @@ Unified-engine regression policy:
 Current repository commands include:
 
 ```bash
-python -m pip install -r requirements.txt -r requirements-dev.txt
+python -m pip install -e '.[dev]'
+python -m pip install -r requirements-dev.lock.txt
+python -m pip check
 pre-commit run --all-files
-ruff check .
-mypy .
+ruff check . --select E9,F63,F7,F82
+mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py
+python scripts/check_architecture_contract.py
+pytest -q tests/architecture tests/test_packaging_contract.py --no-cov
 pytest -q
+python -m build --sdist --wheel
+python -m twine check dist/*
+python -m pip_audit --progress-spinner=off --skip-editable
+cyclonedx-py environment --of JSON -o sbom.json
 ```
 
 The blocking pull-request/push baseline is documented in [`docs/CI_POLICY.md`](docs/CI_POLICY.md). That policy separates the fast stable Python regression suite, optional Node application profile, and advisory Gemini automation so documentation-only or narrowly-scoped numerical PRs are not forced to repay unrelated repository-wide debt.
 
-After package modernization, also require lock validation, `python -m build`, `twine check`, clean-wheel import tests and the Haircut backend conformance suite.
+Package modernization requires lock validation, `python -m build`, `twine check`, clean-wheel import tests, optional-profile wheel smoke tests, SBOM/pip-audit evidence, and the Haircut backend conformance suite.
 
 Do not report an unconfigured or unrun gate as passing. Record the gap and owner issue.
 

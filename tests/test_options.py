@@ -3,14 +3,16 @@
 import pathlib
 import sys
 
-# Ensure project root on path
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 import pytest
 
-from src.processes.affine import GeometricBrownianMotion
-from src.instruments.base import EuropeanOption, EuropeanCall, EuropeanPut
+from finite_difference_options.processes.affine import GeometricBrownianMotion
+from finite_difference_options.instruments.base import (
+    EuropeanOption,
+    EuropeanCall,
+    EuropeanPut,
+)
 
 
 def test_base_class_can_be_instantiated():

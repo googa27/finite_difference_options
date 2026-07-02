@@ -1,5 +1,5 @@
-from src.plotting.factory import get_plotter
-from src.plotting.base import MatplotlibSeabornPlotter
+from finite_difference_options.plotting.factory import get_plotter
+from finite_difference_options.plotting.base import MatplotlibSeabornPlotter
 
 
 def test_get_plotter_matplotlib():
@@ -10,6 +10,6 @@ def test_get_plotter_matplotlib():
 def test_get_plotter_plotly():
     p = get_plotter("plotly")
     # Import here to avoid import-time cost when not needed
-    from src.plotting.plotly_backend import PlotlyPlotter
+    from finite_difference_options.plotting.plotly_backend import PlotlyPlotter
 
     assert isinstance(p, PlotlyPlotter)

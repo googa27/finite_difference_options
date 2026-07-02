@@ -87,7 +87,7 @@ README.md:
 grep -A 20 "```python" docs/**/*.md | python -m doctest
 
 # Validate import statements work
-python -c "from src.processes import *; from src.pricing import *"
+python -c "from finite_difference_options.processes import *; from finite_difference_options.pricing import *"
 ```
 
 ### Link Validation

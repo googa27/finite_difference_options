@@ -6,8 +6,8 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-import api.main as api_main
-from api.main import API_SCHEMA_VERSION, app
+import finite_difference_options.api.main as api_main
+from finite_difference_options.api.main import API_SCHEMA_VERSION, app
 
 
 def _payload(**overrides: object) -> dict[str, object]:

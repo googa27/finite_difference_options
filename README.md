@@ -40,15 +40,31 @@ A finite-difference PDE framework for option-pricing experiments and backend-con
 
 ## Installation
 
-```bash
-pip install -r requirements.txt
-```
-
-For development with linting and test tools:
+Install the library from a checkout or wheel:
 
 ```bash
-pip install -r requirements.txt -r requirements-dev.txt
+python -m pip install .
 ```
+
+Optional application/profile dependencies are exposed as extras:
+
+```bash
+python -m pip install '.[api]'
+python -m pip install '.[cli]'
+python -m pip install '.[ui]'
+python -m pip install '.[viz]'
+python -m pip install '.[validation]'
+```
+
+For development with linting, testing, build, audit, and SBOM tools:
+
+```bash
+python -m pip install -e '.[dev]'
+python -m pip install -r requirements-dev.lock.txt
+python -m pip check
+```
+
+`requirements.txt` and `requirements-dev.txt` are legacy range files mirrored from `pyproject.toml`; `requirements-dev.lock.txt` is the pinned reproducible development/audit lock.
 
 ## Quick Start
 
@@ -56,8 +72,8 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 ```python
 import numpy as np
-from src.processes import create_black_scholes_process
-from src.pricing import create_unified_european_call, create_unified_pricing_engine, create_log_grid
+from finite_difference_options.processes import create_black_scholes_process
+from finite_difference_options.pricing import create_unified_european_call, create_unified_pricing_engine, create_log_grid
 
 # Create Black-Scholes process
 process = create_black_scholes_process(mu=0.05, sigma=0.2)
@@ -119,8 +135,8 @@ This example is an experimental shape/finite-value smoke path for a vanilla equi
 
 ```python
 import numpy as np
-from src.processes import create_standard_heston
-from src.pricing import create_unified_european_call, create_unified_pricing_engine, create_log_grid
+from finite_difference_options.processes import create_standard_heston
+from finite_difference_options.pricing import create_unified_european_call, create_unified_pricing_engine, create_log_grid
 
 # Create Heston stochastic volatility model
 heston = create_standard_heston()
@@ -149,35 +165,36 @@ Basket payoff routing is currently `unsupported` unless a true multi-asset proce
 Install the development tools and activate the pre-commit hooks:
 
 ```bash
-pip install -r requirements.txt -r requirements-dev.txt
+python -m pip install -e '.[dev]'
+python -m pip install -r requirements-dev.lock.txt
+python -m pip check
 pre-commit install
 ```
 
-Run formatting, linting and tests in one go:
+Run the package/architecture and full deterministic suites:
 
 ```bash
-pre-commit run --all-files
+pytest -q tests/architecture tests/test_packaging_contract.py --no-cov
+pytest -q
 ```
 
-## Streamlit Demo
+## Streamlit / UI extras
 
-Launch an interactive application to explore option prices:
+The repository ships a reusable plotting and API/CLI package. Streamlit is kept behind the optional `ui` extra for downstream demos and future app shells:
 
 ```bash
-streamlit run apps/streamlit_app.py
+python -m pip install 'finite-difference-options[ui]'
 ```
 
-In the app you can switch plotting backends between Matplotlib and Plotly.
-Plotly is optional but recommended for interactivity (requirements already pin
-`plotly>=6.3,<7`).
+Repository-local UI shells should import `finite_difference_options` package APIs; they should not rely on checkout-only top-level `apps/`, `api/`, or `cli/` modules.
 
 ## Command-line Interface
 
 Use [Typer](https://typer.tiangolo.com/) commands for quick pricing and plotting:
 
 ```bash
-python -m cli price --option-type Call --strike 1 --maturity 1 --s0 1 --rate 0.05 --sigma 0.2
-python -m cli plot --option-type Call --strike 1 --maturity 1 --output plot.png
+fd-options price --option-type Call --strike 1 --maturity 1 --s0 1 --rate 0.05 --sigma 0.2
+fd-options plot --option-type Call --strike 1 --maturity 1 --output plot.png
 ```
 
 ## FastAPI Service
@@ -186,7 +203,7 @@ Start a REST API that exposes experimental pricing and Greek calculations.
 This is a local-demo service contract, not a production deployment profile. By default, browser CORS origins are restrictive and no cross-origin browser caller is allowed; opt into the local demo client explicitly with `FDO_API_ENABLE_LOCAL_DEV_CORS=1` or set a comma-separated `FDO_API_CORS_ORIGINS` allow-list.
 
 ```bash
-uvicorn api.main:app --reload
+uvicorn finite_difference_options.api.main:app --reload
 ```
 
 Pricing requests use a versioned schema with explicit model/payoff/process contracts, explicit `spot`, enum `option_type`, finite/range numeric validation, deployable compute/output/response-size budgets, a cooperative local timeout, and full-grid output disabled by default:
@@ -242,27 +259,31 @@ npm install
 npm run dev
 ```
 
-It expects the FastAPI server to run locally on port 8000 with local browser CORS explicitly enabled, for example `FDO_API_ENABLE_LOCAL_DEV_CORS=1 uvicorn api.main:app --reload`.
+It expects the FastAPI server to run locally on port 8000 with local browser CORS explicitly enabled, for example `FDO_API_ENABLE_LOCAL_DEV_CORS=1 uvicorn finite_difference_options.api.main:app --reload`.
 
 ## Architecture
 
 ### Package Structure
 
 ```
-src/
+src/finite_difference_options/
 ├── processes/          # Stochastic process implementations
-│   ├── base.py        # Abstract interfaces (StochasticProcess, AffineProcess, NonAffineProcess)
-│   ├── affine.py      # Affine models (GBM, OU, CIR, Heston)
-│   └── nonaffine.py   # Non-affine models (CEV, SABR)
-├── pricing/           # Financial instruments and pricing engines
-│   ├── instruments/   # Option and derivative definitions
-│   └── engines/       # Unified pricing engine with auto-solver selection
-├── solvers/           # PDE solvers
-│   └── adi.py        # Alternating Direction Implicit solver
-└── utils/             # Shared utilities
-    ├── process_validators.py  # Parameter validation
-    ├── covariance_utils.py   # Matrix operations
-    └── state_handling.py     # Array processing
+│   ├── base.py         # Abstract interfaces (StochasticProcess, AffineProcess, NonAffineProcess)
+│   ├── affine.py       # Affine models (GBM, OU, CIR, Heston)
+│   └── nonaffine.py    # Non-affine models (CEV, SABR)
+├── pricing/            # Financial instruments and pricing engines
+│   ├── instruments/    # Option and derivative definitions
+│   └── engines/        # Unified pricing engine with auto-solver selection
+├── solvers/            # PDE solvers
+│   └── adi.py          # Alternating Direction Implicit solver
+├── integrations/       # External solver backend adapters
+│   └── haircut_backend.py
+├── api/                # Optional FastAPI app, installed with [api]
+├── cli/                # Optional Typer CLI, installed with [cli]
+└── utils/              # Shared utilities
+    ├── process_validators.py
+    ├── covariance_utils.py
+    └── state_handling.py
 ```
 
 ### Key Design Principles

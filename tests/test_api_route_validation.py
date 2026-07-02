@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from api.main import API_SCHEMA_VERSION, app
+from finite_difference_options.api.main import API_SCHEMA_VERSION, app
 
 
 def _payload(**overrides: object) -> dict[str, object]:
