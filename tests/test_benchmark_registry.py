@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+from dataclasses import replace
 
 import pytest
 
@@ -85,6 +86,9 @@ def test_black_scholes_registered_benchmark_executes_real_runner(
     assert result.metrics["price_abs"] <= 5.0e-4
     assert result.metrics["delta_abs"] <= 5.0e-2
     assert result.metrics["gamma_abs"] <= 2.0e-2
+    assert result.invariants["price_abs_tolerance_ok"]
+    assert result.invariants["delta_abs_tolerance_ok"]
+    assert result.invariants["gamma_abs_tolerance_ok"]
     assert result.evidence["fixture_id"] == "public-synthetic.black-scholes-call.v0"
     assert result.evidence["route_id"] == "fd.black_scholes_1d.crank_nicolson"
     assert all(result.invariants.values())
@@ -97,6 +101,34 @@ def test_black_scholes_registered_benchmark_executes_real_runner(
     assert json.loads(explicit_artifact.read_text(encoding="utf-8")) == json.loads(
         json.dumps(result.as_dict())
     )
+
+
+def test_black_scholes_runner_fails_when_declared_greek_tolerance_is_violated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.validation import black_scholes_parity
+
+    report = black_scholes_parity.run_public_black_scholes_parity_fixture()
+    bad_report = replace(
+        report,
+        errors={
+            **report.errors,
+            "delta_abs": 10.0
+            * registry_by_id()["BS-CALL-PARITY-V0"].tolerances[1].threshold,
+        },
+    )
+    monkeypatch.setattr(
+        black_scholes_parity,
+        "run_public_black_scholes_parity_fixture",
+        lambda: bad_report,
+    )
+
+    result = run_registered_benchmark("BS-CALL-PARITY-V0")
+
+    assert not result.passed
+    assert result.invariants["price_abs_tolerance_ok"]
+    assert result.invariants["delta_abs_tolerance_ok"] is False
+    assert result.invariants["gamma_abs_tolerance_ok"]
 
 
 def test_validated_route_parity_benchmarks_execute_real_runners() -> None:

@@ -775,29 +775,47 @@ def write_benchmark_result_json(path: str | Path, result: BenchmarkRunResult) ->
     )
 
 
+def _tolerance_invariants(
+    case: BenchmarkCase, metrics: dict[str, float | bool | int | str]
+) -> dict[str, bool]:
+    """Evaluate every declared benchmark tolerance against produced metrics."""
+
+    results: dict[str, bool] = {}
+    for tolerance in case.tolerances:
+        key = f"{tolerance.metric}_tolerance_ok"
+        observed = metrics.get(tolerance.metric)
+        if not isinstance(observed, int | float):
+            results[key] = False
+            continue
+        results[key] = float(observed) <= tolerance.threshold
+    return results
+
+
 def _black_scholes_parity_result(case: BenchmarkCase) -> BenchmarkRunResult:
     from src.validation.black_scholes_parity import (
         run_public_black_scholes_parity_fixture,
     )
 
     report = run_public_black_scholes_parity_fixture()
+    metrics: dict[str, float | bool | int | str] = {
+        "price": report.price,
+        "oracle_price": report.oracle_price,
+        "price_abs": report.final_abs_error,
+        "delta_abs": report.errors["delta_abs"],
+        "gamma_abs": report.errors["gamma_abs"],
+        "grid_levels": len(report.convergence_table()),
+    }
     invariants = {
         name: bool(report.no_arbitrage[name])
         for name in case.invariants
         if name in report.no_arbitrage
     }
-    passed = report.converged and all(invariants.values())
+    invariants.update(_tolerance_invariants(case, metrics))
+    passed = all(invariants.values())
     return BenchmarkRunResult(
         benchmark_id=case.benchmark_id,
         passed=passed,
-        metrics={
-            "price": report.price,
-            "oracle_price": report.oracle_price,
-            "price_abs": report.final_abs_error,
-            "delta_abs": report.errors["delta_abs"],
-            "gamma_abs": report.errors["gamma_abs"],
-            "grid_levels": len(report.convergence_table()),
-        },
+        metrics=metrics,
         evidence=report.evidence.as_dict(),
         invariants=invariants,
     )
