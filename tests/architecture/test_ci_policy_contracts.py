@@ -69,6 +69,7 @@ def test_issue_triage_ai_output_is_schema_validated_before_additive_label_writes
         assert "validate_ai_triage_output.py" in workflow
         assert "github.rest.issues.addLabels" in workflow
         assert "github.rest.issues.removeLabel" in workflow
+        assert "TRIAGE_LABEL_EXISTS === 'true' && labels.length > 0" in workflow
         assert "github.rest.issues.setLabels" not in workflow
         assert "Raw labels JSON" not in workflow
         assert "protected labels that require human approval" in workflow

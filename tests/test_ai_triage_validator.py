@@ -2,14 +2,22 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
+from pathlib import Path
 
 import pytest
 
-from scripts.validate_ai_triage_output import (
-    TriageValidationError,
-    validate_triage_output,
-)
+ROOT = Path(__file__).resolve().parents[1]
+VALIDATOR_PATH = ROOT / "scripts" / "validate_ai_triage_output.py"
+_spec = importlib.util.spec_from_file_location("validate_ai_triage_output", VALIDATOR_PATH)
+assert _spec is not None and _spec.loader is not None
+_validator = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = _validator
+_spec.loader.exec_module(_validator)
+TriageValidationError = _validator.TriageValidationError
+validate_triage_output = _validator.validate_triage_output
 
 ALLOWED = {
     "bug",

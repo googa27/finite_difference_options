@@ -211,7 +211,7 @@ jobs:
               } else {
                 core.info(`No labels selected for #${entry.issue_number}; leaving labels unchanged.`);
               }
-              if (process.env.TRIAGE_LABEL_EXISTS === 'true') {
+              if (process.env.TRIAGE_LABEL_EXISTS === 'true' && labels.length > 0) {
                 try {
                   await github.rest.issues.removeLabel({
                     owner: context.repo.owner,
