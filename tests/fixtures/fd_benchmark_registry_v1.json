@@ -1,5 +1,5 @@
 {
-  "case_count": 15,
+  "case_count": 18,
   "cases": [
     {
       "benchmark_id": "BS-CALL-PARITY-V0",
@@ -108,6 +108,164 @@
           "norm": "absolute price error",
           "notes": "shared with BS-CALL-PARITY-V0",
           "threshold": 0.0005
+        }
+      ]
+    },
+    {
+      "benchmark_id": "PINARES-FD-FIXED-PRICE-PROXY-V0",
+      "capability_rows": [
+        "Pinares fixed-price option proxy"
+      ],
+      "family": "analytical_oracle",
+      "fixture_paths": [
+        "tests/fixtures/pinares_fd_fixed_price_proxy_v1.json",
+        "tests/fixtures/quant_problem_specs/pinares_fixed_price_proxy.json"
+      ],
+      "grid_family": "uniform UF spot grid with explicit s_max and theta time controls",
+      "instrument": "mortality-scaled fixed-price purchase option proxy",
+      "invariants": [
+        "value_bound_ok",
+        "upper_bound_ok",
+        "delta_lower_bound_ok",
+        "delta_upper_bound_ok",
+        "gamma_non_negative_ok",
+        "survival_scale_ok"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#119"
+      ],
+      "model": "survival-scaled Black-Scholes / Pinares public-synthetic proxy",
+      "notes": "Executable public-synthetic Pinares proxy; not a ROFR/full-deal valuation.",
+      "oracle": {
+        "independence": "closed-form call oracle scaled outside the FD grid by public-synthetic survival_probability",
+        "kind": "analytical",
+        "notes": "Proxy evidence only; ROFR/full family-contract valuation remains unsupported in this backend.",
+        "source": "survival-scaled Black-Scholes fixed-price call proxy"
+      },
+      "resource_policy": {
+        "deterministic": "true",
+        "grid_levels": 3,
+        "max_s_steps": 180,
+        "max_t_steps": 240
+      },
+      "route_id": "fd.pinares_fixed_price_proxy.crank_nicolson",
+      "runner": "pinares_fixed_price_proxy",
+      "state_convention": "property-value proxy S in UF, Q* measure, survival scalar outside FD grid",
+      "status": "validated",
+      "time_schedule": "three refinement levels with Crank-Nicolson theta=0.5",
+      "title": "Pinares fixed-price option proxy FD parity",
+      "tolerances": [
+        {
+          "metric": "price_abs",
+          "norm": "absolute UF price error",
+          "notes": "finest grid against survival-scaled analytical proxy",
+          "threshold": 1.0
+        },
+        {
+          "metric": "delta_abs",
+          "norm": "absolute Delta error",
+          "notes": "survival-scaled central finite-difference Greek",
+          "threshold": 0.001
+        },
+        {
+          "metric": "gamma_abs",
+          "norm": "absolute Gamma error",
+          "notes": "survival-scaled central finite-difference Greek",
+          "threshold": 5e-06
+        }
+      ]
+    },
+    {
+      "benchmark_id": "PINARES-QPS-FIXED-PRICE-PROXY-V0",
+      "capability_rows": [
+        "Pinares fixed-price option proxy"
+      ],
+      "family": "route_parity",
+      "fixture_paths": [
+        "tests/fixtures/quant_problem_specs/pinares_fixed_price_proxy.json"
+      ],
+      "grid_family": "fixture-declared FD grid",
+      "instrument": "public-synthetic fixed-price proxy problem contract",
+      "invariants": [
+        "schema_version",
+        "problem_hash",
+        "terminal_payoff_scale",
+        "privacy_public_synthetic",
+        "fd_route_supported"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#119"
+      ],
+      "model": "Pinares QuantProblemSpec v0",
+      "notes": "",
+      "oracle": {
+        "independence": "serialized public-synthetic QuantProblemSpec consumed without private Pinares data",
+        "kind": "fixture",
+        "notes": "Guards Pinares/FD compatibility; financial semantics remain owned by Pinares.",
+        "source": "Pinares fixed-price proxy fixture export"
+      },
+      "resource_policy": {
+        "public_synthetic": "true"
+      },
+      "route_id": "fd.quant_problem_spec.pinares_fixed_price_proxy",
+      "runner": "pinares_qps_contract",
+      "state_convention": "explicit Q* measure, UF numeraire, public_synthetic privacy class and terminal payoff scale",
+      "status": "validated",
+      "time_schedule": "fixture-declared theta controls and resource policy",
+      "title": "Pinares fixed-price QuantProblemSpec compatibility",
+      "tolerances": [
+        {
+          "metric": "price_abs",
+          "norm": "absolute UF price error",
+          "notes": "shared with PINARES-FD-FIXED-PRICE-PROXY-V0",
+          "threshold": 1.0
+        }
+      ]
+    },
+    {
+      "benchmark_id": "PINARES-FD-FAIL-CLOSED-V0",
+      "capability_rows": [
+        "Jump/PIDE and HJB/control terms",
+        "Pinares full family-contract and ROFR routes"
+      ],
+      "family": "capability_gate",
+      "fixture_paths": [
+        "tests/test_pinares_fd_proxy.py"
+      ],
+      "grid_family": "route-screening metadata, not a numerical grid",
+      "instrument": "ROFR/full family real-estate use-right contract",
+      "invariants": [
+        "rofr_not_executed",
+        "full_family_contract_rejected",
+        "unsupported_terms_reported",
+        "no_placeholder_values"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#119"
+      ],
+      "model": "Pinares unsupported full-deal route screening",
+      "notes": "",
+      "oracle": {
+        "independence": "contract-level rejection before solver construction",
+        "kind": "capability",
+        "notes": "Unsupported features must be explicit capability rejections, not silent approximation.",
+        "source": "DEFAULT_FD_CAPABILITY_MANIFEST fail-closed feature screening"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.pinares.fail_closed_route_screening",
+      "runner": "pinares_fail_closed",
+      "state_convention": "legal, tax, mortality, liquidity and market-rent terms are not FD proxy state variables",
+      "status": "validated",
+      "time_schedule": "pre-solve compatibility gate",
+      "title": "Pinares full-deal and ROFR FD fail-closed route gate",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "unsupported full-deal routes return diagnostics before solver construction",
+          "threshold": true
         }
       ]
     },

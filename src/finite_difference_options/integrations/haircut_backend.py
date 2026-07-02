@@ -3,9 +3,10 @@
 This module is deliberately thin and domain-neutral. It exposes a Haircut-style
 backend object without importing Haircut Engine, PDP, API, CLI, UI, plotting, or
 frontend packages. The adapter first screens a shared QuantProblemSpec-like
-payload through the FD capability manifest. It only executes the public-synthetic
-Black-Scholes fixture that this repository owns as validated evidence; all other
-supported-looking requests fail closed until a concrete native route is proven.
+payload through the FD capability manifest. It executes only validated public-
+synthetic fixtures that this repository owns as evidence (currently Black-Scholes
+and the Pinares fixed-price proxy); all other supported-looking requests fail
+closed until a concrete native route is proven.
 """
 
 from __future__ import annotations
@@ -31,11 +32,17 @@ SolveStatus = Literal["passed", "failed"]
 _EXECUTABLE_PUBLIC_BENCHMARKS = {
     "BS-FD-ORACLE-V0",
     "QPS-BS-CALL-PUBLIC-V0",
+    "PINARES-FD-FIXED-PRICE-PROXY-V0",
+    "PINARES-QPS-FIXED-PRICE-PROXY-V0",
 }
-_EXECUTED_REGISTRY_BENCHMARKS = ("BS-CALL-PARITY-V0", "QPS-VANILLA-CALL-V0")
-_PUBLIC_SYNTHETIC_PROBLEM_IDS = {
-    "public-synthetic.black-scholes-call.v0",
+_EXECUTED_REGISTRY_BENCHMARKS_BY_PROBLEM = {
+    "public-synthetic.black-scholes-call.v0": ("BS-CALL-PARITY-V0", "QPS-VANILLA-CALL-V0"),
+    "pinares.fixed_price_option_proxy.v1": (
+        "PINARES-FD-FIXED-PRICE-PROXY-V0",
+        "PINARES-QPS-FIXED-PRICE-PROXY-V0",
+    ),
 }
+_PUBLIC_SYNTHETIC_PROBLEM_IDS = frozenset(_EXECUTED_REGISTRY_BENCHMARKS_BY_PROBLEM)
 
 
 @dataclass(frozen=True)
@@ -96,9 +103,7 @@ class HaircutBackendSolveResult:
 class FiniteDifferenceHaircutBackend:
     """Thin fail-closed adapter implementing the current FD backend contract."""
 
-    def __init__(
-        self, manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST
-    ) -> None:
+    def __init__(self, manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST) -> None:
         self._manifest = manifest
         self._identity = HaircutBackendIdentity(
             backend_id=manifest.backend_id,
@@ -133,17 +138,13 @@ class FiniteDifferenceHaircutBackend:
 
         request = FDRouteRequest.from_quant_problem_spec(payload)
         route_diagnostics = diagnose_unsupported_route(request, self._manifest)
-        execution_diagnostics = (
-            () if route_diagnostics else _execution_diagnostics(payload)
-        )
+        execution_diagnostics = () if route_diagnostics else _execution_diagnostics(payload)
         diagnostics = (*route_diagnostics, *execution_diagnostics)
         return FDBackendScreeningResult(
             backend_id=self._manifest.backend_id,
             status="unsupported" if diagnostics else "supported",
             request=asdict(request),
-            diagnostics=tuple(
-                _diagnostic_as_dict(diagnostic) for diagnostic in diagnostics
-            ),
+            diagnostics=tuple(_diagnostic_as_dict(diagnostic) for diagnostic in diagnostics),
             manifest=self.capability_manifest(),
         )
 
@@ -160,9 +161,7 @@ class FiniteDifferenceHaircutBackend:
         ensure_route_supported(request, self._manifest)
         benchmark_ids = _benchmark_ids(payload)
         problem_id = _optional_string(payload.get("problem_id"))
-        if not _is_executable_public_synthetic_payload(
-            problem_id, benchmark_ids, payload
-        ):
+        if not _is_executable_public_synthetic_payload(problem_id, benchmark_ids, payload):
             raise UnsupportedRouteError(
                 (
                     UnsupportedRouteDiagnostic(
@@ -184,23 +183,39 @@ class FiniteDifferenceHaircutBackend:
         from finite_difference_options.validation.black_scholes_parity import (
             run_public_black_scholes_parity_fixture,
         )
+        from finite_difference_options.validation.pinares_fixed_price_proxy import (
+            PINARES_FIXED_PRICE_PROXY_PROBLEM_ID,
+            run_public_pinares_fixed_price_proxy_fixture,
+        )
 
-        parity_report = run_public_black_scholes_parity_fixture()
+        if problem_id == PINARES_FIXED_PRICE_PROXY_PROBLEM_ID:
+            parity_report = run_public_pinares_fixed_price_proxy_fixture()
+            values = {
+                "price": parity_report.price_uf,
+                "oracle_price": parity_report.oracle_price_uf,
+                "delta": parity_report.delta,
+                "reference_delta": parity_report.reference_delta,
+                "gamma": parity_report.gamma,
+                "reference_gamma": parity_report.reference_gamma,
+            }
+        else:
+            parity_report = run_public_black_scholes_parity_fixture()
+            values = {
+                "price": parity_report.price,
+                "oracle_price": parity_report.oracle_price,
+                "delta": parity_report.delta,
+                "reference_delta": parity_report.reference_delta,
+                "gamma": parity_report.gamma,
+                "reference_gamma": parity_report.reference_gamma,
+            }
+
+        assert problem_id is not None
+        executed_registry_benchmarks = _EXECUTED_REGISTRY_BENCHMARKS_BY_PROBLEM[problem_id]
         registry_results = {
             benchmark_id: run_registered_benchmark(benchmark_id).as_dict()
-            for benchmark_id in _EXECUTED_REGISTRY_BENCHMARKS
+            for benchmark_id in executed_registry_benchmarks
         }
-        passed = parity_report.converged and all(
-            bool(result["passed"]) for result in registry_results.values()
-        )
-        values = {
-            "price": parity_report.price,
-            "oracle_price": parity_report.oracle_price,
-            "delta": parity_report.delta,
-            "reference_delta": parity_report.reference_delta,
-            "gamma": parity_report.gamma,
-            "reference_gamma": parity_report.reference_gamma,
-        }
+        passed = parity_report.converged and all(bool(result["passed"]) for result in registry_results.values())
         diagnostics = {
             "requested_benchmark_ids": benchmark_ids,
             "errors": parity_report.errors,
@@ -223,7 +238,7 @@ class FiniteDifferenceHaircutBackend:
             backend_id=self._manifest.backend_id,
             status="passed" if passed else "failed",
             problem_id=problem_id,
-            benchmark_ids=_EXECUTED_REGISTRY_BENCHMARKS,
+            benchmark_ids=executed_registry_benchmarks,
             values=values,
             diagnostics=diagnostics,
             evidence=evidence,
@@ -292,9 +307,7 @@ def _benchmark_ids(payload: Mapping[str, Any]) -> tuple[str, ...]:
         if isinstance(valuation_graph, Mapping):
             solver_hints = valuation_graph.get("solver_hints")
             if isinstance(solver_hints, Mapping):
-                ids.extend(
-                    str(item) for item in _tuple(solver_hints.get("benchmark_ids"))
-                )
+                ids.extend(str(item) for item in _tuple(solver_hints.get("benchmark_ids")))
     return tuple(dict.fromkeys(item for item in ids if item))
 
 
@@ -306,8 +319,16 @@ def _is_executable_public_synthetic_payload(
         privacy_class == "public_synthetic"
         and problem_id in _PUBLIC_SYNTHETIC_PROBLEM_IDS
         and (_EXECUTABLE_PUBLIC_BENCHMARKS & set(benchmark_ids))
-        and _matches_public_vanilla_call_fixture(payload)
+        and _matches_public_fixture(problem_id, payload)
     )
+
+
+def _matches_public_fixture(problem_id: str | None, payload: Mapping[str, Any]) -> bool:
+    if problem_id == "public-synthetic.black-scholes-call.v0":
+        return _matches_public_vanilla_call_fixture(payload)
+    if problem_id == "pinares.fixed_price_option_proxy.v1":
+        return _matches_public_pinares_fixed_price_proxy_fixture(payload)
+    return False
 
 
 def _matches_public_vanilla_call_fixture(payload: Mapping[str, Any]) -> bool:
@@ -316,6 +337,16 @@ def _matches_public_vanilla_call_fixture(payload: Mapping[str, Any]) -> bool:
     )
 
     expected = _canonical_fixture_shape(public_black_scholes_problem_spec())
+    actual = _canonical_fixture_shape(payload)
+    return actual == expected
+
+
+def _matches_public_pinares_fixed_price_proxy_fixture(payload: Mapping[str, Any]) -> bool:
+    from finite_difference_options.validation.pinares_fixed_price_proxy import (
+        public_pinares_fixed_price_problem_spec,
+    )
+
+    expected = _canonical_fixture_shape(public_pinares_fixed_price_problem_spec())
     actual = _canonical_fixture_shape(payload)
     return actual == expected
 

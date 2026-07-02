@@ -69,6 +69,9 @@ class FDCapabilityManifest:
     stability_controls: tuple[str, ...]
     required_conventions: tuple[str, ...]
     diagnostics: tuple[str, ...]
+    feature_support: Mapping[str, str] = field(default_factory=dict)
+    error_budgets: Mapping[str, float | str] = field(default_factory=dict)
+    resource_controls: Mapping[str, int | float | str] = field(default_factory=dict)
     notes: tuple[str, ...] = ()
 
     def supports(self, request: FDRouteRequest) -> bool:
@@ -128,14 +131,8 @@ class FDRouteRequest:
                 default=_state_dimension(math.get("state_variables")),
             )
         )
-        grid_type = str(
-            _first_present(
-                solver, ("grid_type", "grid", "grid_family"), default="uniform"
-            )
-        )
-        exercise_style = str(
-            _first_present(math, ("exercise_style", "exercise"), default="european")
-        )
+        grid_type = str(_first_present(solver, ("grid_type", "grid", "grid_family"), default="uniform"))
+        exercise_style = str(_first_present(math, ("exercise_style", "exercise"), default="european"))
 
         return cls(
             dimension=dimension,
@@ -163,9 +160,7 @@ class FDRouteRequest:
                 )
             ),
             stability_controls=_tuple_of_strings(
-                _first_present(
-                    solver, ("stability_controls", "stability"), default=("theta",)
-                )
+                _first_present(solver, ("stability_controls", "stability"), default=("theta",))
             ),
             measure=_optional_string(
                 _first_present(
@@ -193,14 +188,10 @@ class FDRouteRequest:
                 _first_present(
                     context,
                     ("units",),
-                    default=_first_present(
-                        math, ("units",), default=conventions.get("units", {})
-                    ),
+                    default=_first_present(math, ("units",), default=conventions.get("units", {})),
                 )
             ),
-            boundary_details={
-                str(key): str(value) for key, value in boundary_details.items()
-            },
+            boundary_details={str(key): str(value) for key, value in boundary_details.items()},
             valuation_date=_optional_string(
                 _first_present(
                     context,
@@ -209,17 +200,11 @@ class FDRouteRequest:
                 )
             ),
             maturity_date=_optional_string(
-                _first_present(
-                    context, ("maturity_date",), default=vintage.get("maturity_date")
-                )
+                _first_present(context, ("maturity_date",), default=vintage.get("maturity_date"))
             ),
-            time_domain=_optional_string(
-                _first_present(context, ("time_domain",), default=domain.get("t"))
-            ),
+            time_domain=_optional_string(_first_present(context, ("time_domain",), default=domain.get("t"))),
             source_schema_version=_optional_string(payload.get("schema_version")),
-            backend_id=_optional_string(
-                _first_present(solver, ("backend_id", "backend"), default=None)
-            ),
+            backend_id=_optional_string(_first_present(solver, ("backend_id", "backend"), default=None)),
         )
 
 
@@ -254,6 +239,30 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "unsupported exercise style",
         "missing measure/numeraire/units/date convention",
     ),
+    feature_support={
+        "pinares_fixed_price_proxy": CapabilityStatus.VALIDATED.value,
+        "one_dimensional_generator_pde": CapabilityStatus.VALIDATED.value,
+        "mixed_derivative": CapabilityStatus.EXPERIMENTAL.value,
+        "jump_integral": CapabilityStatus.UNSUPPORTED.value,
+        "obstacle_lcp": CapabilityStatus.UNSUPPORTED.value,
+        "hjb_control": CapabilityStatus.UNSUPPORTED.value,
+        "rofr_full_family_contract": CapabilityStatus.UNSUPPORTED.value,
+    },
+    error_budgets={
+        "black_scholes_price_abs": 5.0e-4,
+        "black_scholes_delta_abs": 5.0e-2,
+        "black_scholes_gamma_abs": 2.0e-2,
+        "pinares_fixed_price_proxy_price_abs_uf": 1.0,
+        "pinares_fixed_price_proxy_delta_abs": 1.0e-3,
+        "pinares_fixed_price_proxy_gamma_abs": 5.0e-6,
+    },
+    resource_controls={
+        "default_time_scheme": "theta",
+        "default_theta": 0.5,
+        "pinares_fixed_price_proxy_max_s_steps": 180,
+        "pinares_fixed_price_proxy_max_t_steps": 240,
+        "deterministic": "true",
+    },
     notes=(
         "American/LCP exercise is intentionally unsupported until complementarity diagnostics land.",
         "Jump/PIDE and HJB/control terms must fail closed instead of using placeholder coefficients.",
@@ -417,9 +426,7 @@ def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
-def _first_present(
-    mapping: Mapping[str, Any], keys: tuple[str, ...], *, default: Any
-) -> Any:
+def _first_present(mapping: Mapping[str, Any], keys: tuple[str, ...], *, default: Any) -> Any:
     for key in keys:
         if key in mapping:
             return mapping[key]
@@ -480,9 +487,7 @@ def _boundary_condition_classes(value: Any) -> tuple[str, ...]:
             boundary_class = "neumann"
         elif "neumann" in text:
             boundary_class = "neumann"
-        elif (
-            "dirichlet" in text or "absorbing" in text or text.strip() in {"0", "zero"}
-        ):
+        elif "dirichlet" in text or "absorbing" in text or text.strip() in {"0", "zero"}:
             boundary_class = "dirichlet"
         else:
             boundary_class = text

@@ -23,9 +23,7 @@ BenchmarkFamily = Literal[
     "smoke",
     "regulatory_fail_closed",
 ]
-OracleKind = Literal[
-    "analytical", "manufactured", "fixture", "regression", "capability", "none"
-]
+OracleKind = Literal["analytical", "manufactured", "fixture", "regression", "capability", "none"]
 MetricKind = Literal[
     "price_abs",
     "price_rel",
@@ -101,9 +99,7 @@ class BenchmarkCase:
     def validate(self) -> list[str]:
         errors: list[str] = []
         if not _VERSIONED_ID_PATTERN.fullmatch(self.benchmark_id):
-            errors.append(
-                f"benchmark_id is not versioned kebab id: {self.benchmark_id}"
-            )
+            errors.append(f"benchmark_id is not versioned kebab id: {self.benchmark_id}")
         if not self.title.strip():
             errors.append(f"title required for {self.benchmark_id}")
         if not self.route_id.strip():
@@ -113,25 +109,13 @@ class BenchmarkCase:
         if not self.instrument.strip():
             errors.append(f"instrument required for {self.benchmark_id}")
         if self.status in {"validated", "experimental"} and self.oracle.kind == "none":
-            errors.append(
-                f"{self.benchmark_id} claims {self.status} without an oracle/fixture"
-            )
+            errors.append(f"{self.benchmark_id} claims {self.status} without an oracle/fixture")
         if self.status == "validated" and not self.tolerances:
-            errors.append(
-                f"validated benchmark {self.benchmark_id} requires tolerances"
-            )
+            errors.append(f"validated benchmark {self.benchmark_id} requires tolerances")
         if self.family in {"no_arbitrage", "route_parity"} and not self.invariants:
-            errors.append(
-                f"{self.family} benchmark {self.benchmark_id} requires invariants"
-            )
-        if (
-            self.status == "validated"
-            and self.family == "route_parity"
-            and self.runner is None
-        ):
-            errors.append(
-                f"validated route-parity benchmark {self.benchmark_id} requires an executable runner"
-            )
+            errors.append(f"{self.family} benchmark {self.benchmark_id} requires invariants")
+        if self.status == "validated" and self.family == "route_parity" and self.runner is None:
+            errors.append(f"validated route-parity benchmark {self.benchmark_id} requires an executable runner")
         return errors
 
     def as_dict(self) -> dict[str, Any]:
@@ -175,6 +159,12 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
         source="DEFAULT_FD_CAPABILITY_MANIFEST fail-closed feature screening",
         independence="contract-level rejection before solver construction",
         notes="Unsupported features must be explicit capability rejections, not silent approximation.",
+    )
+    pinares_oracle = OracleSpec(
+        kind="analytical",
+        source="survival-scaled Black-Scholes fixed-price call proxy",
+        independence="closed-form call oracle scaled outside the FD grid by public-synthetic survival_probability",
+        notes="Proxy evidence only; ROFR/full family-contract valuation remains unsupported in this backend.",
     )
     return (
         BenchmarkCase(
@@ -262,9 +252,7 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
                 "typed_boundary",
                 "calendar_time_orientation",
             ),
-            capability_rows=(
-                "1D Black-Scholes European call value on uniform/log-uniform grids",
-            ),
+            capability_rows=("1D Black-Scholes European call value on uniform/log-uniform grids",),
             fixture_paths=("tests/fixtures/arxiv_lab_bs_oracle_v1.json",),
             issue_refs=(
                 "googa27/finite_difference_options#49",
@@ -273,9 +261,138 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             resource_policy={"public_synthetic": "true"},
             runner="black_scholes_qps_contract",
             notes=(
-                "Metadata registry row for cross-repo fixture parity; execution is covered by "
-                "BS-CALL-PARITY-V0 tests."
+                "Metadata registry row for cross-repo fixture parity; execution is covered by BS-CALL-PARITY-V0 tests."
             ),
+        ),
+        BenchmarkCase(
+            benchmark_id="PINARES-FD-FIXED-PRICE-PROXY-V0",
+            title="Pinares fixed-price option proxy FD parity",
+            family="analytical_oracle",
+            status="validated",
+            route_id="fd.pinares_fixed_price_proxy.crank_nicolson",
+            model="survival-scaled Black-Scholes / Pinares public-synthetic proxy",
+            instrument="mortality-scaled fixed-price purchase option proxy",
+            state_convention="property-value proxy S in UF, Q* measure, survival scalar outside FD grid",
+            grid_family="uniform UF spot grid with explicit s_max and theta time controls",
+            time_schedule="three refinement levels with Crank-Nicolson theta=0.5",
+            oracle=pinares_oracle,
+            tolerances=(
+                TolerancePolicy(
+                    "price_abs",
+                    1.0,
+                    "absolute UF price error",
+                    "finest grid against survival-scaled analytical proxy",
+                ),
+                TolerancePolicy(
+                    "delta_abs",
+                    1.0e-3,
+                    "absolute Delta error",
+                    "survival-scaled central finite-difference Greek",
+                ),
+                TolerancePolicy(
+                    "gamma_abs",
+                    5.0e-6,
+                    "absolute Gamma error",
+                    "survival-scaled central finite-difference Greek",
+                ),
+            ),
+            invariants=(
+                "value_bound_ok",
+                "upper_bound_ok",
+                "delta_lower_bound_ok",
+                "delta_upper_bound_ok",
+                "gamma_non_negative_ok",
+                "survival_scale_ok",
+            ),
+            capability_rows=("Pinares fixed-price option proxy",),
+            fixture_paths=(
+                "tests/fixtures/pinares_fd_fixed_price_proxy_v1.json",
+                "tests/fixtures/quant_problem_specs/pinares_fixed_price_proxy.json",
+            ),
+            issue_refs=("googa27/finite_difference_options#119",),
+            resource_policy={
+                "max_s_steps": 180,
+                "max_t_steps": 240,
+                "grid_levels": 3,
+                "deterministic": "true",
+            },
+            runner="pinares_fixed_price_proxy",
+            notes="Executable public-synthetic Pinares proxy; not a ROFR/full-deal valuation.",
+        ),
+        BenchmarkCase(
+            benchmark_id="PINARES-QPS-FIXED-PRICE-PROXY-V0",
+            title="Pinares fixed-price QuantProblemSpec compatibility",
+            family="route_parity",
+            status="validated",
+            route_id="fd.quant_problem_spec.pinares_fixed_price_proxy",
+            model="Pinares QuantProblemSpec v0",
+            instrument="public-synthetic fixed-price proxy problem contract",
+            state_convention=(
+                "explicit Q* measure, UF numeraire, public_synthetic privacy class and terminal payoff scale"
+            ),
+            grid_family="fixture-declared FD grid",
+            time_schedule="fixture-declared theta controls and resource policy",
+            oracle=OracleSpec(
+                kind="fixture",
+                source="Pinares fixed-price proxy fixture export",
+                independence="serialized public-synthetic QuantProblemSpec consumed without private Pinares data",
+                notes="Guards Pinares/FD compatibility; financial semantics remain owned by Pinares.",
+            ),
+            tolerances=(
+                TolerancePolicy(
+                    "price_abs",
+                    1.0,
+                    "absolute UF price error",
+                    "shared with PINARES-FD-FIXED-PRICE-PROXY-V0",
+                ),
+            ),
+            invariants=(
+                "schema_version",
+                "problem_hash",
+                "terminal_payoff_scale",
+                "privacy_public_synthetic",
+                "fd_route_supported",
+            ),
+            capability_rows=("Pinares fixed-price option proxy",),
+            fixture_paths=("tests/fixtures/quant_problem_specs/pinares_fixed_price_proxy.json",),
+            issue_refs=("googa27/finite_difference_options#119",),
+            resource_policy={"public_synthetic": "true"},
+            runner="pinares_qps_contract",
+        ),
+        BenchmarkCase(
+            benchmark_id="PINARES-FD-FAIL-CLOSED-V0",
+            title="Pinares full-deal and ROFR FD fail-closed route gate",
+            family="capability_gate",
+            status="validated",
+            route_id="fd.pinares.fail_closed_route_screening",
+            model="Pinares unsupported full-deal route screening",
+            instrument="ROFR/full family real-estate use-right contract",
+            state_convention="legal, tax, mortality, liquidity and market-rent terms are not FD proxy state variables",
+            grid_family="route-screening metadata, not a numerical grid",
+            time_schedule="pre-solve compatibility gate",
+            oracle=capability_oracle,
+            tolerances=(
+                TolerancePolicy(
+                    "boolean_invariant",
+                    True,
+                    "all invariants",
+                    "unsupported full-deal routes return diagnostics before solver construction",
+                ),
+            ),
+            invariants=(
+                "rofr_not_executed",
+                "full_family_contract_rejected",
+                "unsupported_terms_reported",
+                "no_placeholder_values",
+            ),
+            capability_rows=(
+                "Jump/PIDE and HJB/control terms",
+                "Pinares full family-contract and ROFR routes",
+            ),
+            fixture_paths=("tests/test_pinares_fd_proxy.py",),
+            issue_refs=("googa27/finite_difference_options#119",),
+            resource_policy={"deterministic": "true"},
+            runner="pinares_fail_closed",
         ),
         BenchmarkCase(
             benchmark_id="BOUNDARY-MODEL-AWARE-V0",
@@ -381,9 +498,7 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
                 ),
             ),
             invariants=("startup_schedule_recorded", "gamma_kink_sanity"),
-            capability_rows=(
-                "Rannacher startup before Crank-Nicolson for kinked payoffs",
-            ),
+            capability_rows=("Rannacher startup before Crank-Nicolson for kinked payoffs",),
             fixture_paths=("tests/test_rannacher_startup.py",),
             issue_refs=("googa27/finite_difference_options#49",),
             resource_policy={"deterministic": "true"},
@@ -452,9 +567,7 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
                 "Heston semi-analytical European call oracle",
                 "Heston stochastic volatility vanilla call smoke route",
             ),
-            fixture_paths=(
-                "src/finite_difference_options/validation/heston_oracle.py",
-            ),
+            fixture_paths=("src/finite_difference_options/validation/heston_oracle.py",),
             issue_refs=("googa27/finite_difference_options#49",),
             resource_policy={"deterministic": "true"},
         ),
@@ -480,9 +593,7 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             ),
             invariants=("limit_price_matches_black_scholes",),
             capability_rows=("Heston semi-analytical European call oracle",),
-            fixture_paths=(
-                "src/finite_difference_options/validation/heston_oracle.py",
-            ),
+            fixture_paths=("src/finite_difference_options/validation/heston_oracle.py",),
             issue_refs=("googa27/finite_difference_options#49",),
             resource_policy={"deterministic": "true"},
             runner="heston_black_scholes_limit",
@@ -509,9 +620,7 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             ),
             invariants=("variance_nonnegative", "boundary_diagnostics_recorded"),
             capability_rows=("Heston semi-analytical European call oracle",),
-            fixture_paths=(
-                "src/finite_difference_options/validation/heston_oracle.py",
-            ),
+            fixture_paths=("src/finite_difference_options/validation/heston_oracle.py",),
             issue_refs=("googa27/finite_difference_options#49",),
             resource_policy={"deterministic": "true"},
         ),
@@ -758,17 +867,13 @@ def registry_as_dict(
     }
 
 
-def write_registry_json(
-    path: str | Path, registry: tuple[BenchmarkCase, ...] | None = None
-) -> None:
+def write_registry_json(path: str | Path, registry: tuple[BenchmarkCase, ...] | None = None) -> None:
     """Write the registry JSON payload with stable ordering and indentation."""
 
     import json
 
     payload = registry_as_dict(registry)
-    Path(path).write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    Path(path).write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def write_benchmark_result_json(path: str | Path, result: BenchmarkRunResult) -> None:
@@ -776,22 +881,16 @@ def write_benchmark_result_json(path: str | Path, result: BenchmarkRunResult) ->
 
     import json
 
-    Path(path).write_text(
-        json.dumps(result.as_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    Path(path).write_text(json.dumps(result.as_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _reported_invariants(
-    names: tuple[str, ...], reported: dict[str, Any]
-) -> dict[str, bool]:
+def _reported_invariants(names: tuple[str, ...], reported: dict[str, Any]) -> dict[str, bool]:
     """Evaluate declared invariants fail-closed against a reported payload."""
 
     return {name: bool(reported.get(name, False)) for name in names}
 
 
-def _tolerance_invariants(
-    case: BenchmarkCase, metrics: dict[str, float | bool | int | str]
-) -> dict[str, bool]:
+def _tolerance_invariants(case: BenchmarkCase, metrics: dict[str, float | bool | int | str]) -> dict[str, bool]:
     """Evaluate every declared benchmark tolerance against produced metrics."""
 
     results: dict[str, bool] = {}
@@ -863,6 +962,101 @@ def _black_scholes_qps_contract_result(case: BenchmarkCase) -> BenchmarkRunResul
     )
 
 
+def _pinares_fixed_price_proxy_result(case: BenchmarkCase) -> BenchmarkRunResult:
+    from finite_difference_options.validation.pinares_fixed_price_proxy import (
+        run_public_pinares_fixed_price_proxy_fixture,
+    )
+
+    report = run_public_pinares_fixed_price_proxy_fixture()
+    metrics: dict[str, float | bool | int | str] = {
+        "price": report.price_uf,
+        "oracle_price": report.oracle_price_uf,
+        "price_abs": report.final_abs_error_uf,
+        "delta_abs": report.errors["delta_abs"],
+        "gamma_abs": report.errors["gamma_abs"],
+        "grid_levels": len(report.convergence_table()),
+        "survival_probability": report.case.survival_probability,
+    }
+    invariants = _reported_invariants(case.invariants, report.no_arbitrage)
+    invariants.update(_tolerance_invariants(case, metrics))
+    passed = all(invariants.values())
+    return BenchmarkRunResult(
+        benchmark_id=case.benchmark_id,
+        passed=passed,
+        metrics=metrics,
+        evidence=report.evidence.as_dict(),
+        invariants=invariants,
+    )
+
+
+def _pinares_qps_contract_result(case: BenchmarkCase) -> BenchmarkRunResult:
+    from finite_difference_options.contracts import FDRouteRequest, diagnose_unsupported_route
+    from finite_difference_options.validation.pinares_fixed_price_proxy import (
+        public_pinares_fixed_price_problem_spec,
+        run_public_pinares_fixed_price_proxy_fixture,
+    )
+
+    report = run_public_pinares_fixed_price_proxy_fixture()
+    payload = public_pinares_fixed_price_problem_spec()
+    request = FDRouteRequest.from_quant_problem_spec(payload)
+    diagnostics = diagnose_unsupported_route(request)
+    terminal_payoff = payload["mathematical_problem"]["terminal_payoff"]
+    metrics: dict[str, float | bool | int | str] = {
+        "price_abs": report.final_abs_error_uf,
+        "grid_levels": len(report.convergence_table()),
+        "unsupported_diagnostics": len(diagnostics),
+    }
+    invariants = {
+        "schema_version": payload["schema_version"] == "quant-problem-spec/v0",
+        "problem_hash": payload["problem_hash"] == "publicsyntheticpinares001",
+        "terminal_payoff_scale": terminal_payoff["parameters"]["p_survival"] == report.case.survival_probability,
+        "privacy_public_synthetic": payload["privacy_class"] == "public_synthetic",
+        "fd_route_supported": diagnostics == (),
+    }
+    invariants.update(_tolerance_invariants(case, metrics))
+    return BenchmarkRunResult(
+        benchmark_id=case.benchmark_id,
+        passed=all(invariants.values()),
+        metrics=metrics,
+        evidence=report.evidence.as_dict(),
+        invariants=invariants,
+    )
+
+
+def _pinares_fail_closed_result(case: BenchmarkCase) -> BenchmarkRunResult:
+    from finite_difference_options.contracts import FDRouteRequest, UnsupportedReason, diagnose_unsupported_route
+    from finite_difference_options.validation.pinares_fixed_price_proxy import (
+        public_pinares_full_deal_unsupported_problem_spec,
+    )
+
+    payload = public_pinares_full_deal_unsupported_problem_spec()
+    diagnostics = diagnose_unsupported_route(FDRouteRequest.from_quant_problem_spec(payload))
+    reasons = {diagnostic.reason for diagnostic in diagnostics}
+    fields = {diagnostic.field for diagnostic in diagnostics}
+    invariants = {
+        "rofr_not_executed": UnsupportedReason.UNSUPPORTED_EXERCISE in reasons,
+        "full_family_contract_rejected": UnsupportedReason.UNSUPPORTED_DIMENSION in reasons,
+        "unsupported_terms_reported": "pde_terms" in fields,
+        "no_placeholder_values": "solution" not in payload and "values" not in payload,
+    }
+    metrics: dict[str, float | bool | int | str] = {
+        "boolean_invariant": all(invariants.values()),
+        "diagnostic_count": len(diagnostics),
+    }
+    invariants.update(_tolerance_invariants(case, metrics))
+    return BenchmarkRunResult(
+        benchmark_id=case.benchmark_id,
+        passed=all(invariants.values()),
+        metrics=metrics,
+        evidence={
+            "route_id": case.route_id,
+            "diagnostics": [asdict(diagnostic) | {"reason": diagnostic.reason.value} for diagnostic in diagnostics],
+            "deterministic": True,
+        },
+        invariants=invariants,
+    )
+
+
 def _heston_black_scholes_limit_result(case: BenchmarkCase) -> BenchmarkRunResult:
     from math import sqrt
 
@@ -915,9 +1109,7 @@ def _heston_black_scholes_limit_result(case: BenchmarkCase) -> BenchmarkRunResul
     )
 
 
-def run_registered_benchmark(
-    benchmark_id: str, *, artifact_path: str | Path | None = None
-) -> BenchmarkRunResult:
+def run_registered_benchmark(benchmark_id: str, *, artifact_path: str | Path | None = None) -> BenchmarkRunResult:
     """Run an executable benchmark by id.
 
     Only benchmark rows with a registered deterministic runner execute numerical
@@ -931,12 +1123,16 @@ def run_registered_benchmark(
         result = _black_scholes_parity_result(case)
     elif case.runner == "black_scholes_qps_contract":
         result = _black_scholes_qps_contract_result(case)
+    elif case.runner == "pinares_fixed_price_proxy":
+        result = _pinares_fixed_price_proxy_result(case)
+    elif case.runner == "pinares_qps_contract":
+        result = _pinares_qps_contract_result(case)
+    elif case.runner == "pinares_fail_closed":
+        result = _pinares_fail_closed_result(case)
     elif case.runner == "heston_black_scholes_limit":
         result = _heston_black_scholes_limit_result(case)
     else:
-        raise BenchmarkRegistryError(
-            [f"benchmark {benchmark_id} has no executable runner"]
-        )
+        raise BenchmarkRegistryError([f"benchmark {benchmark_id} has no executable runner"])
 
     if artifact_path is not None:
         write_benchmark_result_json(artifact_path, result)

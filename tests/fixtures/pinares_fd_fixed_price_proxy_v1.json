@@ -1,0 +1,330 @@
+{
+  "evidence": {
+    "backend_id": "finite_difference_options.fd_backend.v0",
+    "boundary_assumptions": [
+      "left boundary: Dirichlet fixed-price proxy value V(0,tau)=0",
+      "right boundary: linear-growth call proxy scaled by survival_probability",
+      "uniform UF spot grid on [0, s_max_uf]",
+      "theta time stepping with Crank-Nicolson theta=0.5",
+      "not a ROFR or full family-contract valuation"
+    ],
+    "code_version": "local-checkout",
+    "config_hash": "faf38c76527dd2d67758fe7f8e4313caa5cb6f8b803efea3ecfd473d2baa652d",
+    "fixture_id": "public-synthetic.pinares-fixed-price-proxy.v1",
+    "maturity_date": "2027-06-30",
+    "measure": "Q*",
+    "numeraire": "UF_money_market_account_proxy",
+    "resource_controls": {
+      "deterministic": "true",
+      "grid_levels": 3,
+      "max_s_steps": 180,
+      "max_t_steps": 240
+    },
+    "route_id": "fd.pinares_fixed_price_proxy.crank_nicolson",
+    "seed": null,
+    "units": {
+      "S": "UF",
+      "rate": "1/year",
+      "time": "year",
+      "underlying": "UF",
+      "value": "UF"
+    },
+    "valuation_date": "2026-06-30"
+  },
+  "fixture_id": "public-synthetic.pinares-fixed-price-proxy.v1",
+  "problem_spec": {
+    "artifact_manifest": {
+      "benchmark_ids": [
+        "PINARES-FD-FIXED-PRICE-PROXY-V0",
+        "PINARES-QPS-FIXED-PRICE-PROXY-V0"
+      ],
+      "fixture_id": "public-synthetic.pinares-fixed-price-proxy.v1",
+      "issue_refs": [
+        "googa27/finite_difference_options#119"
+      ],
+      "manifest_id": "pinares-fd-fixed-price-proxy-public-synthetic-v1",
+      "schema_version": "artifact-manifest/v0"
+    },
+    "benchmark_ids": [
+      "PINARES-FD-FIXED-PRICE-PROXY-V0",
+      "PINARES-QPS-FIXED-PRICE-PROXY-V0"
+    ],
+    "financial_graph": {
+      "instrument": {
+        "kind": "mortality_scaled_fixed_price_purchase_option_proxy",
+        "strike_uf": 6200.0,
+        "survival_probability": 0.97,
+        "unit": "UF"
+      },
+      "valuation_graph": {
+        "solver_hints": {
+          "benchmark_ids": [
+            "PINARES-FD-FIXED-PRICE-PROXY-V0",
+            "PINARES-QPS-FIXED-PRICE-PROXY-V0"
+          ]
+        }
+      }
+    },
+    "mathematical_problem": {
+      "boundary_conditions": {
+        "S=0": "dirichlet",
+        "S=S_max": "linear_growth"
+      },
+      "dimension": 1,
+      "exercise_style": "european",
+      "measure_id": "Q*",
+      "numeraire_id": "UF_money_market_account_proxy",
+      "pde_coefficients": {
+        "risk_free_rate": 0.015,
+        "terms": [
+          {
+            "coefficient": 0.015,
+            "expression": "r S \u2202V/\u2202S",
+            "name": "drift",
+            "operator": "S * dV/dS"
+          },
+          {
+            "coefficient": 0.0072,
+            "expression": "0.5 \u03c3\u00b2 S\u00b2 \u2202\u00b2V/\u2202S\u00b2",
+            "name": "diffusion",
+            "operator": "S^2 * d\u00b2V/dS\u00b2",
+            "variance": 0.0144
+          },
+          {
+            "coefficient": -0.015,
+            "expression": "-r V",
+            "name": "reaction",
+            "operator": "V"
+          }
+        ],
+        "volatility": 0.12
+      },
+      "pde_operator_terms": [
+        {
+          "coefficient": 0.015,
+          "expression": "r S \u2202V/\u2202S",
+          "name": "drift",
+          "operator": "S * dV/dS"
+        },
+        {
+          "coefficient": 0.0072,
+          "expression": "0.5 \u03c3\u00b2 S\u00b2 \u2202\u00b2V/\u2202S\u00b2",
+          "name": "diffusion",
+          "operator": "S^2 * d\u00b2V/dS\u00b2",
+          "variance": 0.0144
+        },
+        {
+          "coefficient": -0.015,
+          "expression": "-r V",
+          "name": "reaction",
+          "operator": "V"
+        }
+      ],
+      "pde_terms": [
+        "drift",
+        "diffusion",
+        "reaction"
+      ],
+      "requested_outputs": [
+        "value",
+        "delta",
+        "gamma"
+      ],
+      "state_variables": [
+        {
+          "description": "public synthetic property-value proxy",
+          "name": "S",
+          "role": "underlying",
+          "unit": "UF"
+        }
+      ],
+      "terminal_payoff": {
+        "expression": "p_survival * max(S - K, 0)",
+        "parameters": {
+          "K_uf": 6200.0,
+          "p_survival": 0.97
+        },
+        "payoff_id": "mortality_scaled_fixed_price_call_payoff",
+        "timing": "terminal",
+        "units": "UF"
+      },
+      "unsupported_full_deal_terms": [
+        "rofr",
+        "legal_coordination",
+        "tax_transfer_analysis",
+        "liquidity_default",
+        "market_rent_alternative"
+      ]
+    },
+    "privacy_class": "public_synthetic",
+    "problem_hash": "publicsyntheticpinares001",
+    "problem_id": "pinares.fixed_price_option_proxy.v1",
+    "result_bundle": {
+      "benchmark_ids": [
+        "PINARES-FD-FIXED-PRICE-PROXY-V0",
+        "PINARES-QPS-FIXED-PRICE-PROXY-V0"
+      ],
+      "references": [
+        "Pinares THEORY.md: fixed-price option is separate from ROFR/full contract"
+      ]
+    },
+    "schema_version": "quant-problem-spec/v0",
+    "solver_plan": {
+      "backend_id": "finite_difference_options.fd_backend.v0",
+      "error_budgets": {
+        "delta_abs": 0.001,
+        "gamma_abs": 5e-06,
+        "price_abs_uf": 1.0
+      },
+      "grid_type": "uniform",
+      "method_id": "pinares-fd-fixed-price-proxy-crank-nicolson",
+      "method_kind": "finite_difference",
+      "requested_outputs": [
+        "value",
+        "delta",
+        "gamma"
+      ],
+      "resource_controls": {
+        "deterministic": "true",
+        "grid_levels": 3,
+        "max_s_steps": 180,
+        "max_t_steps": 240
+      },
+      "stability_controls": [
+        "theta"
+      ],
+      "time_controls": {
+        "theta": 0.5
+      }
+    },
+    "valuation_context": {
+      "maturity_date": "2027-06-30",
+      "measure": "Q*",
+      "numeraire": "UF_money_market_account_proxy",
+      "privacy_tier": "public_synthetic",
+      "time_domain": "[0, 1]",
+      "units": {
+        "S": "UF",
+        "rate": "1/year",
+        "time": "year",
+        "underlying": "UF",
+        "value": "UF"
+      },
+      "valuation_date": "2026-06-30"
+    }
+  },
+  "result_export": {
+    "backend_id": "finite_difference_options.fd_backend.v0",
+    "boundary": {
+      "notes": [
+        "left boundary is the vanilla-call Dirichlet value",
+        "right boundary is the strike/rate/time-aware far-spot asymptotic"
+      ],
+      "typed": [
+        {
+          "boundary_type": "dirichlet",
+          "coordinate": "S",
+          "expression": "V(0,tau)=0",
+          "location": "S=0",
+          "value": 0.0
+        },
+        {
+          "boundary_type": "dirichlet",
+          "coordinate": "S",
+          "expression": "V(Smax,tau)=Smax-K*exp(-r*tau)",
+          "location": "S=s_max",
+          "value": 5892.305974461012
+        }
+      ]
+    },
+    "convergence": [
+      {
+        "abs_error_uf": 0.9843755163362012,
+        "oracle_price_uf": 231.79949382593512,
+        "price_uf": 232.78386934227132,
+        "s_steps": 80,
+        "t_steps": 80
+      },
+      {
+        "abs_error_uf": 0.682389007329481,
+        "oracle_price_uf": 231.79949382593512,
+        "price_uf": 232.4818828332646,
+        "s_steps": 120,
+        "t_steps": 160
+      },
+      {
+        "abs_error_uf": 0.3014449648889274,
+        "oracle_price_uf": 231.79949382593512,
+        "price_uf": 232.10093879082405,
+        "s_steps": 180,
+        "t_steps": 240
+      }
+    ],
+    "errors": {
+      "delta_abs": 8.842159257821391e-05,
+      "delta_rel": 0.0001961026680196319,
+      "gamma_abs": 1.7468969201214594e-06,
+      "gamma_rel": 0.00326293990435565,
+      "max_abs_price_error": 0.9843755163362012,
+      "price_abs": 0.3014449648889274,
+      "price_rel": 0.0013004556649950714
+    },
+    "grid": {
+      "maturity_time_index": 0,
+      "monotone": true,
+      "s_grid_family": "uniform",
+      "s_spacing": {
+        "max": 67.03910614525194,
+        "mean": 67.0391061452514,
+        "min": 67.03910614525012
+      },
+      "s_steps": 180,
+      "t_grid_family": "uniform",
+      "t_spacing": {
+        "max": 0.004184100418410108,
+        "mean": 0.0041841004184100415,
+        "min": 0.004184100418409997
+      },
+      "t_steps": 240,
+      "valuation_time_index": 239
+    },
+    "no_arbitrage": {
+      "delta_lower_bound_ok": true,
+      "delta_upper_bound_ok": true,
+      "gamma_non_negative_ok": true,
+      "survival_scale_ok": true,
+      "upper_bound_ok": true,
+      "upper_gap_uf": 5587.899061209176,
+      "value_bound_ok": true,
+      "value_minus_intrinsic_uf": 232.10093879082405
+    },
+    "reference": {
+      "analytical_unscaled_call_uf": 238.9685503360156,
+      "delta": 0.4508943884912468,
+      "gamma": 0.0005353751436824051,
+      "oracle_price_uf": 231.79949382593512,
+      "survival_probability": 0.97
+    },
+    "route_id": "fd.pinares_fixed_price_proxy.crank_nicolson",
+    "solution": {
+      "delta": 0.4508059668986686,
+      "gamma": 0.0005336282467622836,
+      "price_uf": 232.10093879082405,
+      "spot_uf": 6000.0
+    },
+    "time_axis": {
+      "axis": "time",
+      "direction": "decreasing",
+      "maturity_index": 0,
+      "maturity_time": 1.0,
+      "valuation_index": 239,
+      "valuation_time": 0.0
+    }
+  },
+  "schema_version": "finite-difference-pinares-fixed-price-proxy/v0",
+  "unsupported_scope": {
+    "full_family_contract": "unsupported; requires Pinares contract valuation semantics and PDP inputs",
+    "legal_tax_conclusion": "unsupported; FD backend does not provide legal/tax advice",
+    "rofr": "unsupported; right of first refusal is not a vanilla call"
+  }
+}
