@@ -299,8 +299,8 @@ def _is_executable_public_synthetic_payload(
     problem_id: str | None, benchmark_ids: tuple[str, ...]
 ) -> bool:
     return bool(
-        (problem_id in _PUBLIC_SYNTHETIC_PROBLEM_IDS)
-        or (_EXECUTABLE_PUBLIC_BENCHMARKS & set(benchmark_ids))
+        problem_id in _PUBLIC_SYNTHETIC_PROBLEM_IDS
+        and (_EXECUTABLE_PUBLIC_BENCHMARKS & set(benchmark_ids))
     )
 
 

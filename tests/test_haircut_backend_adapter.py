@@ -181,6 +181,22 @@ def test_haircut_backend_solve_executes_only_validated_public_synthetic_fixture(
     assert result.request["boundary_conditions"] == ("dirichlet", "neumann")
 
 
+def test_haircut_backend_rejects_public_benchmark_on_private_payload() -> None:
+    backend = create_backend()
+    payload = _vanilla_payload()
+    payload["problem_id"] = "external-private-supported-looking-problem"
+    payload["privacy_class"] = "private"
+
+    screen = backend.screen(payload)
+    assert not screen.supported
+    assert screen.diagnostics[0]["reason"] == "unsupported_benchmark"
+
+    with pytest.raises(
+        UnsupportedRouteError, match="validated public-synthetic executable benchmark"
+    ):
+        backend.solve(payload)
+
+
 def test_haircut_backend_solve_rejects_supported_screen_without_executable_fixture() -> (
     None
 ):
