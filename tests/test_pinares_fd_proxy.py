@@ -23,6 +23,7 @@ from finite_difference_options.validation.pinares_fixed_price_proxy import (
     PINARES_FIXED_PRICE_PROXY_PROBLEM_ID,
     PINARES_FIXED_PRICE_PROXY_ROUTE_ID,
     PINARES_QPS_CONTRACT_BENCHMARK_ID,
+    PinaresFixedPriceProxyCase,
     public_pinares_fixed_price_problem_spec,
     public_pinares_full_deal_unsupported_problem_spec,
     run_public_pinares_fixed_price_proxy_fixture,
@@ -91,6 +92,37 @@ def test_pinares_fixed_price_proxy_runs_against_analytical_survival_scaled_oracl
     assert report.no_arbitrage["value_bound_ok"]
     assert report.no_arbitrage["upper_bound_ok"]
     assert len(report.convergence_table()) == 3
+
+
+def test_pinares_zero_survival_probability_is_valid_and_does_not_divide_by_zero() -> None:
+    case = PinaresFixedPriceProxyCase(survival_probability=0.0)
+    report = run_public_pinares_fixed_price_proxy_fixture(case=case, grid_levels=((40, 80),))
+
+    assert case.unscaled_black_scholes_tolerance_uf() == case.price_abs_tolerance_uf
+    assert report.converged
+    assert report.oracle_price_uf == 0.0
+    assert report.price_uf == 0.0
+    assert report.delta == 0.0
+    assert report.gamma == 0.0
+    assert report.errors["price_abs"] == 0.0
+    assert report.no_arbitrage["survival_scale_ok"]
+
+
+def test_pinares_problem_spec_uses_requested_grid_levels_in_resource_controls() -> None:
+    grid_levels = ((24, 48), (36, 72))
+    payload = public_pinares_fixed_price_problem_spec(grid_levels=grid_levels)
+    report = run_public_pinares_fixed_price_proxy_fixture(grid_levels=grid_levels)
+
+    assert payload["solver_plan"]["resource_controls"] == {
+        "deterministic": "true",
+        "grid_levels": 2,
+        "max_s_steps": 36,
+        "max_t_steps": 72,
+    }
+    assert (
+        report.as_dict()["problem_spec"]["solver_plan"]["resource_controls"]
+        == payload["solver_plan"]["resource_controls"]
+    )
 
 
 def test_pinares_static_fixtures_match_generated_contracts() -> None:

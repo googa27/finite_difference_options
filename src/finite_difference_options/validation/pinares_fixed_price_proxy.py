@@ -61,10 +61,39 @@ class PinaresFixedPriceProxyCase:
     gamma_abs_tolerance: float = 5.0e-6
     seed: int | None = None
 
+    def __post_init__(self) -> None:
+        """Validate public-synthetic scalar inputs before solver construction."""
+
+        if not 0.0 <= self.survival_probability <= 1.0:
+            msg = "survival_probability must be in [0, 1]"
+            raise ValueError(msg)
+        if self.price_abs_tolerance_uf <= 0.0:
+            msg = "price_abs_tolerance_uf must be positive"
+            raise ValueError(msg)
+        if self.delta_abs_tolerance <= 0.0:
+            msg = "delta_abs_tolerance must be positive"
+            raise ValueError(msg)
+        if self.gamma_abs_tolerance <= 0.0:
+            msg = "gamma_abs_tolerance must be positive"
+            raise ValueError(msg)
+
     def normalized_units(self) -> dict[str, str]:
         """Return explicit Pinares proxy units."""
 
         return {"S": "UF", "underlying": "UF", "value": "UF", "rate": "1/year", "time": "year"}
+
+    def unscaled_black_scholes_tolerance_uf(self) -> float:
+        """Return the unscaled Black--Scholes tolerance without dividing by zero.
+
+        The FD solve runs an unscaled call and the Pinares result multiplies by
+        ``survival_probability``. For a zero-survival edge case, any finite
+        unscaled numerical error scales back to zero, so the original absolute
+        UF budget is sufficient and avoids a meaningless infinite tolerance.
+        """
+
+        if self.survival_probability == 0.0:
+            return self.price_abs_tolerance_uf
+        return self.price_abs_tolerance_uf / self.survival_probability
 
     def as_black_scholes_case(self) -> Any:
         """Return the unscaled Black--Scholes case used by the linear FD solve."""
@@ -82,7 +111,7 @@ class PinaresFixedPriceProxyCase:
             sigma=self.volatility,
             maturity=self.maturity_years,
             s_max=self.s_max_uf,
-            tolerance=self.price_abs_tolerance_uf / self.survival_probability,
+            tolerance=self.unscaled_black_scholes_tolerance_uf(),
             valuation_date=self.valuation_date,
             maturity_date=self.maturity_date,
             measure="Q*",
@@ -107,6 +136,7 @@ class PinaresFixedPriceProxyReport:
     reference_gamma: float
     errors: dict[str, float]
     no_arbitrage: dict[str, Any]
+    grid_levels: tuple[tuple[int, int], ...]
 
     @property
     def final_abs_error_uf(self) -> float:
@@ -159,7 +189,7 @@ class PinaresFixedPriceProxyReport:
         return {
             "schema_version": PINARES_FIXED_PRICE_PROXY_SCHEMA_VERSION,
             "fixture_id": self.case.fixture_id,
-            "problem_spec": public_pinares_fixed_price_problem_spec(case=self.case),
+            "problem_spec": public_pinares_fixed_price_problem_spec(case=self.case, grid_levels=self.grid_levels),
             "result_export": {
                 "route_id": self.case.route_id,
                 "backend_id": self.case.backend_id,
@@ -192,10 +222,17 @@ class PinaresFixedPriceProxyReport:
         }
 
 
-def public_pinares_fixed_price_problem_spec(*, case: PinaresFixedPriceProxyCase | None = None) -> dict[str, Any]:
+def public_pinares_fixed_price_problem_spec(
+    *,
+    case: PinaresFixedPriceProxyCase | None = None,
+    grid_levels: tuple[tuple[int, int], ...] = PINARES_PROXY_GRID_LEVELS,
+) -> dict[str, Any]:
     """Return the canonical public-synthetic Pinares fixed-price QuantProblemSpec."""
 
     case = case or PinaresFixedPriceProxyCase()
+    if not grid_levels:
+        msg = "grid_levels must contain at least one (s_steps, t_steps) pair"
+        raise ValueError(msg)
     coefficient_terms = [
         {
             "name": "drift",
@@ -218,9 +255,9 @@ def public_pinares_fixed_price_problem_spec(*, case: PinaresFixedPriceProxyCase 
         },
     ]
     resource_controls = {
-        "grid_levels": len(PINARES_PROXY_GRID_LEVELS),
-        "max_s_steps": max(level[0] for level in PINARES_PROXY_GRID_LEVELS),
-        "max_t_steps": max(level[1] for level in PINARES_PROXY_GRID_LEVELS),
+        "grid_levels": len(grid_levels),
+        "max_s_steps": max(level[0] for level in grid_levels),
+        "max_t_steps": max(level[1] for level in grid_levels),
         "deterministic": "true",
     }
     error_budgets = {
@@ -444,6 +481,7 @@ def run_public_pinares_fixed_price_proxy_fixture(
         reference_gamma=reference_gamma,
         errors=errors,
         no_arbitrage=no_arbitrage,
+        grid_levels=grid_levels,
     )
 
 
