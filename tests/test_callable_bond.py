@@ -3,15 +3,13 @@
 import pathlib
 import sys
 
-# Ensure project root on path
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 
-from src.models import Market
-from src.pricing import OptionPricer
-from src.pricing.engines import CallableBondPDEModel
-from src.processes import GeometricBrownianMotion
+from finite_difference_options.models import Market
+from finite_difference_options.pricing import OptionPricer
+from finite_difference_options.pricing.engines import CallableBondPDEModel
+from finite_difference_options.processes import GeometricBrownianMotion
 
 
 def test_callable_bond_grid_respects_call_price_and_face_value() -> None:

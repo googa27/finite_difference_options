@@ -1,20 +1,25 @@
 """Regression tests for multidimensional unified-engine coefficient plumbing."""
+
 from __future__ import annotations
 
 import inspect
 import pathlib
 import sys
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 from numpy.testing import assert_allclose
 import pytest
 
-from src.exceptions import ValidationError
-from src.pricing import UnifiedEuropeanOption
-from src.processes import ProcessDimension, ProcessType, StochasticProcess, create_standard_heston
-from src.solvers.base import ADISolverWrapper
+from finite_difference_options.exceptions import ValidationError
+from finite_difference_options.pricing import UnifiedEuropeanOption
+from finite_difference_options.processes import (
+    ProcessDimension,
+    ProcessType,
+    StochasticProcess,
+    create_standard_heston,
+)
+from finite_difference_options.solvers.base import ADISolverWrapper
 
 
 class RecordingADISolver:
@@ -39,7 +44,9 @@ class RecordingADISolver:
                 "drift": np.array(drift, copy=True),
                 "covariance": np.array(covariance, copy=True),
                 "time_grid": np.array(time_grid, copy=True),
-                "spatial_grids": tuple(np.array(grid, copy=True) for grid in spatial_grids),
+                "spatial_grids": tuple(
+                    np.array(grid, copy=True) for grid in spatial_grids
+                ),
                 "boundary_conditions": boundary_conditions,
                 "reaction": None if reaction is None else np.array(reaction, copy=True),
             }
@@ -61,11 +68,17 @@ class FourDimensionalProcess(StochasticProcess):
     def process_type(self) -> ProcessType:
         return ProcessType.NON_AFFINE
 
-    def drift(self, time: float, state: np.ndarray) -> np.ndarray:  # pragma: no cover - fail-fast path
+    def drift(
+        self, time: float, state: np.ndarray
+    ) -> np.ndarray:  # pragma: no cover - fail-fast path
         raise AssertionError("drift should not be evaluated for unsupported dimensions")
 
-    def covariance(self, time: float, state: np.ndarray) -> np.ndarray:  # pragma: no cover - fail-fast path
-        raise AssertionError("covariance should not be evaluated for unsupported dimensions")
+    def covariance(
+        self, time: float, state: np.ndarray
+    ) -> np.ndarray:  # pragma: no cover - fail-fast path
+        raise AssertionError(
+            "covariance should not be evaluated for unsupported dimensions"
+        )
 
 
 class IndefiniteTwoDimensionalProcess(StochasticProcess):
@@ -102,7 +115,9 @@ def _expected_process_coefficients(process, time_grid, grids):
 
 
 def test_multidimensional_adapter_passes_heston_process_coefficients_to_adi() -> None:
-    process = create_standard_heston(r=0.03, kappa=4.0, theta=0.08, sigma=0.55, rho=-0.35)
+    process = create_standard_heston(
+        r=0.03, kappa=4.0, theta=0.08, sigma=0.55, rho=-0.35
+    )
     recording_solver = RecordingADISolver()
     wrapper = ADISolverWrapper(recording_solver, process=process)
 
@@ -117,13 +132,17 @@ def test_multidimensional_adapter_passes_heston_process_coefficients_to_adi() ->
 
     assert len(recording_solver.calls) == 1
     call = recording_solver.calls[0]
-    expected_drift, expected_covariance, expected_reaction = _expected_process_coefficients(process, time_grid, grids)
+    expected_drift, expected_covariance, expected_reaction = (
+        _expected_process_coefficients(process, time_grid, grids)
+    )
     assert_allclose(call["drift"], expected_drift)
     assert_allclose(call["covariance"], expected_covariance)
     assert_allclose(call["reaction"], expected_reaction)
 
     covariance = call["covariance"]
-    assert np.any(covariance[..., 0, 1] != 0.0), "Heston mixed covariance must reach ADI assembly"
+    assert np.any(
+        covariance[..., 0, 1] != 0.0
+    ), "Heston mixed covariance must reach ADI assembly"
     assert_allclose(covariance[..., 0, 1], covariance[..., 1, 0])
 
 
@@ -132,14 +151,22 @@ def test_multidimensional_adapter_coefficients_change_with_selected_process() ->
     variance_grid = np.array([0.03, 0.09])
     time_grid = np.array([0.0, 0.5])
 
-    low_vol_process = create_standard_heston(r=0.03, kappa=4.0, theta=0.08, sigma=0.2, rho=-0.1)
-    high_vol_process = create_standard_heston(r=0.03, kappa=8.0, theta=0.06, sigma=0.8, rho=-0.7)
+    low_vol_process = create_standard_heston(
+        r=0.03, kappa=4.0, theta=0.08, sigma=0.2, rho=-0.1
+    )
+    high_vol_process = create_standard_heston(
+        r=0.03, kappa=8.0, theta=0.06, sigma=0.8, rho=-0.7
+    )
 
-    _, low_covariance, low_reaction = ADISolverWrapper(RecordingADISolver(), process=low_vol_process)._build_process_coefficients(
+    _, low_covariance, low_reaction = ADISolverWrapper(
+        RecordingADISolver(), process=low_vol_process
+    )._build_process_coefficients(
         float(time_grid[-1]),
         (spot_grid, variance_grid),
     )
-    _, high_covariance, high_reaction = ADISolverWrapper(RecordingADISolver(), process=high_vol_process)._build_process_coefficients(
+    _, high_covariance, high_reaction = ADISolverWrapper(
+        RecordingADISolver(), process=high_vol_process
+    )._build_process_coefficients(
         float(time_grid[-1]),
         (spot_grid, variance_grid),
     )
@@ -149,13 +176,19 @@ def test_multidimensional_adapter_coefficients_change_with_selected_process() ->
 
     assert not np.allclose(low_covariance, high_covariance)
     expected_shape = low_covariance[..., 1, 1].shape
-    expected_low_var = np.broadcast_to(low_vol_process.sigma**2 * variance_grid[None, :], expected_shape)
-    expected_high_var = np.broadcast_to(high_vol_process.sigma**2 * variance_grid[None, :], expected_shape)
+    expected_low_var = np.broadcast_to(
+        low_vol_process.sigma**2 * variance_grid[None, :], expected_shape
+    )
+    expected_high_var = np.broadcast_to(
+        high_vol_process.sigma**2 * variance_grid[None, :], expected_shape
+    )
     assert_allclose(low_covariance[..., 1, 1], expected_low_var)
     assert_allclose(high_covariance[..., 1, 1], expected_high_var)
 
 
-def test_multidimensional_adapter_rejects_unsupported_dimensions_before_allocation() -> None:
+def test_multidimensional_adapter_rejects_unsupported_dimensions_before_allocation() -> (
+    None
+):
     wrapper = ADISolverWrapper(RecordingADISolver(), process=FourDimensionalProcess())
     instrument = UnifiedEuropeanOption(strike=100.0, maturity=0.25, option_type="call")
 
@@ -171,9 +204,13 @@ def test_multidimensional_adapter_rejects_unsupported_dimensions_before_allocati
         )
 
 
-def test_multidimensional_adapter_rejects_indefinite_covariance_before_adi_call() -> None:
+def test_multidimensional_adapter_rejects_indefinite_covariance_before_adi_call() -> (
+    None
+):
     recording_solver = RecordingADISolver()
-    wrapper = ADISolverWrapper(recording_solver, process=IndefiniteTwoDimensionalProcess())
+    wrapper = ADISolverWrapper(
+        recording_solver, process=IndefiniteTwoDimensionalProcess()
+    )
     instrument = UnifiedEuropeanOption(strike=100.0, maturity=0.25, option_type="call")
 
     with pytest.raises(ValidationError, match="positive semi-definite"):
@@ -187,7 +224,9 @@ def test_multidimensional_adapter_rejects_indefinite_covariance_before_adi_call(
     assert recording_solver.calls == []
 
 
-def test_multidimensional_adapter_contains_no_zero_drift_constant_variance_fallback() -> None:
+def test_multidimensional_adapter_contains_no_zero_drift_constant_variance_fallback() -> (
+    None
+):
     source = inspect.getsource(ADISolverWrapper.solve)
     forbidden_fragments = [
         "Create dummy drift",

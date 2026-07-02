@@ -2,72 +2,169 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  python:
+  package:
+    name: Package / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-      - name: Install dependencies
+          cache: pip
+      - name: Build sdist and wheel
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt -r requirements-dev.txt
-      - name: Static smoke gate
+          python -m pip install '.[build]'
+          python -m build --sdist --wheel
+          python -m twine check dist/*
+      - name: Clean wheel import smoke outside checkout
         run: |
-          python -m compileall -q api src tests
-          ruff check . --select E9,F63,F7,F82
-      - name: Architecture contract
-        run: python scripts/check_architecture_contract.py
-      - name: Markdown link contract
-        run: python scripts/check_markdown_links.py
-      - name: Architecture fitness gate
-        run: pytest -q tests/architecture
-      - name: Stable regression suite
-        run: |
-          PYTHONPATH=. pytest -q \
-            tests/test_api_request_guards.py \
-            tests/test_api_schema_contracts.py \
-            tests/test_api_route_validation.py \
-            tests/test_api_interpolation_diagnostics.py \
-            tests/test_api_resource_controls.py \
-            tests/test_benchmark_registry.py \
-            tests/test_api_deployment_hardening.py \
-            tests/test_adi_solver_operator_split.py \
-            tests/test_regulatory_fail_closed.py \
-            tests/test_boundary_conditions.py \
-            tests/test_callable_bond.py \
-            tests/test_fd_backend_capabilities.py \
-            tests/test_fd_black_scholes_parity_fixture.py \
-            tests/test_finite_difference_greeks.py \
-            tests/test_greeks.py \
-            tests/test_haircut_backend_adapter.py \
-            tests/test_multidimensional_adapter_coefficients.py \
-            tests/test_model_aware_reaction_terms.py \
-            tests/test_option_pricer.py \
-            tests/test_option_pricer_result.py \
-            tests/test_options.py \
-            tests/test_pde_pricer.py \
-            tests/test_plot_api.py \
-            tests/test_plot_backends.py \
-            tests/test_pricing_engine_imports.py \
-            tests/test_unified_pricing_engine.py \
-            tests/test_unified_processes.py
+          python -m venv /tmp/fdo-wheel-smoke
+          /tmp/fdo-wheel-smoke/bin/python -m pip install --upgrade pip
+          /tmp/fdo-wheel-smoke/bin/python -m pip install dist/finite_difference_options-*.whl
+          cd /tmp
+          /tmp/fdo-wheel-smoke/bin/python - <<'PY'
+          import importlib
+          for name in [
+              'finite_difference_options',
+              'finite_difference_options.contracts',
+              'finite_difference_options.integrations.haircut_backend',
+              'finite_difference_options.validation.black_scholes_parity',
+          ]:
+              importlib.import_module(name)
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: finite-difference-options-dist-py${{ matrix.python-version }}
+          path: dist/*
+          if-no-files-found: error
 
-  node:
+  test:
+    name: Test / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node-version: ["20"]
+        python-version: ["3.12"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install development profile
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Static smoke gate
+        run: |
+          python -m compileall -q src tests scripts
+          ruff check . --select E9,F63,F7,F82
+          mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py
+      - name: Architecture and packaging contracts
+        run: |
+          python scripts/check_architecture_contract.py
+          python scripts/check_markdown_links.py
+          pytest -q tests/architecture tests/test_packaging_contract.py --no-cov
+      - name: Stable regression suite
+        run: pytest -q --cov=finite_difference_options --cov-report=xml --junitxml=junit.xml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: finite-difference-options-test-artifacts-py${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            junit.xml
+          if-no-files-found: warn
+
+  optional-profiles:
+    name: Optional profile / ${{ matrix.profile }}
+    runs-on: ubuntu-latest
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [api, cli, ui, viz, validation]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install '.[build]'
+          python -m build --wheel
+      - name: Install and smoke optional profile
+        run: |
+          python -m venv /tmp/fdo-${{ matrix.profile }}-profile
+          /tmp/fdo-${{ matrix.profile }}-profile/bin/python -m pip install --upgrade pip
+          WHEEL=$(ls dist/finite_difference_options-*.whl)
+          /tmp/fdo-${{ matrix.profile }}-profile/bin/python -m pip install "${WHEEL}[${{ matrix.profile }}]"
+          cd /tmp
+          /tmp/fdo-${{ matrix.profile }}-profile/bin/python - <<'PY'
+          import importlib
+          import os
+          profile = os.environ['PROFILE']
+          imports = {
+              'api': ['finite_difference_options.api.main'],
+              'cli': ['finite_difference_options.cli.main'],
+              'ui': ['streamlit'],
+              'viz': ['matplotlib', 'plotly', 'seaborn'],
+              'validation': ['pytest', 'finite_difference_options.validation.black_scholes_parity'],
+          }[profile]
+          for name in imports:
+              importlib.import_module(name)
+          PY
+        env:
+          PROFILE: ${{ matrix.profile }}
+
+  audit:
+    name: Audit and SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Vulnerability audit and SBOM
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+          python -m pip install -r requirements-dev.lock.txt
+          python -m pip check
+          python -m pip_audit --progress-spinner=off --skip-editable
+          cyclonedx-py environment --of JSON -o sbom.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: finite-difference-options-sbom
+          path: sbom.json
+          if-no-files-found: error
+
+  node:
+    name: Optional Node client
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Detect Next.js client
         id: nextjs
         shell: bash
@@ -85,10 +182,10 @@ jobs:
             echo "lockfile=false" >> "$GITHUB_OUTPUT"
             echo "nextjs-client is absent; skipping Node install/test/lint."
           fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         if: steps.nextjs.outputs.present == 'true'
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "20"
       - name: Install dependencies with lockfile
         if: steps.nextjs.outputs.present == 'true' && steps.nextjs.outputs.lockfile == 'true'
         working-directory: nextjs-client

@@ -1,15 +1,14 @@
 """Tests for the finite difference Black--Scholes pricer."""
+
 import pathlib
 import sys
 
-# Ensure project root on path
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
-from src.processes.affine import GeometricBrownianMotion
-from src.instruments.base import EuropeanCall, EuropeanPut
-from src.pricing.engines import BlackScholesPDE
-from src.solvers.finite_difference import ExplicitEuler
+from finite_difference_options.processes.affine import GeometricBrownianMotion
+from finite_difference_options.instruments.base import EuropeanCall, EuropeanPut
+from finite_difference_options.pricing.engines import BlackScholesPDE
+from finite_difference_options.solvers.finite_difference import ExplicitEuler
 
 
 def black_scholes_call(s, k, r, sigma, T):
@@ -17,7 +16,7 @@ def black_scholes_call(s, k, r, sigma, T):
     from math import log, sqrt, exp
     from scipy.stats import norm
 
-    d1 = (log(s / k) + (r + 0.5 * sigma ** 2) * T) / (sigma * sqrt(T))
+    d1 = (log(s / k) + (r + 0.5 * sigma**2) * T) / (sigma * sqrt(T))
     d2 = d1 - sigma * sqrt(T)
     return s * norm.cdf(d1) - k * exp(-r * T) * norm.cdf(d2)
 
@@ -27,7 +26,7 @@ def black_scholes_put(s, k, r, sigma, T):
     from math import log, sqrt, exp
     from scipy.stats import norm
 
-    d1 = (log(s / k) + (r + 0.5 * sigma ** 2) * T) / (sigma * sqrt(T))
+    d1 = (log(s / k) + (r + 0.5 * sigma**2) * T) / (sigma * sqrt(T))
     d2 = d1 - sigma * sqrt(T)
     return k * exp(-r * T) * norm.cdf(-d2) - s * norm.cdf(-d1)
 
@@ -97,9 +96,7 @@ def test_call_matches_analytical_explicit_euler():
     model = GeometricBrownianMotion(mu=rate, sigma=sigma)
     instrument = EuropeanCall(strike=K, maturity=T, model=model)
 
-    pricer = BlackScholesPDE(
-        instrument=instrument, time_stepper=ExplicitEuler()
-    )
+    pricer = BlackScholesPDE(instrument=instrument, time_stepper=ExplicitEuler())
     grid = pricer.price(option=instrument, s=s, t=t)
 
     idx = np.searchsorted(s, 1.0)

@@ -5,14 +5,16 @@ from __future__ import annotations
 import pathlib
 import sys
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 from numpy.testing import assert_allclose
 
-from src.instruments.operators import SpatialOperator
-from src.processes.affine import GeometricBrownianMotion, create_standard_heston
-from src.solvers.base import FiniteDifferenceSolverAdapter
+from finite_difference_options.instruments.operators import SpatialOperator
+from finite_difference_options.processes.affine import (
+    GeometricBrownianMotion,
+    create_standard_heston,
+)
+from finite_difference_options.solvers.base import FiniteDifferenceSolverAdapter
 
 
 def test_spatial_operator_accepts_explicit_discount_independent_of_drift() -> None:

@@ -2,7 +2,7 @@
 
 Issue: [googa27/finite_difference_options#49](https://github.com/googa27/finite_difference_options/issues/49)
 Schema: `finite-difference-benchmark-registry/v0`
-Executable source: `src.validation.benchmark_registry`
+Executable source: `finite_difference_options.validation.benchmark_registry`
 Static fixture: `tests/fixtures/fd_benchmark_registry_v1.json`
 
 The registry is the evidence index behind `docs/CAPABILITY_MATRIX.md`. A capability row is not a production claim just because a route can run; it needs a versioned benchmark/evidence ID with explicit model, route, oracle, tolerance, invariants, fixture paths and resource policy.

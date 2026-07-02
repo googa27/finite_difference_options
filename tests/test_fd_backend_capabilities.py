@@ -1,4 +1,5 @@
 """FD capability-manifest and unsupported-route diagnostics tests."""
+
 from __future__ import annotations
 
 import json
@@ -7,9 +8,8 @@ import sys
 
 import pytest
 
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
-from src.contracts import (  # noqa: E402
+from finite_difference_options.contracts import (  # noqa: E402
     DEFAULT_FD_CAPABILITY_MANIFEST,
     FDRouteRequest,
     UnsupportedReason,
@@ -17,7 +17,6 @@ from src.contracts import (  # noqa: E402
     diagnose_unsupported_route,
     ensure_route_supported,
 )
-
 
 FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures" / "quant_problem_specs"
 
@@ -46,7 +45,9 @@ def _supported_payload() -> dict[str, object]:
     }
 
 
-def test_default_manifest_declares_fd_support_without_claiming_american_or_jumps() -> None:
+def test_default_manifest_declares_fd_support_without_claiming_american_or_jumps() -> (
+    None
+):
     manifest = DEFAULT_FD_CAPABILITY_MANIFEST
 
     assert manifest.backend_id == "finite_difference_options.fd_backend.v0"
@@ -125,7 +126,10 @@ def test_pinares_fixed_price_problem_fixture_maps_to_supported_fd_route() -> Non
 
 def test_wrong_backend_id_fails_closed_for_fd_route() -> None:
     payload = json.loads((FIXTURE_DIR / "pinares_fixed_price_proxy.json").read_text())
-    payload["solver_plan"] = {**payload["solver_plan"], "backend_id": "finite_element_options.fem_backend.v0"}
+    payload["solver_plan"] = {
+        **payload["solver_plan"],
+        "backend_id": "finite_element_options.fem_backend.v0",
+    }
     request = FDRouteRequest.from_quant_problem_spec(payload)
 
     diagnostics = diagnose_unsupported_route(request)
@@ -160,7 +164,9 @@ def test_unsupported_terms_dimensions_boundaries_and_exercise_fail_closed() -> N
         "boundary_conditions",
         "exercise_style",
     }
-    with pytest.raises(UnsupportedRouteError, match="FD backend supports dimensions") as exc_info:
+    with pytest.raises(
+        UnsupportedRouteError, match="FD backend supports dimensions"
+    ) as exc_info:
         ensure_route_supported(request)
     assert exc_info.value.diagnostics == diagnostics
 
@@ -177,7 +183,13 @@ def test_missing_measure_numeraire_units_and_dates_are_actionable_diagnostics() 
         if diagnostic.reason == UnsupportedReason.MISSING_CONVENTION
     }
 
-    assert missing == {"measure", "numeraire", "units", "valuation_date", "maturity_date"}
+    assert missing == {
+        "measure",
+        "numeraire",
+        "units",
+        "valuation_date",
+        "maturity_date",
+    }
     assert all("missing or empty" in diagnostic.message for diagnostic in diagnostics)
 
 
@@ -194,10 +206,18 @@ def test_unsupported_outputs_and_stability_controls_do_not_silently_downgrade() 
     by_field = {diagnostic.field: diagnostic for diagnostic in diagnostics}
 
     assert by_field["grid_type"].reason == UnsupportedReason.UNSUPPORTED_GRID
-    assert {diagnostic.value for diagnostic in diagnostics if diagnostic.field == "requested_outputs"} == {
+    assert {
+        diagnostic.value
+        for diagnostic in diagnostics
+        if diagnostic.field == "requested_outputs"
+    } == {
         "vega",
         "exercise_boundary",
     }
-    assert {diagnostic.value for diagnostic in diagnostics if diagnostic.field == "stability_controls"} == {
+    assert {
+        diagnostic.value
+        for diagnostic in diagnostics
+        if diagnostic.field == "stability_controls"
+    } == {
         "policy_iteration_lcp",
     }

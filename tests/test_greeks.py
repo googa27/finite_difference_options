@@ -1,16 +1,15 @@
 """Tests for finite difference Greek calculations."""
+
 import pathlib
 import sys
 
-# Ensure project root on path
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
 import numpy as np
 from scipy.stats import norm
 
-from src.pricing import OptionPricer
-from src.processes.affine import GeometricBrownianMotion
-from src.instruments.base import EuropeanCall
+from finite_difference_options.pricing import OptionPricer
+from finite_difference_options.processes.affine import GeometricBrownianMotion
+from finite_difference_options.instruments.base import EuropeanCall
 
 
 def bs_call_greeks(
@@ -24,9 +23,8 @@ def bs_call_greeks(
     d2 = d1 - sigma * sqrt(T)
     delta = norm.cdf(d1)
     gamma = norm.pdf(d1) / (s * sigma * sqrt(T))
-    theta = (
-        -s * norm.pdf(d1) * sigma / (2 * sqrt(T))
-        - r * k * exp(-r * T) * norm.cdf(d2)
+    theta = -s * norm.pdf(d1) * sigma / (2 * sqrt(T)) - r * k * exp(-r * T) * norm.cdf(
+        d2
     )
     return delta, gamma, theta
 

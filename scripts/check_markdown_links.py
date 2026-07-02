@@ -175,16 +175,25 @@ def validate_links(repo_root: Path) -> list[str]:
                 try:
                     candidate.relative_to(repo_root.resolve())
                 except ValueError:
-                    failures.append(f"{rel_file}:{line_number}: link escapes repository: {target}")
+                    failures.append(
+                        f"{rel_file}:{line_number}: link escapes repository: {target}"
+                    )
                     continue
                 if not candidate.exists():
-                    failures.append(f"{rel_file}:{line_number}: missing relative link target: {target}")
+                    failures.append(
+                        f"{rel_file}:{line_number}: missing relative link target: {target}"
+                    )
     return failures
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path.cwd(), help="repository root (default: current directory)")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path.cwd(),
+        help="repository root (default: current directory)",
+    )
     args = parser.parse_args()
     repo_root = args.root.resolve()
     failures = validate_links(repo_root)

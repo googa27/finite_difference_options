@@ -14,27 +14,27 @@
 - When writing python code, follow PEP8 standards.
 
 ## Project Structure & Module Organization
-- `src/`: Core library (PDE models, pricer, Greeks, plotting, risk). Examples: `pde_pricer.py`, `option_pricer.py`, `greeks.py`, `plotting/`, `risk/`.
-- `tests/`: Unit tests for pricing, boundary conditions, and options (e.g., `tests/test_pde_pricer.py`).
-- `api/`: FastAPI service (run with `uvicorn api.main:app --reload`).
-- `cli/`: Typer-based CLI entry points (run with `python -m cli ...`).
-- `apps/`: Streamlit demo (`apps/streamlit_app.py`).
-- `nextjs-client/`: Next.js example client consuming the API.
-- `docs/`: Explanations and regulatory notes.
+- `src/finite_difference_options/`: Installable core package (PDE models, pricers, solvers, validation, integrations, optional API/CLI/plotting/risk adapters).
+- `tests/`: Unit, architecture, packaging, integration, and numerical tests.
+- `src/finite_difference_options/api/`: FastAPI service (run with `uvicorn finite_difference_options.api.main:app --reload`).
+- `src/finite_difference_options/cli/`: Typer CLI entry point (`fd-options`).
+- `nextjs-client/`: Optional Next.js example client consuming the API.
+- `docs/`: Explanations, architecture, CI policy, and regulatory notes.
 
 ## Build, Test, and Development Commands
-- Install: `pip install -r requirements.txt -r requirements-dev.txt`
+- Install: `python -m pip install -e '.[dev]'` (or `python -m pip install .` for runtime only)
+- Lock smoke: `python -m pip install -r requirements-dev.lock.txt && python -m pip check`
 - Pre-commit: `pre-commit install` then `pre-commit run --all-files`
-- Lint: `ruff check`  | Types: `mypy`  | Format: `black .`
-- Tests: `pytest -n auto` (parallel) or `pytest -q` for concise output
-- Streamlit: `streamlit run apps/streamlit_app.py`
-- API: `uvicorn api.main:app --reload`
-- CLI: `python -m cli price --option-type Call --strike 1 --maturity 1`
+- Lint: `ruff check . --select E9,F63,F7,F82`  | Types: `mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py`  | Format: `black .`
+- Tests: `pytest -q tests/architecture tests/test_packaging_contract.py --no-cov`, then `pytest -q`
+- Build/audit: `python -m build --sdist --wheel && python -m twine check dist/* && python -m pip_audit --progress-spinner=off --skip-editable`
+- API: `uvicorn finite_difference_options.api.main:app --reload`
+- CLI: `fd-options price --option-type Call --strike 1 --maturity 1`
 - Next.js client: `cd nextjs-client && npm ci && npm run dev`
 
 ## Coding Style & Naming Conventions
 - Python: Black formatting, Ruff linting (E, F, B), line length 120 (`pyproject.toml`).
-- Types: `mypy` enforced; avoid untyped defs; keep `src/` importable.
+- Types: `mypy` enforced on contract-critical modules; avoid untyped defs; keep `finite_difference_options` importable as an installed package.
 - Naming: `snake_case` for functions/modules, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants.
 - Tests: name files `tests/test_*.py`; use descriptive test names and fixtures where helpful.
 

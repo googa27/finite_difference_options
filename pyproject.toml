@@ -1,3 +1,102 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "finite-difference-options"
+version = "0.1.0"
+description = "Installable finite-difference option pricing and PDE validation toolkit"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+authors = [{ name = "Cristobal" }]
+keywords = ["finite-difference", "option-pricing", "pde", "quantitative-finance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "findiff>=0.12,<1",
+    "numpy>=2,<3",
+    "pydantic>=2,<3",
+    "scipy>=1.16,<2",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.116,<1",
+    "uvicorn>=0.35,<1",
+]
+cli = [
+    "typer>=0.16,<1",
+    "finite-difference-options[viz]",
+]
+viz = [
+    "matplotlib>=3.10,<4",
+    "plotly>=6.3,<7",
+    "seaborn>=0.13,<1",
+]
+ui = [
+    "streamlit>=1.48,<2",
+    "finite-difference-options[viz]",
+]
+validation = [
+    "pytest>=9.0.3,<10",
+    "pytest-cov>=5,<7",
+    "pytest-xdist>=3.6,<4",
+    "httpx>=0.27,<1",
+]
+build = [
+    "build>=1,<2",
+    "twine>=5,<7",
+]
+audit = [
+    "pip-audit>=2.7,<3",
+    "cyclonedx-bom>=5,<8",
+]
+dev = [
+    "black>=26.3.1,<27",
+    "build>=1,<2",
+    "cyclonedx-bom>=5,<8",
+    "fastapi>=0.116,<1",
+    "httpx>=0.27,<1",
+    "matplotlib>=3.10,<4",
+    "mypy>=1.17,<2",
+    "pip-audit>=2.7,<3",
+    "plotly>=6.3,<7",
+    "pre-commit>=4.3,<5",
+    "pytest>=9.0.3,<10",
+    "pytest-cov>=5,<7",
+    "pytest-xdist>=3.6,<4",
+    "ruff>=0.12,<1",
+    "seaborn>=0.13,<1",
+    "streamlit>=1.48,<2",
+    "twine>=5,<7",
+    "typer>=0.16,<1",
+    "uvicorn>=0.35,<1",
+]
+
+[project.urls]
+Repository = "https://github.com/googa27/finite_difference_options"
+Issues = "https://github.com/googa27/finite_difference_options/issues"
+
+[project.scripts]
+fd-options = "finite_difference_options.cli.main:app"
+
+[project.entry-points."haircut_engine.solver_backends"]
+finite_difference_options = "finite_difference_options.integrations.haircut_backend:create_backend"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["finite_difference_options*"]
+exclude = ["src*"]
+
+[tool.setuptools.package-data]
+finite_difference_options = ["py.typed"]
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"
@@ -11,4 +110,12 @@ select = ["E", "F", "B"]
 [tool.pytest.ini_options]
 markers = [
     "architecture: architecture and package-boundary fitness checks",
+    "packaging: package metadata, wheel, and installed-import contract checks",
 ]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["finite_difference_options"]
+
+[tool.coverage.report]
+show_missing = true

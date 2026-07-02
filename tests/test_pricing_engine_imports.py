@@ -1,17 +1,16 @@
 """Tests covering the finite difference pricing engine import surface."""
+
 import pathlib
 import sys
 
-# Ensure project root on path
-sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
 
-from src.pricing import (
+from finite_difference_options.pricing import (
     GridParameters,
     PricingEngine,
     PricingResult,
     create_default_pricing_engine,
 )
-from src.pricing.engines import (
+from finite_difference_options.pricing.engines import (
     GridParameters as GridParametersFromPackage,
     PricingEngine as PricingEngineFromPackage,
     PricingResult as PricingResultFromPackage,
@@ -28,10 +27,7 @@ def test_symbols_reexported_from_pricing_package() -> None:
     assert GridParameters is GridParametersFromPackage
     assert PricingResult is finite_difference.PricingResult
     assert PricingResult is PricingResultFromPackage
-    assert (
-        create_default_pricing_engine
-        is create_default_pricing_engine_from_package
-    )
+    assert create_default_pricing_engine is create_default_pricing_engine_from_package
 
 
 def test_create_default_pricing_engine_returns_engine() -> None:

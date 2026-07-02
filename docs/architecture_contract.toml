@@ -1,20 +1,23 @@
 # Machine-readable finite_difference_options architecture contract.
-# The repo is still in a transitional multi-package src layout; this contract
-# freezes that surface so any new package boundary is explicit and reviewed.
+# The repository now uses a real src-layout distribution package under
+# src/finite_difference_options. The top-level directory named src is only the
+# setuptools package root; it is not a public import package.
 
 [contract]
-schema_version = 1
+schema_version = 2
 name = "finite_difference_options"
-mode = "transitional-src-packages"
+mode = "src-layout-distribution-package"
 
 [paths]
-package_root = "src"
+package_root = "src/finite_difference_options"
 tests_root = "tests"
 
 [topology]
-allowed_root_modules = ["__init__.py"]
+allowed_root_modules = ["__init__.py", "py.typed"]
 required_top_level_packages = [
+  "api",
   "boundary_conditions",
+  "cli",
   "contracts",
   "exceptions",
   "greeks",
@@ -30,7 +33,9 @@ required_top_level_packages = [
   "validation",
 ]
 allowed_top_level_packages = [
+  "api",
   "boundary_conditions",
+  "cli",
   "contracts",
   "exceptions",
   "greeks",
@@ -45,7 +50,7 @@ allowed_top_level_packages = [
   "utils",
   "validation",
 ]
-max_top_level_package_count = 14
+max_top_level_package_count = 16
 ignore_top_level_dirs = []
 
 [repository_root]
@@ -53,16 +58,26 @@ allowed_python_files = []
 
 [documentation]
 required_docs = ["docs/ARCHITECTURE.md", "AGENTS.md", "docs/CI_POLICY.md"]
-required_fragments = ["docs/architecture_contract.toml", "architecture contract"]
+required_fragments = ["docs/architecture_contract.toml", "architecture contract", "finite_difference_options"]
 
 [ci]
 workflow_paths = [".github/workflows/ci.yml"]
-required_fragments = ["scripts/check_architecture_contract.py", "tests/architecture"]
+required_fragments = [
+  "python -m build --sdist --wheel",
+  "python -m twine check dist/*",
+  "tests/test_packaging_contract.py",
+  "scripts/check_architecture_contract.py",
+  "tests/architecture",
+]
 
 [[import_rules]]
-source = "src/pricing"
-forbidden_prefixes = ["api", "cli", "streamlit", "fastapi", "typer", "uvicorn"]
+source = "src/finite_difference_options/pricing"
+forbidden_prefixes = ["fastapi", "typer", "uvicorn", "streamlit"]
 
 [[import_rules]]
-source = "src/integrations"
-forbidden_prefixes = ["api", "cli", "plotting", "risk", "streamlit", "fastapi", "typer", "uvicorn", "haircut", "pdp", "PDP"]
+source = "src/finite_difference_options/integrations"
+forbidden_prefixes = ["fastapi", "typer", "uvicorn", "streamlit", "haircut", "pdp", "PDP"]
+
+[[import_rules]]
+source = "src/finite_difference_options/contracts"
+forbidden_prefixes = ["findiff", "fastapi", "typer", "uvicorn", "streamlit", "matplotlib", "seaborn", "plotly", "haircut", "pdp", "PDP"]

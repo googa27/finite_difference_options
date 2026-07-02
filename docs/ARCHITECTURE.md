@@ -62,7 +62,7 @@ Cross-repository integration uses versioned wheels, contracts and parity fixture
 |---|---|---|
 | `pyproject.toml` contains only Ruff settings | No installable project metadata, dependency contract or wheel definition | Complete package foundation under #51 |
 | Runtime dependencies live only in pinned requirements files | Consumers cannot resolve a published library correctly | PEP 621 runtime ranges plus development lock |
-| Public examples import `src.*`; code mixes relative and `src.*` imports | Checkout behavior masks broken installation and split identity | Real package namespace and import cleanup under #51/#52 |
+| Public examples import `finite_difference_options.*`; code mixes relative and `finite_difference_options.*` imports | Checkout behavior masks broken installation and split identity | Real package namespace and import cleanup under #51/#52 |
 | Legacy and newer processes, pricers, Greeks, boundaries and solvers coexist | Divergent semantics and duplicated fixes | One canonical implementation per capability under #52 |
 | `SolverFactory` routes primarily by process dimension | Dimension does not prove coefficient, BC, obstacle or scheme support | Capability predicates and explicit problem contracts |
 | `ADISolverWrapper` used to construct dummy drift and hard-coded covariance | Numerically plausible but model-incorrect output | Removed from selectable multidimensional routes under #43; #46 replaces the selectable ADI path with a documented Douglas split, process-derived coefficients, one calendar-output layout, mixed/reaction/source terms, and explicit diagnostics. #59 owns production hardening/ops metadata. |
@@ -91,30 +91,25 @@ Cross-repository integration uses versioned wheels, contracts and parity fixture
 
 ```text
 src/finite_difference_options/
-  __init__.py                  # narrow stable public API
-  contracts/
-    problem.py                 # domain-neutral PDE records
-    configuration.py           # grid, stencil, time and solver policies
-    result.py                  # values, Greeks and diagnostics
-  grids/
-  operators/
+  __init__.py                  # narrow stable public API; no app stack imports
+  py.typed
+  contracts/                   # domain-neutral capability and solver-evidence records
   boundary_conditions/
-  time_integration/
+  instruments/
+  models/
+  processes/
+  pricing/
   solvers/
-    one_dimensional.py
-    adi.py
-    lcp.py
   greeks/
-  diagnostics/
   validation/
   integrations/
-    haircut_backend.py
-  _compat/                     # time-bounded legacy import shims only
+    haircut_backend.py         # entry-point discoverable backend factory
+  api/                         # optional FastAPI application; gated by [api]
+  cli/                         # optional Typer application; gated by [cli]
+  plotting/                    # optional plotting backends; gated by [viz]
+  risk/                        # application/reporting adapters, not numerical core
 
-api/                           # optional FastAPI application
-cli/                           # optional Typer application
-apps/                          # optional Streamlit application
-nextjs-client/                 # independently locked frontend example
+nextjs-client/                 # independently locked frontend example when present
 benchmarks/
 examples/
 
@@ -127,12 +122,9 @@ tests/
   performance/
 ```
 
-This is a responsibility map, not a big-bang refactor instruction. Boundaries are justified by dependency direction, semantic ownership, optional installation or independent testing.
+This is now a real PEP 621 src-layout package. The directory named `src/` is only the setuptools package root; public code imports `finite_difference_options.*`, never `src.*`. Boundaries are justified by dependency direction, semantic ownership, optional installation or independent testing.
 
-
-
-The machine-readable architecture contract is `docs/architecture_contract.toml`. It is the CI-enforced source of truth for the transitional `src/` package allowlist, root-module policy, and topology-count ratchet; update it with `tests/architecture` and `scripts/check_architecture_contract.py` in every hierarchy-changing PR.
-
+The machine-readable architecture contract is `docs/architecture_contract.toml`. It is the CI-enforced source of truth for the `src/finite_difference_options` package boundary allowlist, root-module policy, optional profile topology, and topology-count ratchet; update it with `tests/architecture`, `tests/test_packaging_contract.py`, and `scripts/check_architecture_contract.py` in every hierarchy-changing PR.
 ## 6. Dependency direction
 
 ```text
@@ -314,7 +306,7 @@ Nonuniform-grid first and second derivatives use dedicated formulas. Payoff-kink
 Candidate entry point:
 
 ```toml
-[project.entry-points."haircut.solver_backends"]
+[project.entry-points."haircut_engine.solver_backends"]
 finite_difference_options = "finite_difference_options.integrations.haircut_backend:create_backend"
 ```
 
@@ -330,15 +322,15 @@ Adapter lifecycle:
 
 The adapter imports no Haircut domain/application, PDP or delivery modules and advertises only tested capabilities.
 
-Issue #79 adds the transitional `src/contracts/backend_capabilities.py` module as the first executable FD adapter contract. It owns the data-only `FDCapabilityManifest`, `FDRouteRequest`, and `UnsupportedRouteDiagnostic` records used to screen QuantProblemSpec-style payloads before grid, operator, or ADI allocation. The default manifest intentionally advertises only validated FD/ADI capabilities: 1D/2D/3D uniform or log-uniform parabolic routes, drift/diffusion/reaction/source/mixed-derivative terms, Dirichlet/Neumann/Robin/second-derivative boundaries, European exercise, value/Delta/Gamma outputs, and theta/Crank-Nicolson/Rannacher/explicit/ADI controls.
+Issue #79 adds `src/finite_difference_options/contracts/backend_capabilities.py` as the first executable FD adapter contract. It owns the data-only `FDCapabilityManifest`, `FDRouteRequest`, and `UnsupportedRouteDiagnostic` records used to screen QuantProblemSpec-style payloads before grid, operator, or ADI allocation. The default manifest intentionally advertises only validated FD/ADI capabilities: 1D/2D/3D uniform or log-uniform parabolic routes, drift/diffusion/reaction/source/mixed-derivative terms, Dirichlet/Neumann/Robin/second-derivative boundaries, European exercise, value/Delta/Gamma outputs, and theta/Crank-Nicolson/Rannacher/explicit/ADI controls.
 
 Unsupported dimensions, jump/PIDE or HJB/control terms, free-boundary/American exercise, unsupported Greeks, unsupported stability controls, and missing measure/numeraire/units/date conventions produce explicit unsupported-route diagnostics. They must not fall through to placeholder coefficients, guessed boundaries, or plausible-looking downgraded outputs.
 
-Issue #80 adds the public-synthetic Black-Scholes call parity fixture in `src/validation/black_scholes_parity.py`. The fixture defines its analytical oracle, convergence table, tolerance, boundary assumptions, resource controls, and `SolverEvidence` payload with route/backend/code/config/seed/convention fields. It uses only synthetic parameters and is part of the blocking CI stable suite so adapter/router evidence cannot drift silently.
+Issue #80 adds the public-synthetic Black-Scholes call parity fixture in `src/finite_difference_options/validation/black_scholes_parity.py`. The fixture defines its analytical oracle, convergence table, tolerance, boundary assumptions, resource controls, and `SolverEvidence` payload with route/backend/code/config/seed/convention fields. It uses only synthetic parameters and is part of the blocking CI stable suite so adapter/router evidence cannot drift silently.
 
 Issue #76 extends the adapter tests to consume the same public-synthetic `QuantProblemSpec` vanilla-call JSON fixture validated by `haircut-engine` #91. The fixture is vendored under `tests/fixtures/quant_problem_specs/` as a data contract, not as a Python import, and the adapter must preserve schema version, measure, numeraire, units, valuation/vintage timing, boundary details, and requested outputs before route support is claimed. Issue #59 keeps that Haircut-origin fixture as a screening/fail-closed compatibility fixture: it is not executed unless its canonical fields match this repository's executable Black-Scholes oracle fixture.
 
-Issue #59 adds the transitional `src.integrations.haircut_backend` factory as the current executable Haircut backend seam. The adapter exposes backend identity, a serializable capability manifest, pre-solve route screening, explicit unsupported-route diagnostics, and an executable public-synthetic Black-Scholes evidence bundle using `BS-CALL-PARITY-V0` and `QPS-VANILLA-CALL-V0`. It deliberately refuses supported-looking private, unknown, or merely label-compatible payloads unless they match the canonical executable problem spec exported by `public_black_scholes_problem_spec()`, so no coefficients, boundaries, grids, or fallback routes are fabricated. Until #51/#52 publish the final package namespace, the documented entry-point target remains `src.integrations.haircut_backend:create_backend`; the future wheel entry point will move to `finite_difference_options.integrations.haircut_backend:create_backend` without changing the adapter contract.
+Issue #59 adds the `finite_difference_options.integrations.haircut_backend` factory as the current executable Haircut backend seam. The adapter exposes backend identity, a serializable capability manifest, pre-solve route screening, explicit unsupported-route diagnostics, and an executable public-synthetic Black-Scholes evidence bundle using `BS-CALL-PARITY-V0` and `QPS-VANILLA-CALL-V0`. It deliberately refuses supported-looking private, unknown, or merely label-compatible payloads unless they match the canonical executable problem spec exported by `public_black_scholes_problem_spec()`, so no coefficients, boundaries, grids, or fallback routes are fabricated. The wheel publishes the same factory through the `haircut_engine.solver_backends` entry-point group.
 
 ## 17. Canonical implementation consolidation
 
@@ -414,23 +406,22 @@ Default tests are deterministic and offline. Frontend and service tests are sepa
 
 ## 22. Architecture fitness gates and CI release topology
 
-The baseline gate for #60 is `pytest -q tests/architecture`. It is intentionally ratcheted: it records the current transitional `src/*` surface, including the issue #79 `contracts` root for domain-neutral capability metadata, enforces the rule **No new root package under `src/`** unless `docs/ARCHITECTURE.md` and the gate baseline are updated, and prevents numerical-core modules from importing API, CLI, UI or plotting stacks.
+The package/architecture gate for #51/#60 is `pytest -q tests/architecture tests/test_packaging_contract.py --no-cov` plus `python scripts/check_architecture_contract.py`. It is intentionally ratcheted: it records the current `src/finite_difference_options` package surface, enforces the rule **No new root package under `src/`** unless `docs/ARCHITECTURE.md` and the gate baseline are updated, rejects historical `src.*` imports, verifies wheel metadata/entry points, and prevents numerical-core modules from importing API, CLI, UI or plotting stacks.
 
-After package foundation #51 lands, the architecture gate must add the hard `src.*` import ban, package install/import smoke tests, and `deptry` or equivalent dependency-drift checks against PEP 621 metadata. Those follow-on checks are not optional; they are sequenced because the repository does not yet publish runtime metadata.
+CI now treats package evidence as a first-class release signal: package jobs build sdist/wheel artifacts and import the wheel outside the checkout; optional-profile jobs install the wheel with `api`, `cli`, `ui`, `viz`, and `validation` extras; the audit job checks `requirements-dev.lock.txt`, `pip check`, `pip-audit`, and a CycloneDX SBOM. Dependency-drift tooling such as `deptry` can still be added later, but PEP 621 metadata and clean-wheel tests are now executable.
 
 | Job | Purpose | Policy |
 |---|---|---|
-| Core minimum | Clean wheel at minimum supported Python/dependencies | Blocking |
-| Core latest | Latest compatible core | Blocking |
+| `package` | Build sdist/wheel, run `twine check`, and import the wheel outside the checkout | Blocking |
+| `test` | Compile, Ruff smoke, mypy-on-contract-critical modules, architecture/packaging contracts, coverage XML, JUnit, and stable regression suite | Blocking |
+| `optional-profiles` | Install built wheel with each optional extra and import the advertised optional surface | Blocking for package/profile changes |
+| `audit` | Validate the development lock, `pip check`, `pip-audit`, and CycloneDX SBOM artifact | Release blocking |
+| `node` | Optional frontend install/test/lint when `nextjs-client` exists | Changed/scheduled |
 | Numerical baseline | Manufactured, BS, convergence, BC and Greek tests | Blocking |
 | Multidimensional | Real-coefficient ADI and mixed-term tests | Blocking when advertised |
 | Obstacle | LCP/complementarity tests | Blocking when advertised |
-| Package architecture | Public namespace and dependency contracts | Blocking |
-| API/CLI/UI | Optional application schema/smoke tests | Changed/scheduled |
-| Frontend | Independent install/build/API-contract test | Changed/scheduled |
 | Haircut parity | Clean-wheel plugin and shared fixtures | Blocking for compatibility changes |
 | Performance | Stable benchmark artifact | Regression policy |
-| Release | Build, wheel inspection, SBOM, vulnerabilities and licenses | Release blocking |
 
 One Python version and one all-application environment do not establish library support.
 
@@ -449,7 +440,7 @@ No compatibility shim may become a second implementation. The policy below is th
 
 ### Phase 0 — Prevent new coupling
 
-- No new `src.*` public imports, product-boundary guessing, placeholder coefficients or mandatory application dependencies.
+- No new `finite_difference_options.*` public imports, product-boundary guessing, placeholder coefficients or mandatory application dependencies.
 - Add characterization tests before moving code.
 
 ### Phase 1 — Package foundation
