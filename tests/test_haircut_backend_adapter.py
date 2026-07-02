@@ -212,6 +212,25 @@ def test_haircut_backend_rejects_private_payload_even_with_public_fixture_ids() 
         backend.solve(payload)
 
 
+def test_haircut_backend_rejects_mutated_public_fixture_fields() -> None:
+    backend = create_backend()
+    payload = _vanilla_payload()
+    math_section = _section(payload, "mathematical_problem")
+    payload["mathematical_problem"] = {
+        **math_section,
+        "state_variables": ["S", "v"],
+    }
+
+    screen = backend.screen(payload)
+    assert not screen.supported
+    assert screen.diagnostics[0]["reason"] == "unsupported_benchmark"
+
+    with pytest.raises(
+        UnsupportedRouteError, match="validated public-synthetic executable benchmark"
+    ):
+        backend.solve(payload)
+
+
 def test_haircut_backend_solve_rejects_supported_screen_without_executable_fixture() -> (
     None
 ):
