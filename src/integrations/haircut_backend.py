@@ -162,7 +162,9 @@ class FiniteDifferenceHaircutBackend:
         ensure_route_supported(request, self._manifest)
         benchmark_ids = _benchmark_ids(payload)
         problem_id = _optional_string(payload.get("problem_id"))
-        if not _is_executable_public_synthetic_payload(problem_id, benchmark_ids):
+        if not _is_executable_public_synthetic_payload(
+            problem_id, benchmark_ids, payload
+        ):
             raise UnsupportedRouteError(
                 (
                     UnsupportedRouteDiagnostic(
@@ -242,7 +244,7 @@ def _execution_diagnostics(
 ) -> tuple[UnsupportedRouteDiagnostic, ...]:
     benchmark_ids = _benchmark_ids(payload)
     problem_id = _optional_string(payload.get("problem_id"))
-    if _is_executable_public_synthetic_payload(problem_id, benchmark_ids):
+    if _is_executable_public_synthetic_payload(problem_id, benchmark_ids, payload):
         return ()
     return (
         UnsupportedRouteDiagnostic(
@@ -296,10 +298,12 @@ def _benchmark_ids(payload: Mapping[str, Any]) -> tuple[str, ...]:
 
 
 def _is_executable_public_synthetic_payload(
-    problem_id: str | None, benchmark_ids: tuple[str, ...]
+    problem_id: str | None, benchmark_ids: tuple[str, ...], payload: Mapping[str, Any]
 ) -> bool:
+    privacy_class = _optional_string(payload.get("privacy_class"))
     return bool(
-        problem_id in _PUBLIC_SYNTHETIC_PROBLEM_IDS
+        privacy_class == "public_synthetic"
+        and problem_id in _PUBLIC_SYNTHETIC_PROBLEM_IDS
         and (_EXECUTABLE_PUBLIC_BENCHMARKS & set(benchmark_ids))
     )
 
