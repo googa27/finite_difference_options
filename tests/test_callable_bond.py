@@ -49,6 +49,7 @@ def test_callable_bond_applies_call_only_on_contractual_call_date() -> None:
     tau_grid = np.array([0.0, 1.0, 2.0])
 
     callable_values = bond_model.price_grid(rate_grid, tau_grid)
+    diagnostics = bond_model.last_exercise_diagnostics
     straight_values = bond_model.straight_bond_grid(rate_grid, tau_grid)
 
     # Maturity value is redemption plus final coupon; it is not globally capped
@@ -57,11 +58,12 @@ def test_callable_bond_applies_call_only_on_contractual_call_date() -> None:
     assert np.all(callable_values[0] > bond_model.normalized_call_schedule[0].price)
 
     call_row = callable_values[1]
-    assert np.all(call_row <= bond_model.normalized_call_schedule[0].price)
+    same_date_coupon = 2.5
+    assert np.all(call_row <= bond_model.normalized_call_schedule[0].price + same_date_coupon)
+    assert np.any(call_row > bond_model.normalized_call_schedule[0].price)
     assert np.any(straight_values[1] > call_row)
     assert np.all(callable_values[-1] <= straight_values[-1] + 1e-12)
 
-    diagnostics = bond_model.last_exercise_diagnostics
     assert len(diagnostics) == 1
     assert diagnostics[0].time == 1.0
     assert diagnostics[0].exercised_nodes > 0
@@ -73,11 +75,14 @@ def test_high_call_price_and_empty_schedule_reproduce_straight_bond() -> None:
     tau_grid = np.array([0.0, 1.0, 2.0])
 
     high_call_bond = _callable_bond(call_price=1_000.0)
+    callable_grid = high_call_bond.price_grid(rate_grid, tau_grid)
+    high_call_diagnostics = high_call_bond.last_exercise_diagnostics
     assert np.allclose(
-        high_call_bond.price_grid(rate_grid, tau_grid),
+        callable_grid,
         high_call_bond.straight_bond_grid(rate_grid, tau_grid),
     )
-    assert high_call_bond.last_exercise_diagnostics[0].exercised_nodes == 0
+    assert high_call_diagnostics[0].exercised_nodes == 0
+    assert high_call_bond.last_exercise_diagnostics == ()
 
     noncallable_bond = CallableBondPDEModel(
         face_value=100.0,
@@ -93,6 +98,29 @@ def test_high_call_price_and_empty_schedule_reproduce_straight_bond() -> None:
         noncallable_bond.straight_bond_grid(rate_grid, tau_grid),
     )
     assert noncallable_bond.last_exercise_diagnostics == ()
+
+
+def test_settlement_time_shortens_valuation_horizon() -> None:
+    bond_model = CallableBondPDEModel(
+        face_value=100.0,
+        call_price=None,
+        market=Market(rate=0.04),
+        model=_short_rate_model(),
+        _maturity=2.0,
+        settlement_time=1.0,
+    )
+    rate_grid = np.array([0.05, 0.06])
+    tau_grid = np.array([0.0, 1.0])
+
+    values = bond_model.price_grid(rate_grid, tau_grid)
+    priced = OptionPricer(instrument=bond_model).compute_grid(
+        s_max=0.06,
+        s_steps=2,
+        t_steps=2,
+    )
+
+    assert np.isclose(values[-1, 0], 100.0 * np.exp(-0.05 * 1.0))
+    assert priced.t.tolist() == [0.0, 1.0]
 
 
 def test_clean_call_schedule_adds_accrued_interest_to_exercise_value() -> None:

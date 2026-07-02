@@ -43,7 +43,11 @@ class _LegacyInstrumentAdapter(UnifiedInstrument):
 
     @property
     def maturity(self) -> float:
-        return self.legacy_instrument.maturity
+        return getattr(
+            self.legacy_instrument,
+            "pricing_horizon",
+            self.legacy_instrument.maturity,
+        )
 
     def payoff(self, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         return self.legacy_instrument.payoff(*grids)
@@ -130,7 +134,8 @@ class OptionPricer:
         """Return grids and values with optional Greeks as a NamedTuple."""
 
         s = np.linspace(0, s_max, s_steps)
-        t = np.linspace(0, self.instrument.maturity, t_steps)
+        horizon = getattr(self.instrument, "pricing_horizon", self.instrument.maturity)
+        t = np.linspace(0, horizon, t_steps)
 
         values = self._engine.price_option(
             self._adapter,

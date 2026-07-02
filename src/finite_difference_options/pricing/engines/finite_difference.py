@@ -432,6 +432,12 @@ class CallableBondPDEModel(PDEModel):
         return self._maturity
 
     @property
+    def pricing_horizon(self) -> float:
+        """Return remaining time from settlement to maturity."""
+
+        return self._maturity - self.settlement_time
+
+    @property
     def strike(self) -> Optional[float]:
         return None
 
@@ -486,8 +492,7 @@ class CallableBondPDEModel(PDEModel):
         rate_grid = self._validate_rate_grid(s)
         tau_grid = self._validate_time_grid(t)
         values, records = self._backward_induction_grid(rate_grid, tau_grid, include_calls=include_calls)
-        if include_calls:
-            self.last_exercise_diagnostics = records
+        self.last_exercise_diagnostics = records
         return values
 
     def straight_bond_grid(self, s: NDArray[np.float64], t: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -529,8 +534,8 @@ class CallableBondPDEModel(PDEModel):
             raise PricingError("callable bond time grid must be finite and increasing")
         if not np.isclose(grid[0], 0.0):
             raise PricingError("callable bond time grid must start at maturity tau=0")
-        if not np.isclose(grid[-1], self._maturity):
-            raise PricingError("callable bond time grid must end at contract maturity")
+        if not np.isclose(grid[-1], self.pricing_horizon):
+            raise PricingError("callable bond time grid must end at remaining maturity")
         return grid
 
     def _backward_induction_grid(
@@ -555,9 +560,9 @@ class CallableBondPDEModel(PDEModel):
             for event_tau in self._event_taus_between(start_tau, end_tau, include_calls):
                 next_value *= np.exp(-rate_grid * (event_tau - current_tau))
                 event_time = self._maturity - event_tau
-                next_value = self._apply_cash_flows(next_value, event_time)
                 if include_calls:
                     next_value = self._apply_calls(next_value, event_time, records)
+                next_value = self._apply_cash_flows(next_value, event_time)
                 current_tau = event_tau
             next_value *= np.exp(-rate_grid * (end_tau - current_tau))
             values[index + 1] = next_value

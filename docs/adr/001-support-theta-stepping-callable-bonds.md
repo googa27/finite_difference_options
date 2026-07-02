@@ -14,7 +14,9 @@ Adopt a configurable θ-method for time-stepping. Callable fixed-rate bonds now 
 - coupon and redemption cash flows are contractual events;
 - call schedule entries carry exercise time, settlement price and clean/dirty convention;
 - issuer exercise applies only when backward induction crosses a contractual call date;
+- same-date coupon cash flows remain outside the issuer exercise cap;
 - clean calls include accrued interest in the settlement value;
+- the time grid spans remaining maturity from settlement to final redemption;
 - the old global post-solve cap path fails closed rather than masquerading as a PDE boundary condition.
 
 The current callable-bond path is an experimental reference route. Production maturity still requires a governed short-rate model, calibration, boundary derivation, convergence evidence and independent QuantLib/tree comparisons.
