@@ -62,7 +62,7 @@ API / CLI / UI / frontend / examples
 
 Rules:
 
-- The stable import package is `finite_difference_options`; no new public `finite_difference_options.*` imports.
+- The stable import package is `finite_difference_options`; no new public `src.*` imports.
 - Contracts do not import `findiff`, FastAPI, Typer, Streamlit, plotting, frontend code or Haircut.
 - Numerical core does not import products, API, CLI, UI, reporting or integration adapters.
 - Solvers consume explicit coefficient, grid and boundary records; they do not inspect product strings to invent semantics.
