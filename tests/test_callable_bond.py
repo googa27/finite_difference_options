@@ -143,6 +143,28 @@ def test_clean_call_schedule_adds_accrued_interest_to_exercise_value() -> None:
     assert bond_model.last_exercise_diagnostics[0].settlement_value == 103.0
 
 
+def test_clean_call_on_coupon_date_does_not_double_count_coupon() -> None:
+    bond_model = CallableBondPDEModel(
+        face_value=100.0,
+        call_price=100.0,
+        market=Market(rate=0.04),
+        model=_short_rate_model(),
+        _maturity=2.0,
+        coupon_rate=0.06,
+        coupon_times=(1.0, 2.0),
+        call_schedule=(CallScheduleEntry(time=1.0, price=100.0, quote_convention="clean"),),
+    )
+    rate_grid = np.array([0.0, 0.04, 0.08])
+    tau_grid = np.array([0.0, 1.0, 2.0])
+
+    values = bond_model.price_grid(rate_grid, tau_grid)
+
+    assert np.isclose(values[1, 0], 106.0)
+    assert np.all(values[1] <= 106.0)
+    assert bond_model.accrued_interest(1.0) == 0.0
+    assert bond_model.last_exercise_diagnostics[0].settlement_value == 100.0
+
+
 def test_option_pricer_dispatches_callable_bond_price_grid() -> None:
     bond_model = _callable_bond(call_price=101.0)
     pricer = OptionPricer(instrument=bond_model)

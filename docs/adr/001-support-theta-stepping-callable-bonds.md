@@ -15,7 +15,7 @@ Adopt a configurable θ-method for time-stepping. Callable fixed-rate bonds now 
 - call schedule entries carry exercise time, settlement price and clean/dirty convention;
 - issuer exercise applies only when backward induction crosses a contractual call date;
 - same-date coupon cash flows remain outside the issuer exercise cap;
-- clean calls include accrued interest in the settlement value;
+- clean calls include accrued interest in the settlement value except on coupon dates, where the scheduled coupon is paid separately;
 - the time grid spans remaining maturity from settlement to final redemption;
 - the old global post-solve cap path fails closed rather than masquerading as a PDE boundary condition.
 

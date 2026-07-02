@@ -455,7 +455,9 @@ class CallableBondPDEModel(PDEModel):
         coupon_times = self._sorted_unique_times(self.coupon_times, "coupon")
         previous = self.settlement_time
         for payment_time in coupon_times:
-            if time <= payment_time:
+            if np.isclose(time, payment_time):
+                return 0.0
+            if time < payment_time:
                 return self.face_value * self.coupon_rate * max(time - previous, 0.0)
             previous = payment_time
         return 0.0
