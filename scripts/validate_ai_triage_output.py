@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
-DEFAULT_PROTECTED_LABEL_RE = r"^(priority:P0|security|type:security|status/needs-triage)$"
+DEFAULT_PROTECTED_LABEL_RE = r"^(priority[:/_-]?p0|security|type[:/_-]?security|status/needs-triage)$"
 
 
 class TriageValidationError(ValueError):
@@ -213,7 +213,7 @@ def validate_triage_output(
     if mode == "single" and len(entries_raw) != 1:
         raise TriageValidationError("single triage output must contain exactly one object")
 
-    protected_label_re = re.compile(protected_label_regex)
+    protected_label_re = re.compile(protected_label_regex, re.IGNORECASE)
     entries: list[NormalizedEntry] = []
     seen_numbers: set[int] = set()
     for raw_entry in entries_raw:

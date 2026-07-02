@@ -79,7 +79,7 @@ Issue #61 hardens issue triage's authority boundary:
 - the Gemini issue analysis job has no GitHub issue-write permission and receives an empty `GITHUB_TOKEN`;
 - the label-application job has no Gemini/GCP/model credentials and receives only bounded job outputs;
 - `google-github-actions/run-gemini-cli` is pinned to the reviewed patched `v0.1.22` commit and installs Gemini CLI `0.40.0-preview.3`;
-- deterministic validation in `scripts/validate_ai_triage_output.py` enforces a closed JSON schema, bounded output size, trusted candidate issue numbers, trusted repository label allowlists, deduplication, and protected/control-label rejection;
+- deterministic validation in `scripts/validate_ai_triage_output.py` enforces a closed JSON schema, bounded output size, trusted candidate issue numbers, trusted repository label allowlists, deduplication, and case-insensitive protected/control-label rejection for P0/security/triage-marker variants;
 - label writes are additive (`addLabels`) and only remove `status/needs-triage` after a valid decision, so unrelated human labels are preserved;
 - scheduled triage is chunked to at most five candidate issues per run and rotates the candidate window by `GITHUB_RUN_NUMBER` so low-confidence early candidates cannot permanently starve later issues.
 
