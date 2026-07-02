@@ -32,6 +32,7 @@ TRANSITIONAL_SRC_PACKAGES = {
     "exceptions",
     "greeks",
     "instruments",
+    "integrations",
     "models",
     "plotting",
     "pricing",
@@ -48,6 +49,7 @@ NUMERICAL_CORE_PACKAGES = {
     "exceptions",
     "greeks",
     "instruments",
+    "integrations",
     "models",
     "pricing",
     "processes",
@@ -165,10 +167,18 @@ def _is_forbidden_core_import(import_name: str) -> bool:
 
 
 def test_architecture_document_exists_and_covers_required_transition_rules() -> None:
-    assert ARCHITECTURE_DOC.is_file(), "docs/ARCHITECTURE.md is the M0 architecture source of truth."
+    assert (
+        ARCHITECTURE_DOC.is_file()
+    ), "docs/ARCHITECTURE.md is the M0 architecture source of truth."
     text = ARCHITECTURE_DOC.read_text(encoding="utf-8")
-    missing = sorted(phrase for phrase in REQUIRED_ARCHITECTURE_PHRASES if phrase not in text)
-    assert not missing, "docs/ARCHITECTURE.md is missing required M0 transition language: " + ", ".join(missing)
+    missing = sorted(
+        phrase for phrase in REQUIRED_ARCHITECTURE_PHRASES if phrase not in text
+    )
+    assert (
+        not missing
+    ), "docs/ARCHITECTURE.md is missing required M0 transition language: " + ", ".join(
+        missing
+    )
 
 
 def test_current_src_packages_are_declared_transition_baseline() -> None:
@@ -239,17 +249,34 @@ def test_numerical_core_does_not_import_optional_app_or_visualization_stacks() -
         if not package_root.exists():
             continue
         for path in _python_files(package_root):
-            forbidden = sorted(name for name in _imports(path) if _is_forbidden_core_import(name))
+            forbidden = sorted(
+                name for name in _imports(path) if _is_forbidden_core_import(name)
+            )
             if forbidden:
                 violations[str(path.relative_to(ROOT))] = forbidden
-    assert not violations, "Numerical core imported optional app/UI/visualization stacks: " + repr(violations)
+    assert (
+        not violations
+    ), "Numerical core imported optional app/UI/visualization stacks: " + repr(
+        violations
+    )
 
 
-def test_base_package_import_surface_does_not_import_app_or_visualization_stacks() -> None:
-    forbidden = sorted(name for name in _imports(SRC_ROOT / "__init__.py") if _is_forbidden_core_import(name))
-    assert not forbidden, "Transitional src package initializer imported app/UI/reporting stacks: " + repr(forbidden)
+def test_base_package_import_surface_does_not_import_app_or_visualization_stacks() -> (
+    None
+):
+    forbidden = sorted(
+        name
+        for name in _imports(SRC_ROOT / "__init__.py")
+        if _is_forbidden_core_import(name)
+    )
+    assert not forbidden, (
+        "Transitional src package initializer imported app/UI/reporting stacks: "
+        + repr(forbidden)
+    )
 
 
 def test_ci_exposes_architecture_gate() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-    assert "tests/architecture" in workflow, "CI must run the architecture gate from tests/architecture."
+    assert (
+        "tests/architecture" in workflow
+    ), "CI must run the architecture gate from tests/architecture."
