@@ -2,7 +2,10 @@
 
 from .finite_difference import (
     BlackScholesPDE,
+    BondCashFlow,
+    CallableBondExerciseRecord,
     CallableBondPDEModel,
+    CallScheduleEntry,
     GridParameters,
     PDEModel,
     PricingEngine,
@@ -27,5 +30,8 @@ __all__ = [
     "create_log_grid",
     "create_unified_pricing_engine",
     "BlackScholesPDE",
+    "BondCashFlow",
+    "CallScheduleEntry",
+    "CallableBondExerciseRecord",
     "CallableBondPDEModel",
 ]

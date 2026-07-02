@@ -293,6 +293,8 @@ u \ge \psi,\qquad
 
 LCP policies declare PSOR, policy iteration or another validated method, tolerances, iteration limit, relaxation and warm-start behavior. Diagnostics include primal/dual/complementarity residuals and exercise boundary where meaningful.
 
+Issue #63 replaces the former callable-bond global value cap with an explicit Bermudan schedule event model. `CallableBondPDEModel` now carries contractual coupon/redemption cash flows, call dates, settlement prices and clean/dirty conventions; backward induction adds cash-flow jumps and applies issuer exercise only on those call dates. Its generic PDE generator and boundary methods fail closed so continuous-call or American-style exercise cannot be selected accidentally without a diagnosed LCP route.
+
 ## 15. Greeks and sensitivities
 
 Finite-difference Greeks are separate from PDE discretization operators but share grid metadata. A result records coordinate transform, stencil/order, one-sided treatment, evaluation/interpolation point, smoothing policy and error evidence.

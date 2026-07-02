@@ -49,14 +49,10 @@ class _LegacyInstrumentAdapter(UnifiedInstrument):
         return self.legacy_instrument.payoff(*grids)
 
     # Optional hooks used by the legacy solver.
-    def generator(
-        self, grid: NDArray[np.float64]
-    ):  # pragma: no cover - simple delegation
+    def generator(self, grid: NDArray[np.float64]):  # pragma: no cover - simple delegation
         return self.legacy_instrument.generator(grid)
 
-    def boundary_conditions(
-        self, grid: NDArray[np.float64]
-    ):  # pragma: no cover - simple delegation
+    def boundary_conditions(self, grid: NDArray[np.float64]):  # pragma: no cover - simple delegation
         return self.legacy_instrument.boundary_conditions(grid)
 
 
@@ -74,9 +70,7 @@ class _LegacyFiniteDifferenceSolver(Solver):
         time_grid: Optional[NDArray[np.float64]] = None,
     ) -> NDArray[np.float64]:
         if len(grids) != 1:
-            raise ValidationError(
-                "Legacy finite difference solver only supports one spatial grid"
-            )
+            raise ValidationError("Legacy finite difference solver only supports one spatial grid")
         if time_grid is None:
             raise ValidationError("time_grid must be provided for legacy solver")
 
@@ -86,13 +80,15 @@ class _LegacyFiniteDifferenceSolver(Solver):
         # its generator and boundary definitions.
         legacy = getattr(instrument, "legacy_instrument", instrument)
 
+        price_grid = getattr(legacy, "price_grid", None)
+        if callable(price_grid):
+            return np.asarray(price_grid(spatial_grid, time_grid), dtype=np.float64)
+
         try:
             generator = legacy.generator(spatial_grid)
             boundary_conditions = legacy.boundary_conditions(spatial_grid)
         except AttributeError as exc:  # pragma: no cover - defensive programming
-            raise ValidationError(
-                "Legacy instrument must define generator and boundary_conditions"
-            ) from exc
+            raise ValidationError("Legacy instrument must define generator and boundary_conditions") from exc
 
         return self._solver.solve(
             generator=generator,
@@ -109,17 +105,13 @@ class OptionPricer:
     instrument: Any
     _engine: UnifiedPricingEngine = field(init=False)
     _adapter: _LegacyInstrumentAdapter = field(init=False)
-    _greeks: FiniteDifferenceGreeks = field(
-        init=False, default_factory=FiniteDifferenceGreeks
-    )
+    _greeks: FiniteDifferenceGreeks = field(init=False, default_factory=FiniteDifferenceGreeks)
 
     def __post_init__(self) -> None:
         """Initialise the unified pricing engine from the instrument."""
         process = getattr(self.instrument, "model", None)
         if process is None:
-            raise ValidationError(
-                "Instrument must define a stochastic model for pricing"
-            )
+            raise ValidationError("Instrument must define a stochastic model for pricing")
 
         self._adapter = _LegacyInstrumentAdapter(self.instrument)
         self._engine = UnifiedPricingEngine(
@@ -159,6 +151,4 @@ class OptionPricer:
         delta = self._greeks.delta(values, s)
         gamma = self._greeks.gamma(values, s)
         theta = self._greeks.theta(values, t)
-        return GridResult(
-            s=s, t=t, values=values, delta=delta, gamma=gamma, theta=theta
-        )
+        return GridResult(s=s, t=t, values=values, delta=delta, gamma=gamma, theta=theta)
