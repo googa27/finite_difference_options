@@ -76,6 +76,15 @@ def test_issue_triage_ai_output_is_schema_validated_before_additive_label_writes
         assert "status/needs-triage" in workflow
 
 
+def test_scheduled_issue_triage_rotates_candidate_batches() -> None:
+    scheduled = _read(".github/workflows/gemini-issue-scheduled-triage.yml")
+
+    assert "sortedCandidates" in scheduled
+    assert "GITHUB_RUN_NUMBER" in scheduled
+    assert "rotatedCandidates" in scheduled
+    assert ".slice(0, 5)" in scheduled
+
+
 def test_issue_triage_apply_job_is_separate_from_ai_credentials() -> None:
     automated = _read(".github/workflows/gemini-issue-automated-triage.yml")
     scheduled = _read(".github/workflows/gemini-issue-scheduled-triage.yml")

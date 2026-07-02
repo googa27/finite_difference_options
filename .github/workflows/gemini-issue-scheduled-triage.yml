@@ -52,13 +52,21 @@ jobs:
               }),
             ]);
             const labelNames = labels.map(label => label.name).sort();
-            const candidates = issues
+            const sortedCandidates = issues
               .filter(issue => !issue.pull_request)
               .filter(issue => {
                 const names = issue.labels.map(label => typeof label === 'string' ? label : label.name);
                 return names.length === 0 || names.includes('status/needs-triage');
               })
-              .sort((a, b) => a.number - b.number)
+              .sort((a, b) => a.number - b.number);
+            const offset = sortedCandidates.length === 0
+              ? 0
+              : Number.parseInt(process.env.GITHUB_RUN_NUMBER || '0', 10) % sortedCandidates.length;
+            const rotatedCandidates = [
+              ...sortedCandidates.slice(offset),
+              ...sortedCandidates.slice(0, offset),
+            ];
+            const candidates = rotatedCandidates
               .slice(0, 5)
               .map(issue => ({
                 number: issue.number,
