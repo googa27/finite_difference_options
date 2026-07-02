@@ -1,0 +1,696 @@
+{
+  "case_count": 15,
+  "cases": [
+    {
+      "benchmark_id": "BS-CALL-PARITY-V0",
+      "capability_rows": [
+        "1D Black-Scholes European call value on uniform/log-uniform grids",
+        "1D Black-Scholes Delta/Gamma from finite-difference price grids"
+      ],
+      "family": "analytical_oracle",
+      "fixture_paths": [
+        "tests/fixtures/arxiv_lab_bs_oracle_v1.json"
+      ],
+      "grid_family": "uniform spot grid; uniform time grid",
+      "instrument": "European call",
+      "invariants": [
+        "value_bound_ok",
+        "upper_bound_ok",
+        "delta_lower_bound_ok",
+        "delta_upper_bound_ok",
+        "gamma_non_negative_ok"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "Black-Scholes / GBM",
+      "notes": "Executable CI runner exercises convergence table, Greeks, no-arbitrage checks and evidence payload.",
+      "oracle": {
+        "independence": "analytic formula independent of the FD grid/operator implementation",
+        "kind": "analytical",
+        "notes": "Public-synthetic spot=strike=1 case with deterministic convergence table.",
+        "source": "closed-form Black-Scholes European call"
+      },
+      "resource_policy": {
+        "deterministic": "true",
+        "grid_levels": 3,
+        "max_s_steps": 120,
+        "max_t_steps": 200
+      },
+      "route_id": "fd.black_scholes_1d.crank_nicolson",
+      "runner": "black_scholes_parity",
+      "state_convention": "spot S, calendar-time output, forward tau internal march",
+      "status": "validated",
+      "time_schedule": "three refinement levels with Crank-Nicolson theta=0.5",
+      "title": "Black-Scholes European call analytical parity and no-arbitrage evidence",
+      "tolerances": [
+        {
+          "metric": "price_abs",
+          "norm": "absolute price error",
+          "notes": "finest grid against analytic oracle",
+          "threshold": 0.0005
+        },
+        {
+          "metric": "delta_abs",
+          "norm": "absolute Delta error",
+          "notes": "central finite-difference Greek",
+          "threshold": 0.05
+        },
+        {
+          "metric": "gamma_abs",
+          "norm": "absolute Gamma error",
+          "notes": "central finite-difference Greek",
+          "threshold": 0.02
+        }
+      ]
+    },
+    {
+      "benchmark_id": "QPS-VANILLA-CALL-V0",
+      "capability_rows": [
+        "1D Black-Scholes European call value on uniform/log-uniform grids"
+      ],
+      "family": "route_parity",
+      "fixture_paths": [
+        "tests/fixtures/arxiv_lab_bs_oracle_v1.json"
+      ],
+      "grid_family": "fixture-declared FD grid",
+      "instrument": "European call problem contract",
+      "invariants": [
+        "schema_version",
+        "problem_hash",
+        "typed_boundary",
+        "calendar_time_orientation"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49",
+        "googa27/finite_difference_options#59"
+      ],
+      "model": "Black-Scholes / QuantProblemSpec v0",
+      "notes": "Metadata registry row for cross-repo fixture parity; execution is covered by BS-CALL-PARITY-V0 tests.",
+      "oracle": {
+        "independence": "serialized public-synthetic problem/result contract consumed without private data",
+        "kind": "fixture",
+        "notes": "Guards cross-repo compatibility rather than a new numerical method.",
+        "source": "arXiv-Lab FD oracle fixture export"
+      },
+      "resource_policy": {
+        "public_synthetic": "true"
+      },
+      "route_id": "fd.quant_problem_spec.black_scholes_call",
+      "runner": "black_scholes_qps_contract",
+      "state_convention": "explicit measure, numeraire, time orientation and typed boundary metadata",
+      "status": "validated",
+      "time_schedule": "fixture-declared theta controls",
+      "title": "QuantProblemSpec vanilla call fixture compatibility",
+      "tolerances": [
+        {
+          "metric": "price_abs",
+          "norm": "absolute price error",
+          "notes": "shared with BS-CALL-PARITY-V0",
+          "threshold": 0.0005
+        }
+      ]
+    },
+    {
+      "benchmark_id": "BOUNDARY-MODEL-AWARE-V0",
+      "capability_rows": [
+        "1D vanilla boundary/reaction semantics"
+      ],
+      "family": "capability_gate",
+      "fixture_paths": [
+        "tests/test_boundary_conditions.py",
+        "tests/test_model_aware_reaction_terms.py"
+      ],
+      "grid_family": "boundary-facet contract independent of grid density",
+      "instrument": "European call/put boundary facets",
+      "invariants": [
+        "dirichlet_call_zero",
+        "far_call_asymptotic",
+        "explicit_zero_discount_preserved"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#48",
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "Black-Scholes / GBM boundary algebra",
+      "notes": "",
+      "oracle": {
+        "independence": "boundary builder tests assert explicit typed facets before solver use",
+        "kind": "fixture",
+        "notes": "Prevents route maturity claims from relying on option_type guessing.",
+        "source": "boundary condition and model-aware reaction regression tests"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.boundary_conditions.model_aware_vanilla",
+      "runner": null,
+      "state_convention": "spot boundary facets with explicit strike, rate/carry and time-to-maturity",
+      "status": "validated",
+      "time_schedule": "time-to-maturity-aware boundary values",
+      "title": "Model-aware vanilla boundary and reaction semantics",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "typed boundary/reaction checks pass",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "REACTION-INDEPENDENT-V0",
+      "capability_rows": [
+        "1D vanilla boundary/reaction semantics"
+      ],
+      "family": "capability_gate",
+      "fixture_paths": [
+        "tests/test_model_aware_reaction_terms.py"
+      ],
+      "grid_family": "grid-independent coefficient extraction",
+      "instrument": "generic model-aware PDE coefficients",
+      "invariants": [
+        "reaction_not_inferred_from_mu",
+        "explicit_zero_discount_preserved"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#48",
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "GBM / affine process coefficient extraction",
+      "notes": "",
+      "oracle": {
+        "independence": "direct coefficient-path tests independent of pricing output",
+        "kind": "fixture",
+        "notes": "Avoids conflating real-world drift with risk-neutral discount reaction.",
+        "source": "model-aware reaction regression tests"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.coefficients.model_aware_reaction",
+      "runner": null,
+      "state_convention": "drift, covariance and reaction are separate coefficient fields",
+      "status": "validated",
+      "time_schedule": "terminal-time process coefficient calls",
+      "title": "Reaction/discount coefficient can be supplied independently from drift",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "reaction pass-through checks pass",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "RANNACHER-GAMMA-V0",
+      "capability_rows": [
+        "Rannacher startup before Crank-Nicolson for kinked payoffs"
+      ],
+      "family": "manufactured_solution",
+      "fixture_paths": [
+        "tests/test_rannacher_startup.py"
+      ],
+      "grid_family": "1D finite-difference grid",
+      "instrument": "European vanilla payoff with strike kink",
+      "invariants": [
+        "startup_schedule_recorded",
+        "gamma_kink_sanity"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "Black-Scholes / GBM",
+      "notes": "",
+      "oracle": {
+        "independence": "compares declared startup schedules against unsmoothed route behavior",
+        "kind": "regression",
+        "notes": "Regression evidence for smoothing policy, not a universal Greek guarantee.",
+        "source": "Rannacher Gamma regression tests"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.black_scholes_1d.rannacher_crank_nicolson",
+      "runner": null,
+      "state_convention": "spot grid around strike with explicit startup schedule",
+      "status": "validated",
+      "time_schedule": "two/four Backward-Euler half-step startup before Crank-Nicolson",
+      "title": "Rannacher startup protects kinked-payoff Gamma evidence",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "startup schedule and Gamma sanity checks pass",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "HESTON-SMOKE-DOCSTRING-V0",
+      "capability_rows": [
+        "Heston stochastic volatility vanilla call smoke route"
+      ],
+      "family": "smoke",
+      "fixture_paths": [
+        "tests/test_heston_state_oracle.py"
+      ],
+      "grid_family": "2D tensor grid smoke fixture",
+      "instrument": "European call smoke fixture",
+      "invariants": [
+        "finite_values",
+        "log_spot_factor_transform",
+        "variance_state_not_payoff_asset"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "Heston stochastic volatility",
+      "notes": "",
+      "oracle": {
+        "independence": "shape/finite-value route test separate from semi-analytical oracle maturity claim",
+        "kind": "fixture",
+        "notes": "Experimental smoke evidence only; convergence and production calibration remain unsupported.",
+        "source": "Heston state/oracle smoke tests and capability matrix docstring evidence"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.heston.adi_smoke",
+      "runner": null,
+      "state_convention": "log-spot and variance state convention with declared exp factor transform",
+      "status": "experimental",
+      "time_schedule": "ADI/Douglas smoke route calendar-output orientation",
+      "title": "Heston vanilla-call smoke route shape and finite-value evidence",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "finite shape/no-NaN Heston smoke checks pass",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "HESTON-ORACLE-V0",
+      "capability_rows": [
+        "Heston semi-analytical European call oracle",
+        "Heston stochastic volatility vanilla call smoke route"
+      ],
+      "family": "analytical_oracle",
+      "fixture_paths": [
+        "src/validation/heston_oracle.py"
+      ],
+      "grid_family": "not an FD grid; Fourier oracle reference",
+      "instrument": "European call",
+      "invariants": [
+        "positive_price",
+        "finite_integral",
+        "variance_boundary_diagnostics"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "Heston stochastic volatility",
+      "notes": "",
+      "oracle": {
+        "independence": "separate Fourier integration route under src.validation.heston_oracle",
+        "kind": "regression",
+        "notes": "Used for oracle and Black-Scholes-limit smoke evidence; not a calibration maturity claim.",
+        "source": "semi-analytical Heston characteristic-function oracle"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.validation.heston_oracle",
+      "runner": null,
+      "state_convention": "log-spot and variance state convention",
+      "status": "validated",
+      "time_schedule": "single maturity reference integration",
+      "title": "Heston semi-analytical European call oracle",
+      "tolerances": [
+        {
+          "metric": "price_abs",
+          "norm": "absolute price error",
+          "notes": "oracle regression tolerance",
+          "threshold": 0.002
+        }
+      ]
+    },
+    {
+      "benchmark_id": "HESTON-BS-LIMIT-V0",
+      "capability_rows": [
+        "Heston semi-analytical European call oracle"
+      ],
+      "family": "route_parity",
+      "fixture_paths": [
+        "src/validation/heston_oracle.py"
+      ],
+      "grid_family": "oracle parity, not production FD route",
+      "instrument": "European call",
+      "invariants": [
+        "limit_price_matches_black_scholes"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "Heston -> Black-Scholes limit",
+      "notes": "",
+      "oracle": {
+        "independence": "separate Fourier integration route under src.validation.heston_oracle",
+        "kind": "regression",
+        "notes": "Used for oracle and Black-Scholes-limit smoke evidence; not a calibration maturity claim.",
+        "source": "semi-analytical Heston characteristic-function oracle"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.validation.heston_black_scholes_limit",
+      "runner": "heston_black_scholes_limit",
+      "state_convention": "variance fixed at sigma^2 when vol-of-vol tends to zero",
+      "status": "validated",
+      "time_schedule": "single maturity reference comparison",
+      "title": "Heston zero vol-of-vol Black-Scholes limiting case",
+      "tolerances": [
+        {
+          "metric": "price_abs",
+          "norm": "absolute price error",
+          "notes": "against Black-Scholes oracle",
+          "threshold": 0.002
+        }
+      ]
+    },
+    {
+      "benchmark_id": "HESTON-VARIANCE-BOUNDARY-V0",
+      "capability_rows": [
+        "Heston semi-analytical European call oracle"
+      ],
+      "family": "capability_gate",
+      "fixture_paths": [
+        "src/validation/heston_oracle.py"
+      ],
+      "grid_family": "variance grid diagnostics",
+      "instrument": "European call smoke route",
+      "invariants": [
+        "variance_nonnegative",
+        "boundary_diagnostics_recorded"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "Heston stochastic volatility",
+      "notes": "",
+      "oracle": {
+        "independence": "separate Fourier integration route under src.validation.heston_oracle",
+        "kind": "regression",
+        "notes": "Used for oracle and Black-Scholes-limit smoke evidence; not a calibration maturity claim.",
+        "source": "semi-analytical Heston characteristic-function oracle"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.heston.variance_boundary_diagnostics",
+      "runner": null,
+      "state_convention": "variance boundary has explicit lower/upper diagnostics",
+      "status": "validated",
+      "time_schedule": "single smoke solve diagnostics",
+      "title": "Heston variance-boundary diagnostics",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "variance boundary diagnostics present",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "ADI-SMOKE-V0",
+      "capability_rows": [
+        "ADI multidimensional routes"
+      ],
+      "family": "smoke",
+      "fixture_paths": [
+        "tests/test_adi_solver_operator_split.py"
+      ],
+      "grid_family": "2D/3D tensor grids",
+      "instrument": "vanilla/basket smoke fixtures",
+      "invariants": [
+        "finite_values",
+        "calendar_output_orientation",
+        "shape_consistency"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49",
+        "googa27/finite_difference_options#58"
+      ],
+      "model": "generic multidimensional parabolic PDE",
+      "notes": "",
+      "oracle": {
+        "independence": "regression tests cover operator splitting components before production claim",
+        "kind": "fixture",
+        "notes": "Smoke evidence only; convergence issue remains open.",
+        "source": "ADI smoke and operator split regression tests"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.adi.douglas_smoke",
+      "runner": null,
+      "state_convention": "tensor-product state grid with explicit covariance convention",
+      "status": "experimental",
+      "time_schedule": "Douglas ADI calendar-output orientation",
+      "title": "ADI multidimensional finite-value smoke route",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "finite shape/no-NaN smoke checks pass",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "ADI-OPERATOR-SPLIT-V0",
+      "capability_rows": [
+        "ADI multidimensional routes"
+      ],
+      "family": "route_parity",
+      "fixture_paths": [
+        "tests/test_adi_solver_operator_split.py"
+      ],
+      "grid_family": "2D/3D tensor grids",
+      "instrument": "operator-level fixture",
+      "invariants": [
+        "mixed_derivative_sign",
+        "reaction_preserved",
+        "source_preserved"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49",
+        "googa27/finite_difference_options#58"
+      ],
+      "model": "generic multidimensional parabolic PDE",
+      "notes": "",
+      "oracle": {
+        "independence": "operator assembly tested separately from high-level pricing route",
+        "kind": "fixture",
+        "notes": "Supports route maturity disclosure; not yet convergence evidence.",
+        "source": "ADI operator split regression tests"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.adi.operator_split_contract",
+      "runner": null,
+      "state_convention": "diagonal diffusion, off-diagonal mixed derivative, reaction and source terms explicit",
+      "status": "experimental",
+      "time_schedule": "operator construction before time march",
+      "title": "ADI operator split coefficient/regression evidence",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "split terms match expected coefficients",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "FACTOR-ROLE-COMPAT-V0",
+      "capability_rows": [
+        "basket option payoff on true multi-asset factors"
+      ],
+      "family": "capability_gate",
+      "fixture_paths": [
+        "tests/test_factor_role_payoff_compatibility.py"
+      ],
+      "grid_family": "route-screening metadata, not a numerical grid",
+      "instrument": "basket, spread and factor payoffs",
+      "invariants": [
+        "heston_variance_not_basket_asset",
+        "sabr_vol_not_basket_asset",
+        "asset_id_mapping_required"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "basket/spread payoff role screening",
+      "notes": "",
+      "oracle": {
+        "independence": "contract-level rejection before solver construction",
+        "kind": "capability",
+        "notes": "Unsupported features must be explicit capability rejections, not silent approximation.",
+        "source": "DEFAULT_FD_CAPABILITY_MANIFEST fail-closed feature screening"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.payoff.factor_role_compatibility",
+      "runner": null,
+      "state_convention": "tradable spot factors must be explicitly distinguished from variance/vol/rate factors",
+      "status": "validated",
+      "time_schedule": "pre-solve compatibility gate",
+      "title": "Factor-role payoff compatibility fail-closed gate",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "unsupported factor/payoff pairs fail closed",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "DOCS-README-SMOKE-V0",
+      "capability_rows": [
+        "FastAPI/CLI/UI service contracts"
+      ],
+      "family": "smoke",
+      "fixture_paths": [
+        "tests/test_documentation_capabilities.py"
+      ],
+      "grid_family": "example-declared grids only",
+      "instrument": "public README/API examples",
+      "invariants": [
+        "examples_execute",
+        "maturity_disclosed",
+        "public_synthetic_inputs"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "documentation/examples",
+      "notes": "",
+      "oracle": {
+        "independence": "docs examples are exercised separately from numerical core validation",
+        "kind": "fixture",
+        "notes": "Convenience-surface evidence; numerical truth remains in core benchmark rows.",
+        "source": "documentation smoke tests and capability matrix gating"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.docs.readme_smoke",
+      "runner": null,
+      "state_convention": "examples must disclose capability maturity and synthetic inputs",
+      "status": "experimental",
+      "time_schedule": "example-declared time controls only",
+      "title": "README and documentation smoke examples stay aligned with supported routes",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "README/docs examples execute without unsupported maturity claims",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "API-REQUEST-GUARDS-V0",
+      "capability_rows": [
+        "FastAPI/CLI/UI service contracts"
+      ],
+      "family": "capability_gate",
+      "fixture_paths": [
+        "tests/test_api_schema_contracts.py"
+      ],
+      "grid_family": "bounded request grids only",
+      "instrument": "pricing request/response contracts",
+      "invariants": [
+        "bounded_grid_nodes",
+        "invalid_payoff_rejected",
+        "convergence_not_assessed_disclosed"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "FastAPI/CLI adapter schemas",
+      "notes": "",
+      "oracle": {
+        "independence": "adapter contract tests exercise bounded inputs before solver dispatch",
+        "kind": "fixture",
+        "notes": "API evidence does not promote experimental numerical routes to validated status.",
+        "source": "API schema and request-guard tests"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.api.request_guards",
+      "runner": null,
+      "state_convention": "outer adapters over numerical core with explicit route maturity",
+      "status": "experimental",
+      "time_schedule": "request-declared maturity/time controls",
+      "title": "API request guards and explicit non-claim convergence metadata",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "invalid requests fail closed and responses disclose convergence status",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "REG-FAIL-CLOSED-V0",
+      "capability_rows": [
+        "CRIF/CUSO/Basel/FRTB regulatory report endpoints"
+      ],
+      "family": "regulatory_fail_closed",
+      "fixture_paths": [
+        "tests/test_regulatory_fail_closed.py"
+      ],
+      "grid_family": "not applicable",
+      "instrument": "CRIF/CUSO/Basel/FRTB endpoints",
+      "invariants": [
+        "http_501_for_unsupported_standard",
+        "no_placeholder_report_values"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#49"
+      ],
+      "model": "regulatory reporting scaffold",
+      "notes": "",
+      "oracle": {
+        "independence": "contract-level rejection before solver construction",
+        "kind": "capability",
+        "notes": "Unsupported features must be explicit capability rejections, not silent approximation.",
+        "source": "DEFAULT_FD_CAPABILITY_MANIFEST fail-closed feature screening"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.regulatory.fail_closed",
+      "runner": null,
+      "state_convention": "standard/profile/version/effective-date/jurisdiction required before implementation",
+      "status": "scaffold",
+      "time_schedule": "not applicable",
+      "title": "Regulatory endpoint fail-closed standard/version gate",
+      "tolerances": []
+    }
+  ],
+  "issue_ref": "googa27/finite_difference_options#49",
+  "registry_id": "finite_difference_options.benchmark_registry.v0",
+  "schema_version": "finite-difference-benchmark-registry/v0"
+}
