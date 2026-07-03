@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SRC_ROOT = ROOT / "src"
 PACKAGE_ROOT = SRC_ROOT / "finite_difference_options"
 ARCHITECTURE_DOC = ROOT / "docs" / "ARCHITECTURE.md"
+CANONICAL_INVENTORY_DOC = ROOT / "docs" / "CANONICAL_IMPLEMENTATION_INVENTORY.md"
+ARCHITECTURE_CONTRACT = ROOT / "docs" / "architecture_contract.toml"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 DISTRIBUTION_PACKAGE = "finite_difference_options"
 
@@ -76,6 +79,8 @@ REQUIRED_ARCHITECTURE_PHRASES = {
     "Architecture fitness gates",
     "No module imports the distribution as `src`",
     "No new root package under `src/`",
+    "Canonical implementation consolidation",
+    "docs/CANONICAL_IMPLEMENTATION_INVENTORY.md",
     "haircut-engine",
 }
 
@@ -93,9 +98,7 @@ def test_architecture_contract_file_is_executable_source_of_truth() -> None:
 
 def _python_files(root: Path) -> list[Path]:
     return sorted(
-        path
-        for path in root.rglob("*.py")
-        if "__pycache__" not in path.parts and "egg-info" not in path.parts
+        path for path in root.rglob("*.py") if "__pycache__" not in path.parts and "egg-info" not in path.parts
     )
 
 
@@ -140,6 +143,15 @@ def _imports(path: Path) -> set[str]:
     return _imports_from_tree(tree, path)
 
 
+def _load_architecture_contract() -> dict[str, object]:
+    return tomllib.loads(ARCHITECTURE_CONTRACT.read_text(encoding="utf-8"))
+
+
+def _module_path_for_public_import(public_import: str) -> Path:
+    suffix = public_import.removeprefix(DISTRIBUTION_PACKAGE).removeprefix(".")
+    return PACKAGE_ROOT if not suffix else PACKAGE_ROOT.joinpath(*suffix.split("."))
+
+
 def _without_distribution_prefix(import_name: str) -> str:
     if import_name == DISTRIBUTION_PACKAGE:
         return import_name
@@ -156,24 +168,15 @@ def _is_forbidden_core_import(import_name: str) -> bool:
 
     normalized = _without_distribution_prefix(import_name)
     return any(
-        normalized == package or normalized.startswith(f"{package}.")
-        for package in FORBIDDEN_INTERNAL_APP_PACKAGES
+        normalized == package or normalized.startswith(f"{package}.") for package in FORBIDDEN_INTERNAL_APP_PACKAGES
     )
 
 
 def test_architecture_document_exists_and_covers_required_package_rules() -> None:
-    assert (
-        ARCHITECTURE_DOC.is_file()
-    ), "docs/ARCHITECTURE.md is the architecture source of truth."
+    assert ARCHITECTURE_DOC.is_file(), "docs/ARCHITECTURE.md is the architecture source of truth."
     text = ARCHITECTURE_DOC.read_text(encoding="utf-8")
-    missing = sorted(
-        phrase for phrase in REQUIRED_ARCHITECTURE_PHRASES if phrase not in text
-    )
-    assert (
-        not missing
-    ), "docs/ARCHITECTURE.md is missing required package language: " + ", ".join(
-        missing
-    )
+    missing = sorted(phrase for phrase in REQUIRED_ARCHITECTURE_PHRASES if phrase not in text)
+    assert not missing, "docs/ARCHITECTURE.md is missing required package language: " + ", ".join(missing)
 
 
 def test_current_distribution_package_boundaries_are_declared() -> None:
@@ -247,40 +250,22 @@ def test_numerical_core_does_not_import_optional_app_or_visualization_stacks() -
         if not package_root.exists():
             continue
         for path in _python_files(package_root):
-            forbidden = sorted(
-                name for name in _imports(path) if _is_forbidden_core_import(name)
-            )
+            forbidden = sorted(name for name in _imports(path) if _is_forbidden_core_import(name))
             if forbidden:
                 violations[str(path.relative_to(ROOT))] = forbidden
-    assert (
-        not violations
-    ), "Numerical core imported optional app/UI/visualization stacks: " + repr(
-        violations
-    )
+    assert not violations, "Numerical core imported optional app/UI/visualization stacks: " + repr(violations)
 
 
-def test_base_package_import_surface_does_not_import_app_or_visualization_stacks() -> (
-    None
-):
-    forbidden = sorted(
-        name
-        for name in _imports(PACKAGE_ROOT / "__init__.py")
-        if _is_forbidden_core_import(name)
-    )
-    assert (
-        not forbidden
-    ), "Base package initializer imported app/UI/reporting stacks: " + repr(forbidden)
+def test_base_package_import_surface_does_not_import_app_or_visualization_stacks() -> None:
+    forbidden = sorted(name for name in _imports(PACKAGE_ROOT / "__init__.py") if _is_forbidden_core_import(name))
+    assert not forbidden, "Base package initializer imported app/UI/reporting stacks: " + repr(forbidden)
 
 
 def test_no_public_code_or_tests_import_historical_src_package() -> None:
     violations: list[str] = []
     for root in [PACKAGE_ROOT, ROOT / "tests"]:
         for path in _python_files(root):
-            historical = sorted(
-                name
-                for name in _imports(path)
-                if name == "src" or name.startswith("src.")
-            )
+            historical = sorted(name for name in _imports(path) if name == "src" or name.startswith("src."))
             if historical:
                 violations.append(f"{path.relative_to(ROOT)}: {historical}")
     assert not violations, "Historical src imports remain: " + repr(violations)
@@ -288,12 +273,56 @@ def test_no_public_code_or_tests_import_historical_src_package() -> None:
 
 def test_ci_exposes_packaging_and_architecture_gates() -> None:
     workflow = CI_WORKFLOW.read_text(encoding="utf-8")
-    assert (
-        "tests/architecture" in workflow
-    ), "CI must run the architecture gate from tests/architecture."
-    assert (
-        "tests/test_packaging_contract.py" in workflow
-    ), "CI must run the packaging contract."
-    assert (
-        "python -m build --sdist --wheel" in workflow
-    ), "CI must build the sdist and wheel."
+    assert "tests/architecture" in workflow, "CI must run the architecture gate from tests/architecture."
+    assert "tests/test_packaging_contract.py" in workflow, "CI must run the packaging contract."
+    assert "python -m build --sdist --wheel" in workflow, "CI must build the sdist and wheel."
+
+
+def test_canonical_capability_inventory_is_executable_and_blocks_duplicate_stacks() -> None:
+    contract = _load_architecture_contract()
+    capabilities = contract.get("canonical_capabilities", [])
+    assert isinstance(capabilities, list)
+    assert len(capabilities) >= 7
+    inventory = CANONICAL_INVENTORY_DOC.read_text(encoding="utf-8")
+
+    names: set[str] = set()
+    for capability in capabilities:
+        assert isinstance(capability, dict)
+        name = capability["name"]
+        assert isinstance(name, str)
+        assert name not in names
+        names.add(name)
+        assert name in inventory
+
+        canonical_modules = capability.get("canonical_modules", [])
+        public_imports = capability.get("public_imports", [])
+        forbidden_legacy_modules = capability.get("forbidden_legacy_modules", [])
+        compatibility_shims = capability.get("compatibility_shims", [])
+        assert isinstance(canonical_modules, list) and canonical_modules
+        assert isinstance(public_imports, list) and public_imports
+        assert isinstance(forbidden_legacy_modules, list)
+        assert isinstance(compatibility_shims, list)
+
+        for module_path in canonical_modules:
+            assert isinstance(module_path, str)
+            full_path = ROOT / module_path
+            assert full_path.exists(), f"{name} canonical path is missing: {module_path}"
+            if full_path.is_dir():
+                assert any(full_path.rglob("*.py")), f"{name} canonical package has no Python files: {module_path}"
+
+        for public_import in public_imports:
+            assert isinstance(public_import, str)
+            assert public_import == DISTRIBUTION_PACKAGE or public_import.startswith(f"{DISTRIBUTION_PACKAGE}.")
+            import_path = _module_path_for_public_import(public_import)
+            assert import_path.is_dir() or import_path.with_suffix(".py").is_file(), public_import
+
+        for legacy_path in forbidden_legacy_modules:
+            assert isinstance(legacy_path, str)
+            assert not (ROOT / legacy_path).exists(), f"Forbidden duplicate implementation exists: {legacy_path}"
+            assert legacy_path in inventory
+
+        for shim_path in compatibility_shims:
+            assert isinstance(shim_path, str)
+            full_path = ROOT / shim_path
+            assert full_path.is_file()
+            assert PACKAGE_ROOT in full_path.parents

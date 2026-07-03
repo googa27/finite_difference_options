@@ -61,6 +61,7 @@ The static registry fixture currently contains these versioned evidence IDs:
 | `FACTOR-ROLE-COMPAT-V0` | factor-role payoff compatibility fail-closed gate |
 | `DOCS-README-SMOKE-V0` | README/docs smoke and maturity-disclosure evidence |
 | `API-REQUEST-GUARDS-V0` | API request guards and convergence non-claim metadata |
+| `FD-CANONICAL-INVENTORY-V0` | canonical implementation inventory and duplicate-stack architecture gate |
 | `REG-FAIL-CLOSED-V0` | regulatory/reporting endpoint fail-closed gate |
 
 ## Successor work
