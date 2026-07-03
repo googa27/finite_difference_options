@@ -81,7 +81,7 @@ def test_node_profile_never_references_a_missing_lockfile_cache_path() -> None:
     assert "Run production build" in workflow
     assert "npm run build" in workflow
     assert "npm audit --audit-level=high" in workflow
-    assert "npm sbom --json > npm-sbom.json" in workflow
+    assert "npm sbom --sbom-format cyclonedx --json > npm-sbom.json" in workflow
 
 
 def test_gemini_review_and_issue_triage_failures_are_advisory() -> None:

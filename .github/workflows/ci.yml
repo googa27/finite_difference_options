@@ -223,7 +223,7 @@ jobs:
       - name: Generate frontend SBOM
         if: steps.nextjs.outputs.present == 'true' && steps.nextjs.outputs.lockfile == 'true'
         working-directory: nextjs-client
-        run: npm sbom --json > npm-sbom.json
+        run: npm sbom --sbom-format cyclonedx --json > npm-sbom.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: steps.nextjs.outputs.present == 'true' && steps.nextjs.outputs.lockfile == 'true'
         with:
