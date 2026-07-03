@@ -17,11 +17,14 @@ from numpy.typing import NDArray
 from ..boundary_conditions import BlackScholesBoundaryBuilder
 from ..instruments.operators import SpatialOperator
 from ..pricing.instruments.base import UnifiedInstrument
+from ..processes.affine import GeometricBrownianMotion
 from ..processes.base import StochasticProcess
 from finite_difference_options.exceptions import ValidationError
 
 from .finite_difference import (
     FiniteDifferenceSolver,
+    LCPDiagnostics,
+    ProjectedSORLCP,
     ThetaMethod,
     TimeStepper,
 )
@@ -96,6 +99,13 @@ class FiniteDifferenceSolverAdapter(Solver):
         self._process = process
         self._time_stepper = time_stepper
         self._solver = FiniteDifferenceSolver(time_stepper=time_stepper)
+        self.last_lcp_diagnostics = LCPDiagnostics(
+            exercise_style="european",
+            levels=(),
+            tolerance=0.0,
+            relaxation=0.0,
+            max_iterations=0,
+        )
 
     def solve(
         self,
@@ -119,6 +129,16 @@ class FiniteDifferenceSolverAdapter(Solver):
             time_grid = np.linspace(0.0, instrument.maturity, 50)
 
         spatial_grid = grids[0]
+        exercise_style = str(getattr(instrument, "exercise_style", "european"))
+        if exercise_style in {"american", "bermudan"}:
+            return self._solve_obstacle_lcp(
+                initial_condition,
+                instrument,
+                spatial_grid,
+                time_grid,
+                exercise_style=exercise_style,
+            )
+
         generator = self._build_generator(spatial_grid, instrument)
         boundary_conditions = self._build_boundary_conditions(spatial_grid, instrument)
 
@@ -130,6 +150,50 @@ class FiniteDifferenceSolverAdapter(Solver):
         )
         self.last_step_schedule = self._solver.last_step_schedule
         return solution[::-1]
+
+
+    def _solve_obstacle_lcp(
+        self,
+        initial_condition: NDArray[np.float64],
+        instrument: UnifiedInstrument,
+        spatial_grid: NDArray[np.float64],
+        time_grid: NDArray[np.float64],
+        *,
+        exercise_style: str,
+    ) -> NDArray[np.float64]:
+        """Solve a 1D Black-Scholes obstacle problem and return calendar order."""
+        if not hasattr(instrument, "strike") or not hasattr(instrument, "option_type"):
+            raise ValidationError(
+                "American/Bermudan LCP route requires a vanilla strike and option_type"
+            )
+        if not isinstance(self._process, GeometricBrownianMotion):
+            raise ValidationError(
+                "American/Bermudan LCP route currently supports only one-factor Black-Scholes/GBM processes"
+            )
+        exercise_dates = tuple(float(x) for x in getattr(instrument, "exercise_dates", ()))
+        lcp_solver = ProjectedSORLCP(
+            tolerance=float(getattr(instrument, "lcp_tolerance", 1.0e-8)),
+            max_iterations=int(getattr(instrument, "lcp_max_iterations", 10_000)),
+            relaxation=float(getattr(instrument, "lcp_relaxation", 1.2)),
+        )
+        try:
+            tau_solution = lcp_solver.solve_black_scholes(
+                spot_grid=spatial_grid,
+                payoff=initial_condition,
+                time_grid=time_grid,
+                strike=float(instrument.strike),  # type: ignore[attr-defined]
+                option_type=str(instrument.option_type),  # type: ignore[attr-defined]
+                risk_free_rate=self._risk_free_rate_for(instrument),
+                dividend_yield=self._dividend_yield_for(instrument),
+                volatility=self._volatility_for(instrument),
+                exercise_style=exercise_style,
+                exercise_dates=exercise_dates,
+            )
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+        self.last_lcp_diagnostics = lcp_solver.last_diagnostics
+        self.last_step_schedule = ()
+        return tau_solution[::-1]
 
     def _build_generator(
         self,
@@ -180,6 +244,21 @@ class FiniteDifferenceSolverAdapter(Solver):
         if explicit is not None:
             return float(explicit)
         return float(getattr(self._process, "dividend_yield", 0.0))
+
+    def _volatility_for(self, instrument: UnifiedInstrument) -> float:
+        explicit = getattr(instrument, "volatility", None)
+        if explicit is None:
+            explicit = getattr(instrument, "sigma", None)
+        if explicit is None:
+            explicit = getattr(self._process, "sigma", None)
+        if explicit is None:
+            raise ValidationError("American/Bermudan LCP route requires volatility/sigma")
+        sigma = float(explicit)
+        if sigma <= 0.0 or not np.isfinite(sigma):
+            raise ValidationError(
+                "American/Bermudan LCP volatility must be finite and positive"
+            )
+        return sigma
 
 
 class ADISolverWrapper(Solver):

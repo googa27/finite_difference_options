@@ -12,7 +12,7 @@ The registry is the evidence index behind `docs/CAPABILITY_MATRIX.md`. A capabil
 | Layer | Purpose | Example |
 |---|---|---|
 | Analytical oracle | Compare the FD route to a closed-form or independent semi-analytical result. | `BS-CALL-PARITY-V0`, `HESTON-ORACLE-V0` |
-| Manufactured/fixture evidence | Pin expected behavior for a route-specific contract before broader production claims. | `RANNACHER-GAMMA-V0`, `BOUNDARY-MODEL-AWARE-V0` |
+| Manufactured/fixture evidence | Pin expected behavior for a route-specific contract before broader production claims. | `RANNACHER-GAMMA-V0`, `BOUNDARY-MODEL-AWARE-V0`, `AMERICAN-LCP-V0` |
 | No-arbitrage invariants | Guard positivity, bounds, Delta/Gamma signs and parity-style properties. | `BS-CALL-PARITY-V0` |
 | Route parity | Assert that a generic/cross-repo contract and a specialized local route agree on semantics. | `QPS-VANILLA-CALL-V0`, `HESTON-BS-LIMIT-V0` |
 | Capability gate | Fail closed for unsupported products, regulatory reports, factors or solver features. | `FACTOR-ROLE-COMPAT-V0`, `REG-FAIL-CLOSED-V0` |
@@ -51,6 +51,7 @@ The static registry fixture currently contains these versioned evidence IDs:
 | `BOUNDARY-MODEL-AWARE-V0` | typed model-aware boundary/reaction gate |
 | `REACTION-INDEPENDENT-V0` | reaction/discount coefficient independence gate |
 | `RANNACHER-GAMMA-V0` | Rannacher startup and kinked-payoff Gamma evidence |
+| `AMERICAN-LCP-V0` | American/Bermudan obstacle LCP complementarity, ordering, exercise-boundary and nonconvergence diagnostics |
 | `HESTON-SMOKE-DOCSTRING-V0` | Heston ADI smoke/shape/finite-value evidence |
 | `HESTON-ORACLE-V0` | semi-analytical Heston oracle evidence |
 | `HESTON-BS-LIMIT-V0` | executable Heston-to-Black-Scholes limit runner |
@@ -64,4 +65,4 @@ The static registry fixture currently contains these versioned evidence IDs:
 
 ## Successor work
 
-The registry deliberately records several experimental/smoke rows. Closing issue #49 does not graduate ADI/Heston/basket/regulatory routes to production; it makes their evidence status explicit and machine-checkable. Subsequent issues should add executable runners for convergence, stability, American/LCP, Heston ADI parity, and cross-backend route parity before changing maturity in `docs/CAPABILITY_MATRIX.md`.
+The registry deliberately records several experimental/smoke rows. Closing issue #49 does not graduate ADI/Heston/basket/regulatory routes to production; it makes their evidence status explicit and machine-checkable. Subsequent issues should add executable runners for convergence, stability, multidimensional American/LCP, Heston ADI parity, and cross-backend route parity before changing maturity in `docs/CAPABILITY_MATRIX.md`.

@@ -216,14 +216,15 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
     grid_types=("uniform", "log_uniform"),
     pde_terms=("drift", "diffusion", "reaction", "source", "mixed_derivative"),
     boundary_conditions=("dirichlet", "neumann", "robin", "second_derivative"),
-    exercise_styles=("european",),
-    outputs=("value", "delta", "gamma"),
+    exercise_styles=("european", "bermudan", "american"),
+    outputs=("value", "delta", "gamma", "exercise_boundary"),
     stability_controls=(
         "theta",
         "crank_nicolson",
         "rannacher",
         "explicit_euler",
         "adi_psor",
+        "projected_sor_lcp",
     ),
     required_conventions=(
         "measure",
@@ -237,6 +238,7 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "unsupported PDE term",
         "unsupported boundary condition",
         "unsupported exercise style",
+        "obstacle/complementarity diagnostics",
         "missing measure/numeraire/units/date convention",
     ),
     feature_support={
@@ -244,7 +246,10 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "one_dimensional_generator_pde": CapabilityStatus.VALIDATED.value,
         "mixed_derivative": CapabilityStatus.EXPERIMENTAL.value,
         "jump_integral": CapabilityStatus.UNSUPPORTED.value,
-        "obstacle_lcp": CapabilityStatus.UNSUPPORTED.value,
+        "obstacle_lcp": CapabilityStatus.VALIDATED.value,
+        "american_black_scholes_lcp": CapabilityStatus.VALIDATED.value,
+        "bermudan_black_scholes_lcp": CapabilityStatus.VALIDATED.value,
+        "multidimensional_american_lcp": CapabilityStatus.EXPERIMENTAL.value,
         "hjb_control": CapabilityStatus.UNSUPPORTED.value,
         "rofr_full_family_contract": CapabilityStatus.UNSUPPORTED.value,
     },
@@ -252,6 +257,9 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "black_scholes_price_abs": 5.0e-4,
         "black_scholes_delta_abs": 5.0e-2,
         "black_scholes_gamma_abs": 2.0e-2,
+        "american_lcp_primal_abs": 5.0e-8,
+        "american_lcp_dual_abs": 5.0e-5,
+        "american_lcp_complementarity_abs": 5.0e-4,
         "pinares_fixed_price_proxy_price_abs_uf": 1.0,
         "pinares_fixed_price_proxy_delta_abs": 1.0e-3,
         "pinares_fixed_price_proxy_gamma_abs": 5.0e-6,
@@ -264,7 +272,7 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "deterministic": "true",
     },
     notes=(
-        "American/LCP exercise is intentionally unsupported until complementarity diagnostics land.",
+        "American/Bermudan LCP support is validated only for one-dimensional Black-Scholes/GBM routes.",
         "Jump/PIDE and HJB/control terms must fail closed instead of using placeholder coefficients.",
     ),
 )
@@ -328,6 +336,20 @@ def diagnose_unsupported_route(
         (request.exercise_style,),
         manifest.exercise_styles,
     )
+    if request.exercise_style in {"american", "bermudan"} and not _is_valid_one_dimensional_lcp_request(request):
+        diagnostics.append(
+            _diagnostic(
+                UnsupportedReason.UNSUPPORTED_EXERCISE,
+                "exercise_style",
+                request.exercise_style,
+                ("european", "1D american/bermudan Black-Scholes LCP"),
+                (
+                    "American/Bermudan LCP support is validated only for one-dimensional "
+                    "drift/diffusion/reaction Black-Scholes routes; multidimensional/ADI "
+                    "American exercise must fail closed."
+                ),
+            )
+        )
     _extend_set_diagnostics(
         diagnostics,
         UnsupportedReason.UNSUPPORTED_OUTPUT,
@@ -420,6 +442,11 @@ def _extend_set_diagnostics(
                     f"Unsupported {field_name} value {value!r}; supported values are {supported}.",
                 )
             )
+
+
+def _is_valid_one_dimensional_lcp_request(request: FDRouteRequest) -> bool:
+    allowed_terms = {"drift", "diffusion", "reaction"}
+    return request.dimension == 1 and set(request.pde_terms) <= allowed_terms
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

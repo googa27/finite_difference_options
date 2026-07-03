@@ -1,5 +1,5 @@
 {
-  "case_count": 18,
+  "case_count": 19,
   "cases": [
     {
       "benchmark_id": "BS-CALL-PARITY-V0",
@@ -402,6 +402,68 @@
           "norm": "all invariants",
           "notes": "startup schedule and Gamma sanity checks pass",
           "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "AMERICAN-LCP-V0",
+      "capability_rows": [
+        "American/free-boundary exercise"
+      ],
+      "family": "no_arbitrage",
+      "fixture_paths": [
+        "tests/test_american_lcp.py"
+      ],
+      "grid_family": "uniform spot grid; uniform time grid",
+      "instrument": "American and Bermudan vanilla options",
+      "invariants": [
+        "value_above_obstacle",
+        "american_dominates_european",
+        "non_dividend_call_matches_european",
+        "bermudan_between_european_and_american",
+        "nonconvergence_fails_closed",
+        "exercise_boundary_reported"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#66"
+      ],
+      "model": "Black-Scholes / GBM",
+      "notes": "1D reference route only; multidimensional American/ADI remains gated until separate work-precision evidence exists.",
+      "oracle": {
+        "independence": "complementarity, no-arbitrage, ordering and nonconvergence fixtures independent of API route labels",
+        "kind": "fixture",
+        "notes": "Covers primal/dual/complementarity diagnostics, American>=European, non-dividend call parity, Bermudan ordering and iteration-limit failure.",
+        "source": "tests/test_american_lcp.py"
+      },
+      "resource_policy": {
+        "deterministic": "true",
+        "max_s_steps": 121,
+        "max_t_steps": 81
+      },
+      "route_id": "fd.black_scholes_1d.projected_sor_lcp",
+      "runner": "american_lcp",
+      "state_convention": "spot S, calendar-time output, forward tau internal march with obstacle projection",
+      "status": "validated",
+      "time_schedule": "implicit theta LCP step with projected SOR warm-started from previous tau level",
+      "title": "Black-Scholes American/Bermudan obstacle LCP complementarity evidence",
+      "tolerances": [
+        {
+          "metric": "lcp_primal_abs",
+          "norm": "max obstacle violation",
+          "notes": "max(payoff - value, 0) over diagnosed interior nodes",
+          "threshold": 5e-08
+        },
+        {
+          "metric": "lcp_dual_abs",
+          "norm": "max negative dual residual",
+          "notes": "max negative A value - rhs residual under LCP sign convention",
+          "threshold": 5e-05
+        },
+        {
+          "metric": "lcp_complementarity_abs",
+          "norm": "max complementarity product",
+          "notes": "componentwise (value-payoff)*(A value-rhs) diagnostic",
+          "threshold": 0.0005
         }
       ]
     },

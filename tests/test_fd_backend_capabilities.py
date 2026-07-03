@@ -44,20 +44,68 @@ def _supported_payload() -> dict[str, object]:
     }
 
 
-def test_default_manifest_declares_fd_support_without_claiming_american_or_jumps() -> None:
+def test_default_manifest_declares_fd_support_with_diagnosed_american_lcp_without_jumps() -> None:
     manifest = DEFAULT_FD_CAPABILITY_MANIFEST
 
     assert manifest.backend_id == "finite_difference_options.fd_backend.v0"
     assert manifest.contract_version == "0.1.0"
     assert manifest.supported_dimensions == (1, 2, 3)
-    assert "american" not in manifest.exercise_styles
+    assert {"european", "bermudan", "american"} <= set(manifest.exercise_styles)
+    assert "exercise_boundary" in manifest.outputs
     assert "jump_integral" not in manifest.pde_terms
     assert "rannacher" in manifest.stability_controls
+    assert "policy_iteration_lcp" not in manifest.stability_controls
     assert {"measure", "numeraire", "units", "valuation_date", "maturity_date"} <= set(manifest.required_conventions)
     assert manifest.feature_support["pinares_fixed_price_proxy"] == "validated"
+    assert manifest.feature_support["obstacle_lcp"] == "validated"
+    assert manifest.feature_support["american_black_scholes_lcp"] == "validated"
     assert manifest.feature_support["jump_integral"] == "unsupported"
     assert manifest.feature_support["hjb_control"] == "unsupported"
     assert manifest.error_budgets["pinares_fixed_price_proxy_price_abs_uf"] == 1.0
+
+
+def test_american_lcp_capability_is_gated_to_one_dimensional_black_scholes_routes() -> None:
+    payload = _supported_payload()
+    math_problem = dict(payload["mathematical_problem"])  # type: ignore[arg-type]
+    payload["mathematical_problem"] = {
+        **math_problem,
+        "exercise_style": "american",
+    }
+    one_dimensional = FDRouteRequest.from_quant_problem_spec(payload)
+    assert diagnose_unsupported_route(one_dimensional) == ()
+
+    payload["mathematical_problem"] = {
+        **math_problem,
+        "dimension": 2,
+        "pde_terms": ["drift", "diffusion", "reaction", "mixed_derivative"],
+        "exercise_style": "american",
+    }
+    multidimensional = FDRouteRequest.from_quant_problem_spec(payload)
+    diagnostics = diagnose_unsupported_route(multidimensional)
+
+    assert any(
+        diagnostic.reason == UnsupportedReason.UNSUPPORTED_EXERCISE
+        and "multidimensional/ADI" in diagnostic.message
+        for diagnostic in diagnostics
+    )
+
+
+def test_policy_iteration_lcp_control_fails_closed_until_implemented() -> None:
+    payload = _supported_payload()
+    solver_plan = dict(payload["solver_plan"])  # type: ignore[arg-type]
+    payload["solver_plan"] = {
+        **solver_plan,
+        "stability_controls": ["policy_iteration_lcp"],
+    }
+    request = FDRouteRequest.from_quant_problem_spec(payload)
+
+    diagnostics = diagnose_unsupported_route(request)
+
+    assert any(
+        diagnostic.reason == UnsupportedReason.UNSUPPORTED_STABILITY_CONTROL
+        and diagnostic.value == "policy_iteration_lcp"
+        for diagnostic in diagnostics
+    )
 
 
 def test_quant_problem_spec_mapping_preserves_conventions_and_outputs() -> None:
@@ -146,7 +194,7 @@ def test_unsupported_terms_dimensions_boundaries_and_exercise_fail_closed() -> N
         "dimension": 4,
         "pde_terms": ["drift", "jump_integral", "hjb_control"],
         "boundary_conditions": ["free_boundary"],
-        "exercise_style": "american",
+        "exercise_style": "swing",
     }
     request = FDRouteRequest.from_quant_problem_spec(payload)
 
@@ -192,8 +240,8 @@ def test_unsupported_outputs_and_stability_controls_do_not_silently_downgrade() 
     payload = _supported_payload()
     payload["solver_plan"] = {
         "grid_type": "adaptive_sparse_grid",
-        "requested_outputs": ["value", "vega", "exercise_boundary"],
-        "stability_controls": ["rannacher", "policy_iteration_lcp"],
+        "requested_outputs": ["value", "vega", "early_exercise_premium"],
+        "stability_controls": ["rannacher", "semismooth_newton_lcp"],
     }
     request = FDRouteRequest.from_quant_problem_spec(payload)
 
@@ -203,8 +251,8 @@ def test_unsupported_outputs_and_stability_controls_do_not_silently_downgrade() 
     assert by_field["grid_type"].reason == UnsupportedReason.UNSUPPORTED_GRID
     assert {diagnostic.value for diagnostic in diagnostics if diagnostic.field == "requested_outputs"} == {
         "vega",
-        "exercise_boundary",
+        "early_exercise_premium",
     }
     assert {diagnostic.value for diagnostic in diagnostics if diagnostic.field == "stability_controls"} == {
-        "policy_iteration_lcp",
+        "semismooth_newton_lcp",
     }

@@ -81,6 +81,72 @@ class UnifiedEuropeanOption(UnifiedInstrument, BaseModel):
         return (FactorRole.TRADABLE_SPOT,)
 
 
+class UnifiedAmericanOption(UnifiedEuropeanOption):
+    """Plain-vanilla American option with continuous exercise.
+
+    The numerical route is an obstacle problem/LCP.  The payoff is inherited from
+    :class:`UnifiedEuropeanOption`; ``exercise_style`` is a routing contract, not
+    a change in payoff definition.
+    """
+
+    exercise_style: Literal["american"] = "american"
+    lcp_tolerance: float = 1.0e-8
+    lcp_max_iterations: int = 10_000
+    lcp_relaxation: float = 1.2
+
+    @field_validator("lcp_tolerance")
+    @classmethod
+    def validate_lcp_tolerance(cls, v: float) -> float:
+        """Validate the projected-SOR stopping tolerance."""
+        validate_positive(v, "lcp_tolerance")
+        return v
+
+    @field_validator("lcp_max_iterations")
+    @classmethod
+    def validate_lcp_max_iterations(cls, v: int) -> int:
+        """Validate the projected-SOR iteration cap."""
+        if v < 1:
+            raise ValidationError("lcp_max_iterations must be positive")
+        return v
+
+    @field_validator("lcp_relaxation")
+    @classmethod
+    def validate_lcp_relaxation(cls, v: float) -> float:
+        """Validate the SOR relaxation parameter."""
+        if not 0.0 < v < 2.0:
+            raise ValidationError("lcp_relaxation must lie in (0, 2)")
+        return v
+
+
+class UnifiedBermudanOption(UnifiedAmericanOption):
+    """Plain-vanilla Bermudan option with discrete exercise dates."""
+
+    exercise_style: Literal["bermudan"] = "bermudan"
+    exercise_dates: tuple[float, ...]
+
+    @field_validator("exercise_dates")
+    @classmethod
+    def validate_exercise_dates(cls, v: tuple[float, ...]) -> tuple[float, ...]:
+        """Validate strictly increasing future exercise dates."""
+        if not v:
+            raise ValidationError("exercise_dates must be non-empty")
+        previous = 0.0
+        for date in v:
+            if not np.isfinite(date) or date <= 0.0:
+                raise ValidationError("exercise_dates must contain positive finite dates")
+            if date <= previous:
+                raise ValidationError("exercise_dates must be strictly increasing")
+            previous = float(date)
+        return tuple(float(date) for date in v)
+
+    def __init__(self, **data):
+        """Initialise and ensure exercise dates lie inside maturity."""
+        super().__init__(**data)
+        if self.exercise_dates[-1] > self.maturity:
+            raise ValidationError("exercise_dates must not exceed maturity")
+
+
+
 class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     """Basket option payoff on a weighted combination of underlying states.
 
@@ -331,6 +397,50 @@ def create_unified_european_put(
 ) -> UnifiedEuropeanOption:
     """Create a plain-vanilla European put."""
     return UnifiedEuropeanOption(strike=strike, maturity=maturity, option_type="put")
+
+
+def create_unified_american_call(
+    strike: float,
+    maturity: float,
+) -> UnifiedAmericanOption:
+    """Create a plain-vanilla American call."""
+    return UnifiedAmericanOption(strike=strike, maturity=maturity, option_type="call")
+
+
+def create_unified_american_put(
+    strike: float,
+    maturity: float,
+) -> UnifiedAmericanOption:
+    """Create a plain-vanilla American put."""
+    return UnifiedAmericanOption(strike=strike, maturity=maturity, option_type="put")
+
+
+def create_unified_bermudan_call(
+    strike: float,
+    maturity: float,
+    exercise_dates: tuple[float, ...],
+) -> UnifiedBermudanOption:
+    """Create a plain-vanilla Bermudan call."""
+    return UnifiedBermudanOption(
+        strike=strike,
+        maturity=maturity,
+        option_type="call",
+        exercise_dates=exercise_dates,
+    )
+
+
+def create_unified_bermudan_put(
+    strike: float,
+    maturity: float,
+    exercise_dates: tuple[float, ...],
+) -> UnifiedBermudanOption:
+    """Create a plain-vanilla Bermudan put."""
+    return UnifiedBermudanOption(
+        strike=strike,
+        maturity=maturity,
+        option_type="put",
+        exercise_dates=exercise_dates,
+    )
 
 
 def create_unified_basket_call(
