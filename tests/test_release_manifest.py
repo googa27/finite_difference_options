@@ -21,6 +21,7 @@ def test_release_manifest_records_artifact_and_governance_hashes(tmp_path: Path)
     dist.mkdir()
     wheel = dist / "finite_difference_options-0.1.0-py3-none-any.whl"
     sdist = dist / "finite_difference_options-0.1.0.tar.gz"
+    stale_manifest = dist / "release-manifest.json"
 
     with zipfile.ZipFile(wheel, "w") as archive:
         archive.writestr("finite_difference_options/__init__.py", "")
@@ -28,6 +29,7 @@ def test_release_manifest_records_artifact_and_governance_hashes(tmp_path: Path)
         payload = tmp_path / "PKG-INFO"
         payload.write_text("Name: finite-difference-options\n", encoding="utf-8")
         archive.add(payload, arcname="finite_difference_options-0.1.0/PKG-INFO")
+    stale_manifest.write_text('{"stale": true}\n', encoding="utf-8")
 
     manifest = build_manifest(dist)
     payload = json.loads(json.dumps(manifest))
@@ -37,6 +39,9 @@ def test_release_manifest_records_artifact_and_governance_hashes(tmp_path: Path)
     assert {artifact["path"] for artifact in payload["artifacts"]} == {
         "dist/finite_difference_options-0.1.0-py3-none-any.whl",
         "dist/finite_difference_options-0.1.0.tar.gz",
+    }
+    assert "dist/release-manifest.json" not in {
+        artifact["path"] for artifact in payload["artifacts"]
     }
     assert all(len(artifact["sha256"]) == 64 for artifact in payload["artifacts"])
     assert "docs/CAPABILITY_MATRIX.md" in {

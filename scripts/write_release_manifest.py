@@ -28,6 +28,8 @@ DEFAULT_LOCKFILES = (
     "tests/fixtures/fd_benchmark_registry_v1.json",
 )
 
+PYTHON_DISTRIBUTION_SUFFIXES = (".whl", ".tar.gz")
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -47,7 +49,11 @@ def _file_record(path: Path, *, relative_to: Path | None = None) -> dict[str, An
 
 
 def build_manifest(dist: Path, lockfiles: tuple[str, ...] = DEFAULT_LOCKFILES) -> dict[str, Any]:
-    artifact_paths = sorted(path for path in dist.glob("*") if path.is_file())
+    artifact_paths = sorted(
+        path
+        for path in dist.glob("*")
+        if path.is_file() and path.name.endswith(PYTHON_DISTRIBUTION_SUFFIXES)
+    )
     if not artifact_paths:
         raise SystemExit(f"No distribution artifacts found under {dist}")
 
