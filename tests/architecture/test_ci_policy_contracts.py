@@ -1,10 +1,37 @@
 from pathlib import Path
+import re
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _read(relative_path: str) -> str:
     return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def test_third_party_actions_are_pinned_to_full_commit_shas() -> None:
+    workflows = sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml"))
+    assert workflows
+
+    unpinned: list[str] = []
+    uses_re = re.compile(r"^\s*(?:-\s*)?uses:\s*['\"]?([^'\"\s]+)")
+    for workflow_path in workflows:
+        for line_number, line in enumerate(
+            workflow_path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            match = uses_re.search(line)
+            if not match:
+                continue
+            target = match.group(1)
+            if target.startswith(("./", "docker://")):
+                continue
+            if "@" not in target:
+                unpinned.append(f"{workflow_path.relative_to(REPO_ROOT)}:{line_number}:{target}")
+                continue
+            ref = target.rsplit("@", maxsplit=1)[1]
+            if not re.fullmatch(r"[0-9a-f]{40}", ref):
+                unpinned.append(f"{workflow_path.relative_to(REPO_ROOT)}:{line_number}:{target}")
+
+    assert unpinned == []
 
 
 def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
@@ -27,6 +54,21 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     assert "python -m pip check" in workflow
     assert "python -m pip_audit --progress-spinner=off --skip-editable" in workflow
     assert "cyclonedx-py environment --of JSON -o sbom.json" in workflow
+    assert "Generate release manifest" in workflow
+    assert "scripts/write_release_manifest.py --dist dist --output dist/release-manifest.json" in workflow
+    assert "retention-days: 14" in workflow
+
+
+def test_ci_jobs_declare_bounded_runtime_and_artifact_retention() -> None:
+    workflow = _read(".github/workflows/ci.yml")
+
+    for job in ("package", "test", "optional-profiles", "audit", "node"):
+        section = workflow.split(f"  {job}:\n", maxsplit=1)[1]
+        next_job = re.search(r"\n  [a-zA-Z0-9_-]+:\n", section)
+        job_section = section[: next_job.start()] if next_job else section
+        assert "timeout-minutes:" in job_section, job
+
+    assert workflow.count("retention-days: 14") >= 4
 
 
 def test_node_profile_never_references_a_missing_lockfile_cache_path() -> None:
@@ -36,6 +78,10 @@ def test_node_profile_never_references_a_missing_lockfile_cache_path() -> None:
     assert "Install dependencies with lockfile" in workflow
     assert "Install dependencies without lockfile" in workflow
     assert "cache-dependency-path: nextjs-client/package-lock.json" not in workflow
+    assert "Run production build" in workflow
+    assert "npm run build" in workflow
+    assert "npm audit --audit-level=high" in workflow
+    assert "npm sbom --json > npm-sbom.json" in workflow
 
 
 def test_gemini_review_and_issue_triage_failures_are_advisory() -> None:
@@ -74,6 +120,15 @@ def test_issue_triage_ai_output_is_schema_validated_before_additive_label_writes
         assert "Raw labels JSON" not in workflow
         assert "protected labels that require deterministic handling" in workflow
         assert "status/needs-triage" in workflow
+
+
+def test_review_and_cli_gemini_actions_are_pinned_to_reviewed_sha() -> None:
+    pr_review = _read(".github/workflows/gemini-pr-review.yml")
+    cli = _read(".github/workflows/gemini-cli.yml")
+
+    for workflow in (pr_review, cli):
+        assert "google-github-actions/run-gemini-cli@v0" not in workflow
+        assert "google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489" in workflow
 
 
 def test_scheduled_issue_triage_rotates_candidate_batches() -> None:
