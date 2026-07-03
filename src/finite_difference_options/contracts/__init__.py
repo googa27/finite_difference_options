@@ -11,6 +11,7 @@ from .backend_capabilities import (
     diagnose_unsupported_route,
     ensure_route_supported,
 )
+from .formula_bundle import finite_difference_formula_bundle, formula_bundle_json, validate_formula_bundle
 from .solver_evidence import SolverEvidence
 
 __all__ = [
@@ -24,4 +25,7 @@ __all__ = [
     "SolverEvidence",
     "diagnose_unsupported_route",
     "ensure_route_supported",
+    "finite_difference_formula_bundle",
+    "formula_bundle_json",
+    "validate_formula_bundle",
 ]
