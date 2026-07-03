@@ -20,6 +20,7 @@ from numpy.typing import NDArray
 from finite_difference_options.exceptions import PricingError
 from finite_difference_options.instruments.base import EuropeanOption, Instrument
 from finite_difference_options.models import Market
+from finite_difference_options.processes.base import FactorRole
 from finite_difference_options.solvers.finite_difference import (
     FiniteDifferenceSolver,
     PDESolver,
@@ -355,6 +356,7 @@ class CallableBondPDEModel(PDEModel):
 
     def __post_init__(self) -> None:
         self._validate_contract_scalars()
+        self._validate_short_rate_model()
         object.__setattr__(self, "cash_flows", self._build_cash_flows())
         object.__setattr__(
             self,
@@ -378,21 +380,32 @@ class CallableBondPDEModel(PDEModel):
         if self.settlement_time > self._maturity:
             raise PricingError("settlement_time cannot exceed maturity")
 
+    def _validate_short_rate_model(self) -> None:
+        metadata_getter: Any = getattr(self.model, "factor_metadata", None)
+        if not callable(metadata_getter):
+            raise PricingError("callable bond model must expose one short-rate state")
+        metadata = tuple(metadata_getter())
+        roles = tuple(getattr(factor, "role", None) for factor in metadata)
+        if len(metadata) != 1 or roles != (FactorRole.SHORT_RATE,):
+            role_names = ", ".join(getattr(role, "value", str(role)) for role in roles) or "none"
+            raise PricingError(f"callable bond model must be a one-factor short-rate process; got roles: {role_names}")
+
     def _build_cash_flows(self) -> tuple[BondCashFlow, ...]:
         redemption = self.face_value if self.redemption_amount is None else self.redemption_amount
         if not np.isfinite(redemption) or redemption < 0.0:
             raise PricingError("redemption_amount must be finite and non-negative")
 
-        coupon_times = self._sorted_unique_times(self.coupon_times, "coupon")
+        coupon_times = self._sorted_unique_coupon_times(self.coupon_times)
         flows: list[BondCashFlow] = []
-        previous = self.settlement_time
+        previous = 0.0
         for index, payment_time in enumerate(coupon_times, start=1):
             year_fraction = payment_time - previous
             if year_fraction <= 0.0:
-                raise PricingError("coupon_times must be strictly after settlement_time")
-            coupon_amount = self.face_value * self.coupon_rate * year_fraction
-            if coupon_amount:
-                flows.append(BondCashFlow(payment_time, coupon_amount, f"coupon_{index}"))
+                raise PricingError("coupon_times must be strictly increasing")
+            if payment_time > self.settlement_time:
+                coupon_amount = self.face_value * self.coupon_rate * year_fraction
+                if coupon_amount:
+                    flows.append(BondCashFlow(payment_time, coupon_amount, f"coupon_{index}"))
             previous = payment_time
 
         flows.append(BondCashFlow(self._maturity, redemption, "redemption"))
@@ -427,6 +440,17 @@ class CallableBondPDEModel(PDEModel):
             previous = item
         return cleaned
 
+    def _sorted_unique_coupon_times(self, times: Any) -> tuple[float, ...]:
+        cleaned = tuple(float(item) for item in times)
+        previous: float | None = None
+        for item in cleaned:
+            if not np.isfinite(item) or item < 0.0 or item > self._maturity:
+                raise PricingError("coupon times must be finite and lie between valuation and maturity")
+            if previous is not None and item <= previous:
+                raise PricingError("coupon times must be strictly increasing")
+            previous = item
+        return cleaned
+
     @property
     def maturity(self) -> float:
         return self._maturity
@@ -452,8 +476,8 @@ class CallableBondPDEModel(PDEModel):
 
         if self.coupon_rate == 0.0:
             return 0.0
-        coupon_times = self._sorted_unique_times(self.coupon_times, "coupon")
-        previous = self.settlement_time
+        coupon_times = self._sorted_unique_coupon_times(self.coupon_times)
+        previous = 0.0
         for payment_time in coupon_times:
             if np.isclose(time, payment_time):
                 return 0.0

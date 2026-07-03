@@ -293,7 +293,7 @@ u \ge \psi,\qquad
 
 LCP policies declare PSOR, policy iteration or another validated method, tolerances, iteration limit, relaxation and warm-start behavior. Diagnostics include primal/dual/complementarity residuals and exercise boundary where meaningful.
 
-Issue #63 replaces the former callable-bond global value cap with an explicit Bermudan schedule event model. `CallableBondPDEModel` now carries contractual coupon/redemption cash flows, pre-maturity call dates, settlement prices and clean/dirty conventions; backward induction adds coupon jumps outside same-date exercise caps, treats coupon-date clean calls as ex-coupon, and applies issuer exercise only on those call dates over the remaining settlement-to-maturity horizon. Its generic PDE generator and boundary methods fail closed so continuous-call or American-style exercise cannot be selected accidentally without a diagnosed LCP route.
+Issue #63 replaces the former callable-bond global value cap with an explicit Bermudan schedule event model. `CallableBondPDEModel` now carries contractual coupon/redemption cash flows, pre-maturity call dates, settlement prices and clean/dirty conventions; it validates that the process exposes exactly one short-rate state. Backward induction adds full contractual future coupon jumps even after settlement, keeps same-date coupon jumps outside exercise caps, treats coupon-date clean calls as ex-coupon, and applies issuer exercise only on those call dates over the remaining settlement-to-maturity horizon. Its generic PDE generator and boundary methods fail closed so continuous-call or American-style exercise cannot be selected accidentally without a diagnosed LCP route.
 
 ## 15. Greeks and sensitivities
 

@@ -92,7 +92,7 @@ Dummy arrays, hard-coded variances and dimension-only routing are prohibited. Ea
 
 American or optimal-stopping routes use explicit obstacle/LCP contracts and validated methods such as PSOR or policy iteration. Results include complementarity residual, iteration count, stopping criterion and exercise-boundary diagnostics. Clipping a European solution is not a validated LCP route.
 
-Issue #63 makes this prohibition executable for callable fixed-rate bonds: Bermudan issuer exercise is represented by explicit cash-flow and pre-maturity call-schedule events in backward induction, while same-date coupons stay outside the exercise cap, coupon-date clean calls are treated ex-coupon, and settlement time shortens the valuation horizon. Continuous exercise remains unsupported until a real obstacle/variational-inequality route exists. The callable-bond route is experimental reference evidence, not a production short-rate calibration claim.
+Issue #63 makes this prohibition executable for callable fixed-rate bonds: Bermudan issuer exercise is represented by explicit cash-flow and pre-maturity call-schedule events in backward induction over a one-factor short-rate state, while same-date coupons stay outside the exercise cap, first future coupons remain full contractual coupons after settlement, coupon-date clean calls are treated ex-coupon, and settlement time shortens the valuation horizon. Continuous exercise remains unsupported until a real obstacle/variational-inequality route exists. The callable-bond route is experimental reference evidence, not a production short-rate calibration claim.
 
 ### FR-FD-009 — Greeks and sensitivities
 

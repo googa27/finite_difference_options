@@ -12,7 +12,7 @@ from finite_difference_options.pricing.engines import (
     CallableBondPDEModel,
     CallScheduleEntry,
 )
-from finite_difference_options.processes import OrnsteinUhlenbeck
+from finite_difference_options.processes import GeometricBrownianMotion, OrnsteinUhlenbeck
 
 
 def _short_rate_model() -> OrnsteinUhlenbeck:
@@ -39,6 +39,17 @@ def test_callable_bond_requires_explicit_call_schedule() -> None:
             call_price=101.0,
             market=Market(rate=0.04),
             model=_short_rate_model(),
+            _maturity=2.0,
+        )
+
+
+def test_callable_bond_rejects_non_short_rate_model() -> None:
+    with pytest.raises(PricingError, match="one-factor short-rate"):
+        CallableBondPDEModel(
+            face_value=100.0,
+            call_price=None,
+            market=Market(rate=0.04),
+            model=GeometricBrownianMotion.model_validate({"mu": 0.04, "sigma": 0.2}),
             _maturity=2.0,
         )
 
@@ -121,6 +132,27 @@ def test_settlement_time_shortens_valuation_horizon() -> None:
 
     assert np.isclose(values[-1, 0], 100.0 * np.exp(-0.05 * 1.0))
     assert priced.t.tolist() == [0.0, 1.0]
+
+
+def test_first_coupon_after_settlement_remains_full_contractual_coupon() -> None:
+    bond_model = CallableBondPDEModel(
+        face_value=100.0,
+        call_price=None,
+        market=Market(rate=0.04),
+        model=_short_rate_model(),
+        _maturity=2.0,
+        settlement_time=0.5,
+        coupon_rate=0.06,
+        coupon_times=(1.0, 2.0),
+    )
+    rate_grid = np.array([0.0, 0.04])
+    tau_grid = np.array([0.0, 1.0, 1.5])
+
+    values = bond_model.price_grid(rate_grid, tau_grid)
+
+    assert np.isclose(values[0, 0], 106.0)
+    assert np.isclose(values[-1, 0], 112.0)
+    assert bond_model.accrued_interest(0.75) == pytest.approx(4.5)
 
 
 def test_clean_call_schedule_adds_accrued_interest_to_exercise_value() -> None:

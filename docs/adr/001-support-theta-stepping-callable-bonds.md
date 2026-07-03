@@ -12,6 +12,8 @@ The original callable-bond implementation was not an exercise model: it set a co
 Adopt a configurable θ-method for time-stepping. Callable fixed-rate bonds now use an explicit cash-flow and callability schedule:
 
 - coupon and redemption cash flows are contractual events;
+- coupon schedules may include dates before settlement so the first future coupon preserves its full contractual accrual period;
+- the model must expose exactly one short-rate state;
 - call schedule entries carry exercise time before final maturity, settlement price and clean/dirty convention;
 - issuer exercise applies only when backward induction crosses a contractual call date;
 - same-date coupon cash flows remain outside the issuer exercise cap;
