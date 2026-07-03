@@ -582,15 +582,74 @@ class CallableBondPDEModel(PDEModel):
             current_tau = start_tau
             next_value = values[index].copy()
             for event_tau in self._event_taus_between(start_tau, end_tau, include_calls):
-                next_value *= np.exp(-rate_grid * (event_tau - current_tau))
+                next_value = self._transition_values(next_value, rate_grid, current_tau, event_tau)
                 event_time = self._maturity - event_tau
                 if include_calls:
                     next_value = self._apply_calls(next_value, event_time, records)
                 next_value = self._apply_cash_flows(next_value, event_time)
                 current_tau = event_tau
-            next_value *= np.exp(-rate_grid * (end_tau - current_tau))
+            next_value = self._transition_values(next_value, rate_grid, current_tau, end_tau)
             values[index + 1] = next_value
         return values, tuple(records)
+
+    def _transition_values(
+        self,
+        values: NDArray[np.float64],
+        rate_grid: NDArray[np.float64],
+        start_tau: float,
+        end_tau: float,
+    ) -> NDArray[np.float64]:
+        dt = end_tau - start_tau
+        if np.isclose(dt, 0.0):
+            return values.copy()
+        operator = self._short_rate_transition_operator(rate_grid, start_tau, end_tau)
+        identity = np.eye(len(rate_grid))
+        theta = self._transition_theta()
+        lhs = identity - theta * dt * operator
+        rhs = (identity + (1.0 - theta) * dt * operator) @ values
+        return np.asarray(np.linalg.solve(lhs, rhs), dtype=np.float64)
+
+    def _transition_theta(self) -> float:
+        theta = getattr(self.time_stepper, "theta", None)
+        if theta is None:
+            theta = getattr(self.time_stepper, "theta_after_startup", 0.5)
+        theta_float = float(theta)
+        if not 0.0 <= theta_float <= 1.0:
+            raise PricingError("callable bond theta transition parameter must lie in [0, 1]")
+        return theta_float
+
+    def _short_rate_transition_operator(
+        self,
+        rate_grid: NDArray[np.float64],
+        start_tau: float,
+        end_tau: float,
+    ) -> NDArray[np.float64]:
+        spacing = np.diff(rate_grid)
+        h = float(spacing[0])
+        if len(spacing) > 1 and not np.allclose(spacing, h, rtol=1e-10, atol=1e-12):
+            raise PricingError("callable bond short-rate grid must be uniformly spaced")
+
+        operator = np.zeros((len(rate_grid), len(rate_grid)), dtype=float)
+        operator[0, 0] = -rate_grid[0]
+        operator[-1, -1] = -rate_grid[-1]
+        if len(rate_grid) <= 2:
+            return operator
+
+        calendar_time = self._maturity - 0.5 * (start_tau + end_tau)
+        states = rate_grid.reshape(-1, 1)
+        drift = np.asarray(self.model.drift(calendar_time, states), dtype=float).reshape(len(rate_grid), -1)[:, 0]
+        covariance = np.asarray(self.model.covariance(calendar_time, states), dtype=float)
+        if covariance.shape != (len(rate_grid), 1, 1):
+            raise PricingError("callable bond short-rate covariance must have shape (n, 1, 1)")
+        variance = np.maximum(covariance[:, 0, 0], 0.0)
+
+        for index in range(1, len(rate_grid) - 1):
+            mu = drift[index]
+            var = variance[index]
+            operator[index, index - 1] = -mu / (2.0 * h) + 0.5 * var / h**2
+            operator[index, index] = -var / h**2 - rate_grid[index]
+            operator[index, index + 1] = mu / (2.0 * h) + 0.5 * var / h**2
+        return operator
 
     def _event_taus_between(self, start_tau: float, end_tau: float, include_calls: bool) -> tuple[float, ...]:
         event_taus: list[float] = []

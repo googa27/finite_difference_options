@@ -16,6 +16,7 @@ Adopt a configurable θ-method for time-stepping. Callable fixed-rate bonds now 
 - the model must expose exactly one short-rate state;
 - call schedule entries carry exercise time before final maturity, settlement price and clean/dirty convention;
 - issuer exercise applies only when backward induction crosses a contractual call date;
+- each inter-event segment advances the one-factor short-rate transition with model drift, covariance and θ-stepper;
 - same-date coupon cash flows remain outside the issuer exercise cap;
 - clean calls include accrued interest in the settlement value except on coupon dates, where the scheduled coupon is paid separately;
 - the time grid spans remaining maturity from settlement to final redemption;

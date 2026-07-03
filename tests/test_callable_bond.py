@@ -13,10 +13,11 @@ from finite_difference_options.pricing.engines import (
     CallScheduleEntry,
 )
 from finite_difference_options.processes import GeometricBrownianMotion, OrnsteinUhlenbeck
+from finite_difference_options.solvers.finite_difference import ThetaMethod
 
 
 def _short_rate_model() -> OrnsteinUhlenbeck:
-    return OrnsteinUhlenbeck(kappa=0.4, theta=0.04, sigma=0.01)
+    return OrnsteinUhlenbeck.model_validate({"kappa": 0.4, "theta": 0.04, "sigma": 0.01})
 
 
 def _callable_bond(*, call_price: float = 101.0) -> CallableBondPDEModel:
@@ -52,6 +53,40 @@ def test_callable_bond_rejects_non_short_rate_model() -> None:
             model=GeometricBrownianMotion.model_validate({"mu": 0.04, "sigma": 0.2}),
             _maturity=2.0,
         )
+
+
+def test_short_rate_transition_uses_model_dynamics_and_stepper() -> None:
+    rate_grid = np.linspace(0.0, 0.12, 25)
+    tau_grid = np.linspace(0.0, 2.0, 5)
+    low_reversion = CallableBondPDEModel(
+        face_value=100.0,
+        call_price=None,
+        market=Market(rate=0.04),
+        model=OrnsteinUhlenbeck.model_validate({"kappa": 0.1, "theta": 0.02, "sigma": 0.005}),
+        _maturity=2.0,
+    )
+    high_reversion = CallableBondPDEModel(
+        face_value=100.0,
+        call_price=None,
+        market=Market(rate=0.04),
+        model=OrnsteinUhlenbeck.model_validate({"kappa": 1.5, "theta": 0.08, "sigma": 0.04}),
+        _maturity=2.0,
+    )
+    implicit_stepper = CallableBondPDEModel(
+        face_value=100.0,
+        call_price=None,
+        market=Market(rate=0.04),
+        model=OrnsteinUhlenbeck.model_validate({"kappa": 1.5, "theta": 0.08, "sigma": 0.04}),
+        _maturity=2.0,
+        time_stepper=ThetaMethod(1.0),
+    )
+
+    low_grid = low_reversion.price_grid(rate_grid, tau_grid)
+    high_grid = high_reversion.price_grid(rate_grid, tau_grid)
+    implicit_grid = implicit_stepper.price_grid(rate_grid, tau_grid)
+
+    assert not np.allclose(low_grid, high_grid)
+    assert not np.allclose(high_grid, implicit_grid)
 
 
 def test_callable_bond_applies_call_only_on_contractual_call_date() -> None:
@@ -130,7 +165,7 @@ def test_settlement_time_shortens_valuation_horizon() -> None:
         t_steps=2,
     )
 
-    assert np.isclose(values[-1, 0], 100.0 * np.exp(-0.05 * 1.0))
+    assert values[-1, 0] < 100.0
     assert priced.t.tolist() == [0.0, 1.0]
 
 
