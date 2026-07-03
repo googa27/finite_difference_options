@@ -18,6 +18,7 @@ from finite_difference_options.pricing import (
     create_unified_pricing_engine,
 )
 from finite_difference_options.processes import create_black_scholes_process
+from finite_difference_options.processes.nonaffine import ConstantElasticityVariance
 from finite_difference_options.solvers import ProjectedSORLCP
 
 
@@ -133,6 +134,26 @@ def test_maturity_only_bermudan_put_uses_discounted_continuation_boundary() -> N
 
     assert values[-1, 0] == pytest.approx(strike * np.exp(-rate), abs=1.0e-10)
     assert solver.last_diagnostics.exercise_boundary[0] == 0.0
+
+
+def test_bermudan_schedule_must_align_with_time_grid_nodes() -> None:
+    engine, grid, _ = _market_setup()
+    option = create_unified_bermudan_put(100.0, 1.0, exercise_dates=(0.35,))
+    coarse_times = np.linspace(0.0, 1.0, 6)
+
+    with pytest.raises(ValidationError, match="Bermudan exercise_dates must align"):
+        engine.price_option(option, grid, time_grid=coarse_times)
+
+
+def test_non_gbm_process_fails_closed_for_american_lcp_route() -> None:
+    process = ConstantElasticityVariance(mu=0.05, sigma=0.20, beta=0.70)
+    engine = create_unified_pricing_engine(process)
+    grid = np.linspace(1.0e-6, 260.0, 121)
+    times = np.linspace(0.0, 1.0, 81)
+    option = create_unified_american_put(100.0, 1.0)
+
+    with pytest.raises(ValidationError, match="only one-factor Black-Scholes/GBM"):
+        engine.price_option(option, grid, time_grid=times)
 
 
 def test_lcp_iteration_limit_failure_is_explicit() -> None:

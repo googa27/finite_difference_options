@@ -307,6 +307,7 @@ class ProjectedSORLCP:
 
         maturity = float(tau_grid[-1])
         exercise_tau = self._exercise_times_in_tau(exercise_style, exercise_dates, maturity)
+        self._validate_bermudan_grid_alignment(exercise_style, exercise_tau, tau_grid)
         operator = self._black_scholes_operator(
             grid,
             risk_free_rate=risk_free_rate,
@@ -512,7 +513,23 @@ class ProjectedSORLCP:
     ) -> bool:
         if exercise_style == "american":
             return True
-        return any(tau_prev < tau <= tau_next + 1.0e-12 for tau in exercise_tau)
+        return any(np.isclose(tau_next, tau, rtol=0.0, atol=1.0e-10) for tau in exercise_tau)
+
+    @staticmethod
+    def _validate_bermudan_grid_alignment(
+        exercise_style: str,
+        exercise_tau: tuple[float, ...],
+        tau_grid: NDArray[np.float64],
+    ) -> None:
+        if exercise_style != "bermudan":
+            return
+        missing = [tau for tau in exercise_tau if not np.any(np.isclose(tau_grid, tau, rtol=0.0, atol=1.0e-10))]
+        if missing:
+            formatted = ", ".join(f"{tau:.12g}" for tau in missing)
+            raise ValueError(
+                "Bermudan exercise_dates must align with time_grid nodes after maturity-date "
+                f"transformation; missing tau nodes: {formatted}"
+            )
 
     @staticmethod
     def _next_future_exercise_tau(tau: float, exercise_tau: tuple[float, ...]) -> float:

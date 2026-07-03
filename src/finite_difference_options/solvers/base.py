@@ -17,6 +17,7 @@ from numpy.typing import NDArray
 from ..boundary_conditions import BlackScholesBoundaryBuilder
 from ..instruments.operators import SpatialOperator
 from ..pricing.instruments.base import UnifiedInstrument
+from ..processes.affine import GeometricBrownianMotion
 from ..processes.base import StochasticProcess
 from finite_difference_options.exceptions import ValidationError
 
@@ -165,9 +166,9 @@ class FiniteDifferenceSolverAdapter(Solver):
             raise ValidationError(
                 "American/Bermudan LCP route requires a vanilla strike and option_type"
             )
-        if not hasattr(self._process, "sigma"):
+        if not isinstance(self._process, GeometricBrownianMotion):
             raise ValidationError(
-                "American/Bermudan LCP route currently supports one-factor Black-Scholes/GBM processes"
+                "American/Bermudan LCP route currently supports only one-factor Black-Scholes/GBM processes"
             )
         exercise_dates = tuple(float(x) for x in getattr(instrument, "exercise_dates", ()))
         lcp_solver = ProjectedSORLCP(
