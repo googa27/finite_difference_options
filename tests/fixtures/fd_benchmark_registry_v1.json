@@ -546,16 +546,20 @@
       ],
       "family": "capability_gate",
       "fixture_paths": [
-        "src/finite_difference_options/validation/heston_oracle.py"
+        "src/finite_difference_options/validation/heston_oracle.py",
+        "tests/test_heston_feller_policy.py"
       ],
       "grid_family": "variance grid diagnostics",
       "instrument": "European call smoke route",
       "invariants": [
         "variance_nonnegative",
-        "boundary_diagnostics_recorded"
+        "boundary_diagnostics_recorded",
+        "feller_violation_is_policy_not_domain_error",
+        "zero_vol_of_vol_has_stable_diagnostics"
       ],
       "issue_refs": [
-        "googa27/finite_difference_options#49"
+        "googa27/finite_difference_options#49",
+        "googa27/finite_difference_options#65"
       ],
       "model": "Heston stochastic volatility",
       "notes": "",
@@ -570,10 +574,10 @@
       },
       "route_id": "fd.heston.variance_boundary_diagnostics",
       "runner": null,
-      "state_convention": "variance boundary has explicit lower/upper diagnostics",
+      "state_convention": "variance boundary and Feller policy diagnostics are explicit",
       "status": "validated",
       "time_schedule": "single smoke solve diagnostics",
-      "title": "Heston variance-boundary diagnostics",
+      "title": "Heston variance-boundary and Feller-policy diagnostics",
       "tolerances": [
         {
           "metric": "boolean_invariant",

@@ -28,6 +28,9 @@ from .base import (
 )
 from ..validation import validate_positive, validate_non_negative
 from ..utils.process_validators import (
+    FellerDiagnostics,
+    FellerPolicy,
+    diagnose_feller_condition,
     validate_feller_condition,
     validate_heston_parameters,
 )
@@ -290,8 +293,9 @@ class HestonModel(AffineProcess, BaseModel):
 
     Payoffs receive spot through the explicit ``exp`` transform declared in
     :meth:`factor_metadata`; solver/operator coefficients stay in log-spot
-    coordinates.  Negative variance states fail closed rather than being
-    silently clipped.
+    coordinates. Negative variance states fail closed rather than being silently
+    clipped. The Feller condition is carried as an explicit boundary/numerical
+    policy diagnostic by default instead of universal model invalidity.
     """
 
     risk_free_rate: float
@@ -300,14 +304,33 @@ class HestonModel(AffineProcess, BaseModel):
     sigma: float
     rho: float
     dividend_yield: float = 0.0
+    feller_policy: FellerPolicy = FellerPolicy.WARN_AND_ALLOW_IF_BACKEND_VALIDATED
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     def __init__(self, **data):
         """Initialize and validate Heston parameters."""
         super().__init__(**data)
-        validate_heston_parameters(self.kappa, self.theta, self.sigma, self.rho)
+        validate_heston_parameters(
+            self.kappa,
+            self.theta,
+            self.sigma,
+            self.rho,
+            feller_policy=self.feller_policy,
+        )
         validate_non_negative(self.dividend_yield, "dividend_yield")
+
+    def feller_diagnostics(self) -> FellerDiagnostics:
+        """Return declared Feller/boundary-policy diagnostics for this model."""
+
+        return diagnose_feller_condition(
+            self.kappa,
+            self.theta,
+            self.sigma,
+            process_name="Heston model",
+            rho=self.rho,
+            policy=self.feller_policy,
+        )
 
     @property
     def dimension(self) -> ProcessDimension:

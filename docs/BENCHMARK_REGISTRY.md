@@ -54,7 +54,7 @@ The static registry fixture currently contains these versioned evidence IDs:
 | `HESTON-SMOKE-DOCSTRING-V0` | Heston ADI smoke/shape/finite-value evidence |
 | `HESTON-ORACLE-V0` | semi-analytical Heston oracle evidence |
 | `HESTON-BS-LIMIT-V0` | executable Heston-to-Black-Scholes limit runner |
-| `HESTON-VARIANCE-BOUNDARY-V0` | Heston variance-boundary diagnostic evidence |
+| `HESTON-VARIANCE-BOUNDARY-V0` | Heston variance-boundary and Feller-policy diagnostic evidence |
 | `ADI-SMOKE-V0` | ADI finite-value/orientation smoke evidence |
 | `ADI-OPERATOR-SPLIT-V0` | ADI operator split coefficient evidence |
 | `FACTOR-ROLE-COMPAT-V0` | factor-role payoff compatibility fail-closed gate |
