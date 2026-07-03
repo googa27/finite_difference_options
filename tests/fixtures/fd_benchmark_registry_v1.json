@@ -1,5 +1,5 @@
 {
-  "case_count": 19,
+  "case_count": 20,
   "cases": [
     {
       "benchmark_id": "BS-CALL-PARITY-V0",
@@ -872,6 +872,54 @@
           "metric": "boolean_invariant",
           "norm": "all invariants",
           "notes": "invalid requests fail closed and responses disclose convergence status",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "FD-CANONICAL-INVENTORY-V0",
+      "capability_rows": [
+        "Canonical implementation inventory"
+      ],
+      "family": "capability_gate",
+      "fixture_paths": [
+        "docs/CANONICAL_IMPLEMENTATION_INVENTORY.md",
+        "docs/architecture_contract.toml",
+        "tests/architecture/test_architecture_contracts.py"
+      ],
+      "grid_family": "not applicable",
+      "instrument": "canonical module inventory and compatibility policy",
+      "invariants": [
+        "canonical_paths_exist",
+        "public_imports_under_distribution",
+        "forbidden_legacy_modules_absent",
+        "compatibility_shims_are_boundary_only"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#52"
+      ],
+      "model": "finite-difference package architecture",
+      "notes": "",
+      "oracle": {
+        "independence": "architecture tests parse the machine-readable contract and inspect the live repository tree",
+        "kind": "fixture",
+        "notes": "Evidence for issue #52 consolidation governance; not numerical convergence evidence.",
+        "source": "docs/architecture_contract.toml canonical_capabilities plus docs/CANONICAL_IMPLEMENTATION_INVENTORY.md"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.architecture.canonical_capability_inventory",
+      "runner": null,
+      "state_convention": "public imports under finite_difference_options; historical root src modules absent",
+      "status": "validated",
+      "time_schedule": "not applicable",
+      "title": "Canonical implementation inventory architecture gate",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "canonical paths exist, public imports map to package modules, and forbidden legacy modules are absent",
           "threshold": true
         }
       ]

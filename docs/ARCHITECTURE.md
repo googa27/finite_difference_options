@@ -343,7 +343,9 @@ For every duplicated capability, choose one canonical path based on correctness 
 - a reference implementation used only in tests; or
 - deleted after golden/parity coverage.
 
-Inventory at minimum:
+Inventory at minimum (the executable owner map lives in
+`docs/CANONICAL_IMPLEMENTATION_INVENTORY.md` and is mirrored in
+`docs/architecture_contract.toml` under `[[canonical_capabilities]]`):
 
 - stochastic process interfaces and coefficient extraction;
 - instruments/payoffs and product adapters;
@@ -455,6 +457,9 @@ No compatibility shim may become a second implementation. The policy below is th
 ### Phase 2 — Canonical module inventory
 
 - Implement #52 inventory of processes, pricers, operators, BCs, Greeks and solvers.
+  The current inventory is the reviewed `docs/CANONICAL_IMPLEMENTATION_INVENTORY.md`
+  table plus the executable `[[canonical_capabilities]]` entries in
+  `docs/architecture_contract.toml`.
 - Choose one implementation per capability.
 - Add `_compat` shims only for known public imports.
 

@@ -57,8 +57,17 @@ ignore_top_level_dirs = []
 allowed_python_files = []
 
 [documentation]
-required_docs = ["docs/ARCHITECTURE.md", "AGENTS.md", "docs/CI_POLICY.md"]
-required_fragments = ["docs/architecture_contract.toml", "architecture contract", "finite_difference_options"]
+required_docs = [
+  "docs/ARCHITECTURE.md",
+  "AGENTS.md",
+  "docs/CI_POLICY.md",
+  "docs/CANONICAL_IMPLEMENTATION_INVENTORY.md",
+]
+required_fragments = [
+  "docs/architecture_contract.toml",
+  "architecture contract",
+  "finite_difference_options",
+]
 
 [ci]
 workflow_paths = [".github/workflows/ci.yml"]
@@ -81,3 +90,74 @@ forbidden_prefixes = ["fastapi", "typer", "uvicorn", "streamlit", "haircut", "pd
 [[import_rules]]
 source = "src/finite_difference_options/contracts"
 forbidden_prefixes = ["findiff", "fastapi", "typer", "uvicorn", "streamlit", "matplotlib", "seaborn", "plotly", "haircut", "pdp", "PDP"]
+
+[[canonical_capabilities]]
+name = "stochastic-processes-and-coefficients"
+canonical_modules = [
+  "src/finite_difference_options/processes",
+  "src/finite_difference_options/instruments/operators.py",
+]
+public_imports = [
+  "finite_difference_options.processes",
+  "finite_difference_options.instruments.operators",
+]
+forbidden_legacy_modules = [
+  "src/processes.py",
+  "src/multidimensional_processes.py",
+  "src/stochastic_processes.py",
+]
+
+[[canonical_capabilities]]
+name = "instruments-payoffs-product-adapters"
+canonical_modules = [
+  "src/finite_difference_options/pricing/instruments",
+  "src/finite_difference_options/instruments",
+]
+public_imports = [
+  "finite_difference_options.pricing.instruments",
+  "finite_difference_options.instruments",
+]
+forbidden_legacy_modules = ["src/instruments.py", "src/options.py", "src/payoffs.py"]
+
+[[canonical_capabilities]]
+name = "one-dimensional-pricing-workflow"
+canonical_modules = [
+  "src/finite_difference_options/pricing/workflows/option_pricer.py",
+  "src/finite_difference_options/pricing/engines/finite_difference.py",
+]
+public_imports = [
+  "finite_difference_options.pricing.workflows",
+  "finite_difference_options.pricing.engines",
+]
+forbidden_legacy_modules = ["src/option_pricer.py", "src/pde_pricer.py", "src/pricer.py"]
+
+[[canonical_capabilities]]
+name = "multidimensional-adi-solving"
+canonical_modules = [
+  "src/finite_difference_options/solvers/adi.py",
+  "src/finite_difference_options/solvers/base.py",
+]
+public_imports = ["finite_difference_options.solvers"]
+forbidden_legacy_modules = ["src/multidimensional_solver.py", "src/adi_solver.py", "src/solver_factory.py"]
+
+[[canonical_capabilities]]
+name = "boundary-conditions"
+canonical_modules = ["src/finite_difference_options/boundary_conditions"]
+public_imports = ["finite_difference_options.boundary_conditions"]
+forbidden_legacy_modules = ["src/boundary_conditions.py", "src/multidimensional_boundary_conditions.py"]
+
+[[canonical_capabilities]]
+name = "greeks-and-sensitivities"
+canonical_modules = ["src/finite_difference_options/greeks"]
+public_imports = ["finite_difference_options.greeks"]
+forbidden_legacy_modules = ["src/greeks.py", "src/risk_greeks.py"]
+
+[[canonical_capabilities]]
+name = "validation-benchmarks-capability-evidence"
+canonical_modules = [
+  "src/finite_difference_options/validation",
+  "src/finite_difference_options/contracts",
+]
+public_imports = ["finite_difference_options.validation", "finite_difference_options.contracts"]
+forbidden_legacy_modules = ["src/validation.py", "src/benchmarks.py", "src/capabilities.py"]
+compatibility_shims = []

@@ -27,6 +27,7 @@ Status vocabulary:
 | Haircut backend adapter / solver contract screening | `validated` | `QPS-VANILLA-CALL-V0`, `BS-CALL-PARITY-V0`, `PINARES-QPS-FIXED-PRICE-PROXY-V0`, `PINARES-FD-FIXED-PRICE-PROXY-V0` | Transitional `finite_difference_options.integrations.haircut_backend:create_backend` factory exposes identity, capability manifest, fail-closed screening, and public-synthetic solve evidence without importing Haircut/PDP/API/UI stacks. Numerical execution requires an exact checked-in public-synthetic fixture (`public_black_scholes_problem_spec()` or `public_pinares_fixed_price_problem_spec()`) plus `privacy_class=public_synthetic`; label-compatible private fixtures are screened but fail closed until a matching executable oracle fixture exists. Clean-wheel entry-point publication remains tied to the package-namespace work in #51/#52. |
 | CRIF/CUSO/Basel/FRTB regulatory report endpoints | `scaffold` | `REG-FAIL-CLOSED-V0` | Endpoints and Python strategy/converter entry points return typed HTTP 501 / `NotImplementedForStandard` metadata until exact standard/profile/version, effective date, jurisdiction, licensing status, and conformance fixtures exist. |
 | FastAPI/CLI/UI service contracts | `experimental` | `DOCS-README-SMOKE-V0`, `API-REQUEST-GUARDS-V0` | FastAPI pricing endpoints use versioned schemas, enum payoff validation, explicit spot semantics, finite/range request checks, pre-solve node budgets, and explicit opt-in for full grids. Convenience interfaces only; numerical truth remains in the Python core. |
+| Canonical implementation inventory | `validated` | `FD-CANONICAL-INVENTORY-V0` | `docs/CANONICAL_IMPLEMENTATION_INVENTORY.md` and `docs/architecture_contract.toml` declare one canonical implementation group for processes, payoffs, pricers, ADI solvers, boundaries, Greeks, validation, and contracts. Architecture gates fail if historical duplicate modules or root `src.*` stacks reappear. |
 
 Maintained documentation set:
 
@@ -34,6 +35,7 @@ Maintained documentation set:
 - Architecture and migration map: `docs/ARCHITECTURE.md`
 - Capability matrix: this file
 - Benchmark evidence registry: `docs/BENCHMARK_REGISTRY.md`
+- Canonical implementation inventory: `docs/CANONICAL_IMPLEMENTATION_INVENTORY.md`
 - CI policy: `docs/CI_POLICY.md`
 
 Archived planning material under `docs/planning/` and `docs/archive/` is not a current capability source of truth.

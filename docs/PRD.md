@@ -116,7 +116,7 @@ After package, consolidation and correctness blockers pass, publish an optional 
 
 ### FR-FD-013 — Canonical implementation
 
-Inventory legacy and newer pricers, processes, boundaries, Greeks and solvers. Each capability has one canonical implementation plus a documented migration/deprecation path. Duplicate modules cannot remain indefinitely as equal APIs. Owner: #52.
+Inventory legacy and newer pricers, processes, boundaries, Greeks and solvers. Each capability has one canonical implementation plus a documented migration/deprecation path. Duplicate modules cannot remain indefinitely as equal APIs. The executable inventory is `docs/CANONICAL_IMPLEMENTATION_INVENTORY.md` plus `[[canonical_capabilities]]` in `docs/architecture_contract.toml`; those gates fail if historical duplicate modules reappear. Owner: #52.
 
 ### FR-FD-014 — Optional applications
 

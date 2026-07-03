@@ -28,18 +28,13 @@ def _read_list(section: dict[str, object], key: str) -> list[str]:
 
 
 def _has_python(path: Path) -> bool:
-    return any(
-        child.suffix == ".py" and "__pycache__" not in child.parts
-        for child in path.rglob("*.py")
-    )
+    return any(child.suffix == ".py" and "__pycache__" not in child.parts for child in path.rglob("*.py"))
 
 
 def _module_imports(path: Path) -> set[str]:
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except (
-        SyntaxError
-    ) as exc:  # pragma: no cover - compileall should catch this first, message aids local use.
+    except SyntaxError as exc:  # pragma: no cover - compileall should catch this first, message aids local use.
         raise AssertionError(f"Cannot parse {path}: {exc}") from exc
 
     imports: set[str] = set()
@@ -56,10 +51,7 @@ def _module_imports(path: Path) -> set[str]:
 
 
 def _matches_prefix(import_name: str, prefixes: Iterable[str]) -> bool:
-    return any(
-        import_name == prefix or import_name.startswith(f"{prefix}.")
-        for prefix in prefixes
-    )
+    return any(import_name == prefix or import_name.startswith(f"{prefix}.") for prefix in prefixes)
 
 
 def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
@@ -83,15 +75,9 @@ def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
     ignored_dirs = set(_read_list(topology, "ignore_top_level_dirs")) | {"__pycache__"}
     allowed_modules = set(_read_list(topology, "allowed_root_modules"))
     allowed_packages = set(_read_list(topology, "allowed_top_level_packages"))
-    required_packages = (
-        set(_read_list(topology, "required_top_level_packages")) or allowed_packages
-    )
+    required_packages = set(_read_list(topology, "required_top_level_packages")) or allowed_packages
 
-    root_modules = sorted(
-        path.name
-        for path in package_root.iterdir()
-        if path.is_file() and path.suffix == ".py"
-    )
+    root_modules = sorted(path.name for path in package_root.iterdir() if path.is_file() and path.suffix == ".py")
     unexpected_modules = sorted(set(root_modules) - allowed_modules)
     if unexpected_modules:
         failures.append(
@@ -102,10 +88,7 @@ def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
     top_level_packages = sorted(
         path.name
         for path in package_root.iterdir()
-        if path.is_dir()
-        and path.name not in ignored_dirs
-        and not path.name.endswith(".egg-info")
-        and _has_python(path)
+        if path.is_dir() and path.name not in ignored_dirs and not path.name.endswith(".egg-info") and _has_python(path)
     )
     unexpected_packages = sorted(set(top_level_packages) - allowed_packages)
     missing_packages = sorted(required_packages - set(top_level_packages))
@@ -150,16 +133,12 @@ def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
         for doc_path in _read_list(documentation, "required_docs"):
             full = repo_root / doc_path
             if not full.is_file():
-                failures.append(
-                    f"Required architecture documentation file missing: {doc_path}"
-                )
+                failures.append(f"Required architecture documentation file missing: {doc_path}")
                 continue
             text = full.read_text(encoding="utf-8")
             for fragment in _read_list(documentation, "required_fragments"):
                 if fragment not in text:
-                    failures.append(
-                        f"{doc_path} must mention architecture-contract fragment: {fragment!r}"
-                    )
+                    failures.append(f"{doc_path} must mention architecture-contract fragment: {fragment!r}")
 
     ci = contract.get("ci", {})
     if ci:
@@ -173,9 +152,7 @@ def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
             text = full.read_text(encoding="utf-8")
             for fragment in _read_list(ci, "required_fragments"):
                 if fragment not in text:
-                    failures.append(
-                        f"{workflow} must contain CI architecture-contract fragment: {fragment!r}"
-                    )
+                    failures.append(f"{workflow} must contain CI architecture-contract fragment: {fragment!r}")
 
     import_rules = contract.get("import_rules", [])
     if import_rules:
@@ -191,24 +168,94 @@ def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
             source_path = repo_root / source
             if not source_path.exists():
                 continue
-            files = (
-                [source_path]
-                if source_path.is_file()
-                else sorted(source_path.rglob("*.py"))
-            )
+            files = [source_path] if source_path.is_file() else sorted(source_path.rglob("*.py"))
             violations: dict[str, list[str]] = {}
             for path in files:
                 if "__pycache__" in path.parts:
                     continue
-                hits = sorted(
-                    imported
-                    for imported in _module_imports(path)
-                    if _matches_prefix(imported, forbidden)
-                )
+                hits = sorted(imported for imported in _module_imports(path) if _matches_prefix(imported, forbidden))
                 if hits:
                     violations[str(path.relative_to(repo_root))] = hits
             if violations:
                 failures.append(f"Import rule violation for {source}: {violations}")
+
+    canonical_capabilities = contract.get("canonical_capabilities", [])
+    if canonical_capabilities:
+        if not isinstance(canonical_capabilities, list):
+            raise TypeError("[[canonical_capabilities]] must be an array of TOML tables")
+        seen_names: set[str] = set()
+        for index, capability in enumerate(canonical_capabilities):
+            if not isinstance(capability, dict):
+                raise TypeError(f"canonical_capabilities[{index}] must be a TOML table")
+            name = capability.get("name")
+            if not isinstance(name, str) or not name:
+                raise TypeError(f"canonical_capabilities[{index}].name is required")
+            if name in seen_names:
+                failures.append(f"Duplicate canonical capability name: {name}")
+            seen_names.add(name)
+
+            canonical_modules = _read_list(capability, "canonical_modules")
+            public_imports = _read_list(capability, "public_imports")
+            forbidden_legacy_modules = _read_list(capability, "forbidden_legacy_modules")
+            compatibility_shims = _read_list(capability, "compatibility_shims")
+            if not canonical_modules:
+                failures.append(f"{name}: canonical_modules must list at least one reviewed implementation path")
+            if not public_imports:
+                failures.append(f"{name}: public_imports must list at least one finite_difference_options import")
+
+            for module_path in canonical_modules:
+                full = repo_root / module_path
+                if not full.exists():
+                    failures.append(f"{name}: canonical implementation path is missing: {module_path}")
+                elif full.is_dir() and not _has_python(full):
+                    failures.append(f"{name}: canonical package path contains no Python files: {module_path}")
+
+            for public_import in public_imports:
+                if public_import != "finite_difference_options" and not public_import.startswith(
+                    "finite_difference_options."
+                ):
+                    failures.append(f"{name}: public import is outside the package boundary: {public_import}")
+                    continue
+                suffix = public_import.removeprefix("finite_difference_options").removeprefix(".")
+                candidate = package_root if not suffix else package_root.joinpath(*suffix.split("."))
+                if not (candidate.is_dir() or candidate.with_suffix(".py").is_file()):
+                    failures.append(f"{name}: public import has no matching package/module path: {public_import}")
+
+            for legacy_path in forbidden_legacy_modules:
+                if (repo_root / legacy_path).exists():
+                    failures.append(f"{name}: forbidden legacy duplicate module still exists: {legacy_path}")
+
+            for shim_path in compatibility_shims:
+                full = repo_root / shim_path
+                if not full.is_file():
+                    failures.append(f"{name}: declared compatibility shim is missing: {shim_path}")
+                    continue
+                try:
+                    full.relative_to(package_root)
+                except ValueError:
+                    failures.append(f"{name}: compatibility shim must live under {package_root}: {shim_path}")
+                tree = ast.parse(full.read_text(encoding="utf-8"), filename=str(full))
+                logic_nodes = [
+                    node
+                    for node in ast.walk(tree)
+                    if isinstance(
+                        node,
+                        (
+                            ast.For,
+                            ast.While,
+                            ast.If,
+                            ast.Try,
+                            ast.With,
+                            ast.FunctionDef,
+                            ast.AsyncFunctionDef,
+                            ast.ClassDef,
+                        ),
+                    )
+                ]
+                if logic_nodes:
+                    failures.append(
+                        f"{name}: compatibility shim contains standalone logic/classes/functions: {shim_path}"
+                    )
 
     return failures
 
@@ -219,9 +266,7 @@ def main() -> int:
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]
-    contract_path = (
-        args.contract if args.contract.is_absolute() else repo_root / args.contract
-    )
+    contract_path = args.contract if args.contract.is_absolute() else repo_root / args.contract
     if not contract_path.is_file():
         print(
             f"Architecture contract missing: {contract_path.relative_to(repo_root)}",
