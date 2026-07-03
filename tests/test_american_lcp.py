@@ -18,6 +18,7 @@ from finite_difference_options.pricing import (
     create_unified_pricing_engine,
 )
 from finite_difference_options.processes import create_black_scholes_process
+from finite_difference_options.solvers import ProjectedSORLCP
 
 
 def _spot_index(grid: np.ndarray, spot: float = 100.0) -> int:
@@ -107,6 +108,31 @@ def test_bermudan_put_orders_between_european_and_american_values() -> None:
     assert european_prices[0, spot_idx] <= bermudan_prices[0, spot_idx] + 5.0e-3
     assert bermudan_prices[0, spot_idx] <= american_prices[0, spot_idx] + 5.0e-3
     assert bermudan_diagnostics.exercise_style == "bermudan"
+
+
+def test_maturity_only_bermudan_put_uses_discounted_continuation_boundary() -> None:
+    spot_grid = np.linspace(0.0, 200.0, 101)
+    time_grid = np.linspace(0.0, 1.0, 61)
+    strike = 100.0
+    rate = 0.05
+    payoff = np.maximum(strike - spot_grid, 0.0)
+    solver = ProjectedSORLCP(tolerance=1.0e-8, max_iterations=10_000, relaxation=1.2)
+
+    values = solver.solve_black_scholes(
+        spot_grid=spot_grid,
+        payoff=payoff,
+        time_grid=time_grid,
+        strike=strike,
+        option_type="put",
+        risk_free_rate=rate,
+        dividend_yield=0.0,
+        volatility=0.2,
+        exercise_style="bermudan",
+        exercise_dates=(1.0,),
+    )
+
+    assert values[-1, 0] == pytest.approx(strike * np.exp(-rate), abs=1.0e-10)
+    assert solver.last_diagnostics.exercise_boundary[0] == 0.0
 
 
 def test_lcp_iteration_limit_failure_is_explicit() -> None:

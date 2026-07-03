@@ -225,7 +225,6 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "explicit_euler",
         "adi_psor",
         "projected_sor_lcp",
-        "policy_iteration_lcp",
     ),
     required_conventions=(
         "measure",
@@ -273,7 +272,7 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "deterministic": "true",
     },
     notes=(
-        "American/LCP exercise is intentionally unsupported until complementarity diagnostics land.",
+        "American/Bermudan LCP support is validated only for one-dimensional Black-Scholes/GBM routes.",
         "Jump/PIDE and HJB/control terms must fail closed instead of using placeholder coefficients.",
     ),
 )
@@ -337,6 +336,20 @@ def diagnose_unsupported_route(
         (request.exercise_style,),
         manifest.exercise_styles,
     )
+    if request.exercise_style in {"american", "bermudan"} and not _is_valid_one_dimensional_lcp_request(request):
+        diagnostics.append(
+            _diagnostic(
+                UnsupportedReason.UNSUPPORTED_EXERCISE,
+                "exercise_style",
+                request.exercise_style,
+                ("european", "1D american/bermudan Black-Scholes LCP"),
+                (
+                    "American/Bermudan LCP support is validated only for one-dimensional "
+                    "drift/diffusion/reaction Black-Scholes routes; multidimensional/ADI "
+                    "American exercise must fail closed."
+                ),
+            )
+        )
     _extend_set_diagnostics(
         diagnostics,
         UnsupportedReason.UNSUPPORTED_OUTPUT,
@@ -429,6 +442,11 @@ def _extend_set_diagnostics(
                     f"Unsupported {field_name} value {value!r}; supported values are {supported}.",
                 )
             )
+
+
+def _is_valid_one_dimensional_lcp_request(request: FDRouteRequest) -> bool:
+    allowed_terms = {"drift", "diffusion", "reaction"}
+    return request.dimension == 1 and set(request.pde_terms) <= allowed_terms
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:

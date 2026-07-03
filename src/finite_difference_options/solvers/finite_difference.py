@@ -325,6 +325,12 @@ class ProjectedSORLCP:
             dt = float(tau_next - tau_prev)
             a_matrix, b_matrix = self._theta_matrices(operator, dt)
             rhs = b_matrix @ values[step_index - 1]
+            exercise_allowed = self._exercise_allowed(
+                exercise_style,
+                float(tau_prev),
+                float(tau_next),
+                exercise_tau,
+            )
             lower, upper = self._boundary_values(
                 grid,
                 strike=strike,
@@ -332,14 +338,10 @@ class ProjectedSORLCP:
                 risk_free_rate=risk_free_rate,
                 dividend_yield=dividend_yield,
                 tau=float(tau_next),
+                exercise_allowed=exercise_allowed,
+                next_exercise_tau=self._next_future_exercise_tau(float(tau_next), exercise_tau),
             )
             self._apply_dirichlet_rows(a_matrix, rhs, lower, upper)
-            exercise_allowed = self._exercise_allowed(
-                exercise_style,
-                float(tau_prev),
-                float(tau_next),
-                exercise_tau,
-            )
             if exercise_allowed:
                 solution, level = self._psor(
                     a_matrix,
@@ -354,17 +356,9 @@ class ProjectedSORLCP:
                 solution = np.linalg.solve(a_matrix, rhs)
                 solution[0] = lower
                 solution[-1] = upper
-                level = self._diagnose_level(
-                    a_matrix,
-                    solution,
-                    rhs,
-                    payoff_array,
-                    grid,
+                level = self._continuation_level_diagnostics(
                     tau=float(tau_next),
                     time_index=step_index,
-                    iterations=0,
-                    converged=True,
-                    max_update=0.0,
                     reason="linear_continuation_step",
                 )
             values[step_index] = solution
@@ -457,13 +451,20 @@ class ProjectedSORLCP:
         risk_free_rate: float,
         dividend_yield: float,
         tau: float,
+        exercise_allowed: bool,
+        next_exercise_tau: float,
     ) -> tuple[float, float]:
+        effective_tau = 0.0 if exercise_allowed else max(tau - next_exercise_tau, 0.0)
         if option_type == "put":
-            return float(strike), 0.0
+            lower = strike if exercise_allowed else strike * np.exp(-risk_free_rate * effective_tau)
+            return float(lower), 0.0
         lower = 0.0
-        continuation = grid[-1] * np.exp(-dividend_yield * tau) - strike * np.exp(-risk_free_rate * tau)
+        continuation = grid[-1] * np.exp(-dividend_yield * effective_tau) - strike * np.exp(
+            -risk_free_rate * effective_tau
+        )
         intrinsic = grid[-1] - strike
-        return lower, float(max(continuation, intrinsic, 0.0))
+        upper = max(intrinsic, continuation, 0.0) if exercise_allowed else max(continuation, 0.0)
+        return lower, float(upper)
 
     @staticmethod
     def _apply_dirichlet_rows(
@@ -512,6 +513,11 @@ class ProjectedSORLCP:
         if exercise_style == "american":
             return True
         return any(tau_prev < tau <= tau_next + 1.0e-12 for tau in exercise_tau)
+
+    @staticmethod
+    def _next_future_exercise_tau(tau: float, exercise_tau: tuple[float, ...]) -> float:
+        candidates = (0.0, *exercise_tau)
+        return max(candidate for candidate in candidates if candidate <= tau + 1.0e-12)
 
     def _psor(
         self,
@@ -565,6 +571,27 @@ class ProjectedSORLCP:
             reason=reason,
         )
         return x, level
+
+    @staticmethod
+    def _continuation_level_diagnostics(
+        *,
+        tau: float,
+        time_index: int,
+        reason: str,
+    ) -> LCPLevelDiagnostics:
+        return LCPLevelDiagnostics(
+            time_index=time_index,
+            tau=tau,
+            iterations=0,
+            converged=True,
+            max_update=0.0,
+            primal_violation=0.0,
+            dual_violation=0.0,
+            complementarity=0.0,
+            active_nodes=0,
+            exercise_boundary=0.0,
+            reason=reason,
+        )
 
     @staticmethod
     def _diagnose_level(

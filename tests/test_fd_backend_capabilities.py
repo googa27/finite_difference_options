@@ -54,6 +54,7 @@ def test_default_manifest_declares_fd_support_with_diagnosed_american_lcp_withou
     assert "exercise_boundary" in manifest.outputs
     assert "jump_integral" not in manifest.pde_terms
     assert "rannacher" in manifest.stability_controls
+    assert "policy_iteration_lcp" not in manifest.stability_controls
     assert {"measure", "numeraire", "units", "valuation_date", "maturity_date"} <= set(manifest.required_conventions)
     assert manifest.feature_support["pinares_fixed_price_proxy"] == "validated"
     assert manifest.feature_support["obstacle_lcp"] == "validated"
@@ -61,6 +62,50 @@ def test_default_manifest_declares_fd_support_with_diagnosed_american_lcp_withou
     assert manifest.feature_support["jump_integral"] == "unsupported"
     assert manifest.feature_support["hjb_control"] == "unsupported"
     assert manifest.error_budgets["pinares_fixed_price_proxy_price_abs_uf"] == 1.0
+
+
+def test_american_lcp_capability_is_gated_to_one_dimensional_black_scholes_routes() -> None:
+    payload = _supported_payload()
+    math_problem = dict(payload["mathematical_problem"])  # type: ignore[arg-type]
+    payload["mathematical_problem"] = {
+        **math_problem,
+        "exercise_style": "american",
+    }
+    one_dimensional = FDRouteRequest.from_quant_problem_spec(payload)
+    assert diagnose_unsupported_route(one_dimensional) == ()
+
+    payload["mathematical_problem"] = {
+        **math_problem,
+        "dimension": 2,
+        "pde_terms": ["drift", "diffusion", "reaction", "mixed_derivative"],
+        "exercise_style": "american",
+    }
+    multidimensional = FDRouteRequest.from_quant_problem_spec(payload)
+    diagnostics = diagnose_unsupported_route(multidimensional)
+
+    assert any(
+        diagnostic.reason == UnsupportedReason.UNSUPPORTED_EXERCISE
+        and "multidimensional/ADI" in diagnostic.message
+        for diagnostic in diagnostics
+    )
+
+
+def test_policy_iteration_lcp_control_fails_closed_until_implemented() -> None:
+    payload = _supported_payload()
+    solver_plan = dict(payload["solver_plan"])  # type: ignore[arg-type]
+    payload["solver_plan"] = {
+        **solver_plan,
+        "stability_controls": ["policy_iteration_lcp"],
+    }
+    request = FDRouteRequest.from_quant_problem_spec(payload)
+
+    diagnostics = diagnose_unsupported_route(request)
+
+    assert any(
+        diagnostic.reason == UnsupportedReason.UNSUPPORTED_STABILITY_CONTROL
+        and diagnostic.value == "policy_iteration_lcp"
+        for diagnostic in diagnostics
+    )
 
 
 def test_quant_problem_spec_mapping_preserves_conventions_and_outputs() -> None:
