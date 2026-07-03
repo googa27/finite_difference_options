@@ -11,6 +11,7 @@ from finite_difference_options.processes import (
     OrnsteinUhlenbeck,
     CoxIngersollRoss,
     HestonModel,
+    FellerPolicy,
     ConstantElasticityVariance,
     SABRModel,
     create_black_scholes_process,
@@ -261,9 +262,20 @@ class TestHestonModel:
         with pytest.raises(ValidationError, match="rho must be in \\[-1, 1\\]"):
             HestonModel(kappa=2.0, theta=0.04, sigma=0.3, rho=-1.5, risk_free_rate=0.05)
 
-        # Feller condition violation
+        # Feller condition violation is allowed by default and exposed as diagnostics.
+        heston = HestonModel(kappa=1.0, theta=0.01, sigma=0.5, rho=-0.7, risk_free_rate=0.05)
+        assert heston.feller_diagnostics().is_satisfied is False
+
+        # Strict positivity remains opt-in for routes/governance that require it.
         with pytest.raises(ValidationError, match="Feller condition violated"):
-            HestonModel(kappa=1.0, theta=0.01, sigma=0.5, rho=-0.7, risk_free_rate=0.05)
+            HestonModel(
+                kappa=1.0,
+                theta=0.01,
+                sigma=0.5,
+                rho=-0.7,
+                risk_free_rate=0.05,
+                feller_policy=FellerPolicy.REQUIRE_STRICT_POSITIVITY,
+            )
 
     def test_heston_drift_single_state(self):
         """Test Heston drift for single state."""

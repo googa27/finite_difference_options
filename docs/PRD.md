@@ -64,7 +64,7 @@ Define complete PEP 621 project/build metadata and a real `finite_difference_opt
 
 Native immutable contracts describe domain, coordinates, time orientation, drift, diffusion/covariance, discount/reaction, source, initial/terminal condition, boundaries, optional mixed terms/jumps/systems/obstacle, requested outputs, discretization/tolerances/resources, dtype/device and result diagnostics.
 
-No selectable route may invent coefficients, boundaries or dynamics. Heston's executable state convention is `(log_spot, variance)`: drift/covariance are evaluated in log-spot coordinates, variance is explicit at the lower boundary, and vanilla payoffs receive spot only through a declared `exp` payoff transform. Owner: #59; Heston convention evidence: #45.
+No selectable route may invent coefficients, boundaries or dynamics. Heston's executable state convention is `(log_spot, variance)`: drift/covariance are evaluated in log-spot coordinates, variance is explicit at the lower boundary, the Feller condition is recorded as a boundary/numerical-policy diagnostic rather than a universal domain rejection, and vanilla payoffs receive spot only through a declared `exp` payoff transform. Owner: #59; Heston convention evidence: #45; Feller policy evidence: #65.
 
 ### FR-FD-003 — Grids
 
@@ -112,7 +112,7 @@ A single endpoint price comparison is insufficient.
 
 ### FR-FD-012 — Haircut backend plugin
 
-After package, consolidation and correctness blockers pass, publish an optional `haircut_engine.solver_backends` entry point. The adapter exposes identity/version/maturity/capabilities, preserves conventions, rejects unsupported requests before operator work, returns complete diagnostics, uses canonical public FD APIs and imports no Haircut domain/application, PDP or delivery modules. Owner: #59. Current wheel entry point: `finite_difference_options=finite_difference_options.integrations.haircut_backend:create_backend`.
+After package, consolidation and correctness blockers pass, publish an optional `haircut_engine.solver_backends` entry point. The adapter exposes identity/version/maturity/capabilities, preserves conventions, rejects unsupported requests before operator work, returns complete diagnostics, uses canonical public FD APIs and imports no Haircut domain/application, PDP or delivery modules. Owner: #59. Current wheel entry point maps `finite_difference_options` to `finite_difference_options.integrations.haircut_backend:create_backend`.
 
 ### FR-FD-013 — Canonical implementation
 

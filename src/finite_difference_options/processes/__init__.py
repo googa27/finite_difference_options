@@ -29,6 +29,12 @@ from .affine import (
     create_cir_process,
     create_standard_heston,
 )
+from ..utils.process_validators import (
+    FellerDiagnostics,
+    FellerPolicy,
+    ZeroBoundaryClassification,
+    diagnose_feller_condition,
+)
 
 # Non-affine processes
 from .nonaffine import (
@@ -60,6 +66,10 @@ __all__ = [
     "create_vasicek_process",
     "create_cir_process",
     "create_standard_heston",
+    "FellerDiagnostics",
+    "FellerPolicy",
+    "ZeroBoundaryClassification",
+    "diagnose_feller_condition",
     # Non-affine processes
     "ConstantElasticityVariance",
     "SABRModel",
