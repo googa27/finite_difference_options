@@ -18,6 +18,7 @@ jobs:
   package:
     name: Package / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -50,15 +51,19 @@ jobs:
           ]:
               importlib.import_module(name)
           PY
+      - name: Generate release manifest
+        run: python scripts/write_release_manifest.py --dist dist --output dist/release-manifest.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: finite-difference-options-dist-py${{ matrix.python-version }}
           path: dist/*
           if-no-files-found: error
+          retention-days: 14
 
   test:
     name: Test / Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -93,10 +98,12 @@ jobs:
             coverage.xml
             junit.xml
           if-no-files-found: warn
+          retention-days: 14
 
   optional-profiles:
     name: Optional profile / ${{ matrix.profile }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: package
     strategy:
       fail-fast: false
@@ -140,6 +147,7 @@ jobs:
   audit:
     name: Audit and SBOM
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -159,10 +167,12 @@ jobs:
           name: finite-difference-options-sbom
           path: sbom.json
           if-no-files-found: error
+          retention-days: 14
 
   node:
     name: Optional Node client
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Detect Next.js client
@@ -180,7 +190,7 @@ jobs:
           else
             echo "present=false" >> "$GITHUB_OUTPUT"
             echo "lockfile=false" >> "$GITHUB_OUTPUT"
-            echo "nextjs-client is absent; skipping Node install/test/lint."
+            echo "nextjs-client is absent; skipping Node install/test/lint/build/audit."
           fi
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         if: steps.nextjs.outputs.present == 'true'
@@ -202,3 +212,22 @@ jobs:
         if: steps.nextjs.outputs.present == 'true'
         working-directory: nextjs-client
         run: npm run lint
+      - name: Run production build
+        if: steps.nextjs.outputs.present == 'true'
+        working-directory: nextjs-client
+        run: npm run build
+      - name: Run npm audit
+        if: steps.nextjs.outputs.present == 'true' && steps.nextjs.outputs.lockfile == 'true'
+        working-directory: nextjs-client
+        run: npm audit --audit-level=high
+      - name: Generate frontend SBOM
+        if: steps.nextjs.outputs.present == 'true' && steps.nextjs.outputs.lockfile == 'true'
+        working-directory: nextjs-client
+        run: npm sbom --sbom-format cyclonedx --json > npm-sbom.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.nextjs.outputs.present == 'true' && steps.nextjs.outputs.lockfile == 'true'
+        with:
+          name: finite-difference-options-node-sbom
+          path: nextjs-client/npm-sbom.json
+          if-no-files-found: error
+          retention-days: 14
