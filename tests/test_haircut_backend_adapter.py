@@ -72,7 +72,7 @@ def test_haircut_backend_screen_fails_closed_before_operator_work() -> None:
     payload["mathematical_problem"] = {
         **math_section,
         "pde_terms": ["drift", "diffusion", "jump_integral"],
-        "exercise_style": "american",
+        "exercise_style": "swing",
     }
 
     result = backend.screen(payload)

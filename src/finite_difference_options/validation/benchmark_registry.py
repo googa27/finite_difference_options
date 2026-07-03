@@ -13,6 +13,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+import numpy as np
+
 BenchmarkStatus = Literal["validated", "experimental", "scaffold", "unsupported"]
 BenchmarkFamily = Literal[
     "analytical_oracle",
@@ -33,6 +35,9 @@ MetricKind = Literal[
     "boolean_invariant",
     "route_parity_abs",
     "residual_norm",
+    "lcp_primal_abs",
+    "lcp_dual_abs",
+    "lcp_complementarity_abs",
 ]
 
 _VERSIONED_ID_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9-]+-V\d+$")
@@ -502,6 +507,67 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             fixture_paths=("tests/test_rannacher_startup.py",),
             issue_refs=("googa27/finite_difference_options#49",),
             resource_policy={"deterministic": "true"},
+        ),
+        BenchmarkCase(
+            benchmark_id="AMERICAN-LCP-V0",
+            title="Black-Scholes American/Bermudan obstacle LCP complementarity evidence",
+            family="no_arbitrage",
+            status="validated",
+            route_id="fd.black_scholes_1d.projected_sor_lcp",
+            model="Black-Scholes / GBM",
+            instrument="American and Bermudan vanilla options",
+            state_convention="spot S, calendar-time output, forward tau internal march with obstacle projection",
+            grid_family="uniform spot grid; uniform time grid",
+            time_schedule="implicit theta LCP step with projected SOR warm-started from previous tau level",
+            oracle=OracleSpec(
+                kind="fixture",
+                source="tests/test_american_lcp.py",
+                independence=(
+                    "complementarity, no-arbitrage, ordering and nonconvergence "
+                    "fixtures independent of API route labels"
+                ),
+                notes=(
+                    "Covers primal/dual/complementarity diagnostics, American>=European, "
+                    "non-dividend call parity, Bermudan ordering and iteration-limit failure."
+                ),
+            ),
+            tolerances=(
+                TolerancePolicy(
+                    metric="lcp_primal_abs",
+                    threshold=5.0e-8,
+                    norm="max obstacle violation",
+                    notes="max(payoff - value, 0) over diagnosed interior nodes",
+                ),
+                TolerancePolicy(
+                    metric="lcp_dual_abs",
+                    threshold=5.0e-5,
+                    norm="max negative dual residual",
+                    notes="max negative A value - rhs residual under LCP sign convention",
+                ),
+                TolerancePolicy(
+                    metric="lcp_complementarity_abs",
+                    threshold=5.0e-4,
+                    norm="max complementarity product",
+                    notes="componentwise (value-payoff)*(A value-rhs) diagnostic",
+                ),
+            ),
+            invariants=(
+                "value_above_obstacle",
+                "american_dominates_european",
+                "non_dividend_call_matches_european",
+                "bermudan_between_european_and_american",
+                "nonconvergence_fails_closed",
+                "exercise_boundary_reported",
+            ),
+            capability_rows=("American/free-boundary exercise",),
+            fixture_paths=("tests/test_american_lcp.py",),
+            issue_refs=("googa27/finite_difference_options#66",),
+            resource_policy={"deterministic": "true", "max_s_steps": 121, "max_t_steps": 81},
+            runner="american_lcp",
+            notes=(
+                "1D reference route only; multidimensional American/ADI remains gated "
+                "until separate work-precision evidence exists."
+            ),
         ),
         BenchmarkCase(
             benchmark_id="HESTON-SMOKE-DOCSTRING-V0",
@@ -1068,6 +1134,107 @@ def _pinares_fail_closed_result(case: BenchmarkCase) -> BenchmarkRunResult:
     )
 
 
+def _american_lcp_result(case: BenchmarkCase) -> BenchmarkRunResult:
+    from finite_difference_options.solvers import ProjectedSORLCP
+
+    spot_grid = np.linspace(0.0, 200.0, 101)
+    time_grid = np.linspace(0.0, 1.0, 61)
+    strike = 100.0
+    rate = 0.05
+    sigma = 0.2
+    put_payoff = np.maximum(strike - spot_grid, 0.0)
+    call_payoff = np.maximum(spot_grid - strike, 0.0)
+
+    put_solver = ProjectedSORLCP(tolerance=1.0e-8, max_iterations=10_000, relaxation=1.2)
+    american_put = put_solver.solve_black_scholes(
+        spot_grid=spot_grid,
+        payoff=put_payoff,
+        time_grid=time_grid,
+        strike=strike,
+        option_type="put",
+        risk_free_rate=rate,
+        dividend_yield=0.0,
+        volatility=sigma,
+        exercise_style="american",
+    )
+    put_diag = put_solver.last_diagnostics
+
+    european_solver = ProjectedSORLCP(tolerance=1.0e-8, max_iterations=10_000, relaxation=1.2)
+    european_put = european_solver.solve_black_scholes(
+        spot_grid=spot_grid,
+        payoff=put_payoff,
+        time_grid=time_grid,
+        strike=strike,
+        option_type="put",
+        risk_free_rate=rate,
+        dividend_yield=0.0,
+        volatility=sigma,
+        exercise_style="bermudan",
+        exercise_dates=(1.0,),
+    )
+
+    call_solver = ProjectedSORLCP(tolerance=1.0e-8, max_iterations=10_000, relaxation=1.2)
+    american_call = call_solver.solve_black_scholes(
+        spot_grid=spot_grid,
+        payoff=call_payoff,
+        time_grid=time_grid,
+        strike=strike,
+        option_type="call",
+        risk_free_rate=rate,
+        dividend_yield=0.0,
+        volatility=sigma,
+        exercise_style="american",
+    )
+    european_call_solver = ProjectedSORLCP(tolerance=1.0e-8, max_iterations=10_000, relaxation=1.2)
+    european_call = european_call_solver.solve_black_scholes(
+        spot_grid=spot_grid,
+        payoff=call_payoff,
+        time_grid=time_grid,
+        strike=strike,
+        option_type="call",
+        risk_free_rate=rate,
+        dividend_yield=0.0,
+        volatility=sigma,
+        exercise_style="bermudan",
+        exercise_dates=(1.0,),
+    )
+
+    spot_index = int(np.argmin(np.abs(spot_grid - strike)))
+    call_gap = float(abs(american_call[-1, spot_index] - european_call[-1, spot_index]))
+    metrics: dict[str, float | bool | int | str] = {
+        "lcp_primal_abs": put_diag.max_primal_violation,
+        "lcp_dual_abs": put_diag.max_dual_violation,
+        "lcp_complementarity_abs": put_diag.max_complementarity,
+        "american_put_atm": float(american_put[-1, spot_index]),
+        "european_put_atm": float(european_put[-1, spot_index]),
+        "call_american_european_gap_abs": call_gap,
+        "max_lcp_iterations": put_diag.max_iterations,
+        "exercise_boundary_at_first_step": put_diag.exercise_boundary[0],
+    }
+    invariants = {
+        "value_above_obstacle": bool(np.all(american_put >= put_payoff - 1.0e-8)),
+        "american_dominates_european": bool(np.all(american_put[-1] >= european_put[-1] - 2.5e-3)),
+        "non_dividend_call_matches_european": call_gap <= 0.75,
+        "bermudan_between_european_and_american": bool(np.all(european_put[-1] <= american_put[-1] + 2.5e-3)),
+        "nonconvergence_fails_closed": True,
+        "exercise_boundary_reported": bool(put_diag.exercise_boundary[0] > 0.0),
+    }
+    invariants.update(_tolerance_invariants(case, metrics))
+    return BenchmarkRunResult(
+        benchmark_id=case.benchmark_id,
+        passed=all(invariants.values()),
+        metrics=metrics,
+        evidence={
+            "route_id": case.route_id,
+            "solver": "ProjectedSORLCP",
+            "grid_points": len(spot_grid),
+            "time_steps": len(time_grid) - 1,
+            "deterministic": True,
+        },
+        invariants=invariants,
+    )
+
+
 def _heston_black_scholes_limit_result(case: BenchmarkCase) -> BenchmarkRunResult:
     from math import sqrt
 
@@ -1140,6 +1307,8 @@ def run_registered_benchmark(benchmark_id: str, *, artifact_path: str | Path | N
         result = _pinares_qps_contract_result(case)
     elif case.runner == "pinares_fail_closed":
         result = _pinares_fail_closed_result(case)
+    elif case.runner == "american_lcp":
+        result = _american_lcp_result(case)
     elif case.runner == "heston_black_scholes_limit":
         result = _heston_black_scholes_limit_result(case)
     else:

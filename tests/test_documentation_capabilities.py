@@ -43,6 +43,7 @@ def test_capability_matrix_is_authoritative_and_cites_evidence_ids() -> None:
         "QPS-VANILLA-CALL-V0",
         "FACTOR-ROLE-COMPAT-V0",
         "API-REQUEST-GUARDS-V0",
+        "AMERICAN-LCP-V0",
     ]:
         assert evidence_id in text
     assert "Heston stochastic volatility" in text

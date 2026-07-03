@@ -202,6 +202,26 @@ def test_validated_route_parity_benchmarks_execute_real_runners() -> None:
     )
 
 
+def test_american_lcp_registered_benchmark_executes_real_runner() -> None:
+    result = run_registered_benchmark("AMERICAN-LCP-V0")
+
+    assert result.passed
+    assert float(result.metrics["lcp_primal_abs"]) <= 5.0e-8
+    assert float(result.metrics["lcp_dual_abs"]) <= 5.0e-5
+    assert float(result.metrics["lcp_complementarity_abs"]) <= 5.0e-4
+    assert result.invariants == {
+        "value_above_obstacle": True,
+        "american_dominates_european": True,
+        "non_dividend_call_matches_european": True,
+        "bermudan_between_european_and_american": True,
+        "nonconvergence_fails_closed": True,
+        "exercise_boundary_reported": True,
+        "lcp_primal_abs_tolerance_ok": True,
+        "lcp_dual_abs_tolerance_ok": True,
+        "lcp_complementarity_abs_tolerance_ok": True,
+    }
+
+
 def test_metadata_only_benchmarks_fail_closed_when_run_directly() -> None:
     with pytest.raises(BenchmarkRegistryError) as excinfo:
         run_registered_benchmark("ADI-OPERATOR-SPLIT-V0")
