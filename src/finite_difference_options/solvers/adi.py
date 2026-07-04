@@ -25,6 +25,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from finite_difference_options.exceptions import ValidationError
+from finite_difference_options.grids import AxisGrid, as_axis_grid
 
 Array = NDArray[np.float64]
 
@@ -77,7 +78,7 @@ class ADISolver:
         drift: Array,
         covariance: Array,
         time_grid: Array,
-        spatial_grids: Tuple[Array, Array],
+        spatial_grids: Tuple[Array | AxisGrid, Array | AxisGrid],
         boundary_conditions: Optional[Dict[str, Any]] = None,
         *,
         reaction: Optional[Array | float] = None,
@@ -132,7 +133,7 @@ class ADISolver:
         drift: Array,
         covariance: Array,
         time_grid: Array,
-        spatial_grids: Tuple[Array, Array, Array],
+        spatial_grids: Tuple[Array | AxisGrid, Array | AxisGrid, Array | AxisGrid],
         boundary_conditions: Optional[Dict[str, Any]] = None,
         *,
         reaction: Optional[Array | float] = None,
@@ -183,7 +184,7 @@ class ADISolver:
         covariance: Array,
         reaction: Array,
         source: Array,
-        grids: tuple[Array, ...],
+        grids: tuple[AxisGrid, ...],
         dt: float,
         boundary_conditions: Optional[Dict[str, Any]],
     ) -> Array:
@@ -211,7 +212,7 @@ class ADISolver:
         covariance: Array,
         reaction: Array,
         source: Array,
-        grids: tuple[Array, ...],
+        grids: tuple[AxisGrid, ...],
         dt: float,
         boundary_conditions: Optional[Dict[str, Any]],
     ) -> Array:
@@ -289,16 +290,13 @@ class ADISolver:
             raise ValidationError("time_grid must be strictly increasing in calendar time")
         return len(time_grid)
 
-    def _validate_grids(self, grids: tuple[Array, ...]) -> tuple[Array, ...]:
-        validated: list[Array] = []
+    def _validate_grids(self, grids: tuple[Array | AxisGrid, ...]) -> tuple[AxisGrid, ...]:
+        validated: list[AxisGrid] = []
         for axis, grid in enumerate(grids):
-            candidate = np.asarray(grid, dtype=float)
-            if candidate.ndim != 1 or len(candidate) < 3:
-                raise ValidationError(f"grid axis {axis} must be one-dimensional with at least three nodes")
-            if not np.all(np.isfinite(candidate)):
-                raise ValidationError(f"grid axis {axis} contains non-finite values")
-            if not np.all(np.diff(candidate) > 0.0):
-                raise ValidationError(f"grid axis {axis} must be strictly increasing")
+            try:
+                candidate = as_axis_grid(grid, name=f"axis_{axis}")
+            except ValidationError as exc:
+                raise ValidationError(f"invalid ADI grid axis {axis}: {exc}") from exc
             validated.append(candidate)
         return tuple(validated)
 
@@ -328,14 +326,14 @@ class ADISolver:
         u: Array,
         drift: Array,
         covariance: Array,
-        grids: tuple[Array, ...],
+        grids: tuple[AxisGrid, ...],
         *,
         axis: int,
     ) -> Array:
         first, second = self._axis_first_second(u, grids[axis], axis=axis)
         return 0.5 * covariance[..., axis, axis] * second + drift[..., axis] * first
 
-    def _mixed_operator(self, u: Array, covariance: Array, grids: tuple[Array, ...]) -> Array:
+    def _mixed_operator(self, u: Array, covariance: Array, grids: tuple[AxisGrid, ...]) -> Array:
         result = np.zeros_like(u, dtype=float)
         for axis_a in range(len(grids)):
             first_a = self._axis_first_derivative(u, grids[axis_a], axis=axis_a)
@@ -344,20 +342,19 @@ class ADISolver:
                 result += covariance[..., axis_a, axis_b] * cross
         return result
 
-    def _axis_first_second(self, u: Array, grid: Array, *, axis: int) -> tuple[Array, Array]:
+    def _axis_first_second(self, u: Array, grid: AxisGrid | Array, *, axis: int) -> tuple[Array, Array]:
+        axis_grid = as_axis_grid(grid, name=f"axis_{axis}")
         first = np.zeros_like(u, dtype=float)
         second = np.zeros_like(u, dtype=float)
-        for idx in range(1, len(grid) - 1):
-            hm = float(grid[idx] - grid[idx - 1])
-            hp = float(grid[idx + 1] - grid[idx])
-            wl1, wc1, wu1 = self._first_weights(hm, hp)
-            wl2, wc2, wu2 = self._second_weights(hm, hp)
+        for idx in range(1, len(axis_grid) - 1):
+            wl1, wc1, wu1 = axis_grid.local_derivative_weights(idx, order=1)
+            wl2, wc2, wu2 = axis_grid.local_derivative_weights(idx, order=2)
             lower, center, upper = self._axis_slices(axis, u.ndim, idx)
             first[center] = wl1 * u[lower] + wc1 * u[center] + wu1 * u[upper]
             second[center] = wl2 * u[lower] + wc2 * u[center] + wu2 * u[upper]
         return first, second
 
-    def _axis_first_derivative(self, u: Array, grid: Array, *, axis: int) -> Array:
+    def _axis_first_derivative(self, u: Array, grid: AxisGrid | Array, *, axis: int) -> Array:
         first, _ = self._axis_first_second(u, grid, axis=axis)
         return first
 
@@ -366,7 +363,7 @@ class ADISolver:
         rhs: Array,
         drift: Array,
         covariance: Array,
-        grids: tuple[Array, ...],
+        grids: tuple[AxisGrid, ...],
         dt: float,
         *,
         axis: int,
@@ -387,7 +384,7 @@ class ADISolver:
         return result
 
     def _cached_line_system(
-        self, drift_line: Array, covariance_line: Array, grid: Array, dt: float
+        self, drift_line: Array, covariance_line: Array, grid: AxisGrid, dt: float
     ) -> tuple[Array, Array, Array]:
         if not self.enable_operator_cache:
             return self._line_system(drift_line, covariance_line, grid, dt)
@@ -402,17 +399,15 @@ class ADISolver:
         return system
 
     def _line_system(
-        self, drift_line: Array, covariance_line: Array, grid: Array, dt: float
+        self, drift_line: Array, covariance_line: Array, grid: AxisGrid, dt: float
     ) -> tuple[Array, Array, Array]:
         n = len(grid)
         lower = np.zeros(n, dtype=float)
         diag = np.ones(n, dtype=float)
         upper = np.zeros(n, dtype=float)
         for idx in range(1, n - 1):
-            hm = float(grid[idx] - grid[idx - 1])
-            hp = float(grid[idx + 1] - grid[idx])
-            wl1, wc1, wu1 = self._first_weights(hm, hp)
-            wl2, wc2, wu2 = self._second_weights(hm, hp)
+            wl1, wc1, wu1 = grid.local_derivative_weights(idx, order=1)
+            wl2, wc2, wu2 = grid.local_derivative_weights(idx, order=2)
             diffusion = 0.5 * covariance_line[idx]
             advection = drift_line[idx]
             low_op = diffusion * wl2 + advection * wl1
@@ -423,7 +418,13 @@ class ADISolver:
             upper[idx] = -self.theta * dt * high_op
         return lower, diag, upper
 
-    def _line_system_key(self, drift_line: Array, covariance_line: Array, grid: Array, dt: float) -> tuple[object, ...]:
+    def _line_system_key(
+        self,
+        drift_line: Array,
+        covariance_line: Array,
+        grid: AxisGrid,
+        dt: float,
+    ) -> tuple[object, ...]:
         drift = np.ascontiguousarray(drift_line, dtype=float)
         covariance = np.ascontiguousarray(covariance_line, dtype=float)
         grid_values = np.ascontiguousarray(grid, dtype=float)
@@ -501,7 +502,7 @@ class ADISolver:
     def _apply_boundary_conditions_2d(
         self,
         u: Array,
-        grids: tuple[Array, ...],
+        grids: tuple[AxisGrid, ...],
         boundary_conditions: Optional[Dict[str, Any]],
     ) -> Array:
         if boundary_conditions is None:
@@ -533,7 +534,7 @@ class ADISolver:
     def _apply_boundary_conditions_3d(
         self,
         u: Array,
-        grids: tuple[Array, ...],
+        grids: tuple[AxisGrid, ...],
         boundary_conditions: Optional[Dict[str, Any]],
     ) -> Array:
         if boundary_conditions is None:
@@ -594,7 +595,7 @@ class ADISolver:
         *,
         dimension: int,
         time_grid: Array,
-        grids: tuple[Array, ...],
+        grids: tuple[AxisGrid, ...],
         positivity_floor: bool,
     ) -> dict[str, Any]:
         return {
@@ -604,7 +605,8 @@ class ADISolver:
             "time_orientation": "forward_tau_internal_calendar_output",
             "steps": len(time_grid) - 1,
             "mixed_derivative_pairs": [(a, b) for a in range(dimension) for b in range(a + 1, dimension)],
-            "grid_uniformity": [bool(np.allclose(np.diff(grid), np.diff(grid)[0])) for grid in grids],
+            "grid_uniformity": [grid.uniform for grid in grids],
+            "grid_diagnostics": [grid.to_public_dict() for grid in grids],
             "reaction_treatment": "explicit_predictor_once",
             "source_treatment": "explicit_predictor_once",
             "positivity_floor": positivity_floor,

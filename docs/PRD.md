@@ -68,7 +68,7 @@ No selectable route may invent coefficients, boundaries or dynamics. Heston's ex
 
 ### FR-FD-003 — Grids
 
-Uniform, nonuniform, transformed and multidimensional tensor grids have typed representations with monotonicity, spacing, coordinate, truncation and boundary checks. Grid identity and transforms are preserved in result metadata.
+Uniform, nonuniform, transformed and multidimensional tensor grids have typed representations with monotonicity, spacing, coordinate, truncation and boundary checks. Issue #47 introduces immutable `AxisGrid`/`TensorGrid` contracts plus uniform, log-uniform, sinh/tanh clustered, strike-centered and variance-boundary factories. Grid identity, physical/log transforms, local spacing ratios and interpolation domain checks are preserved in ADI result metadata.
 
 ### FR-FD-004 — Differential operators
 

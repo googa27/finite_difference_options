@@ -19,6 +19,7 @@ DEFAULT_EXCLUDES = {
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
+    ".venv",
     "__pycache__",
     "node_modules",
 }

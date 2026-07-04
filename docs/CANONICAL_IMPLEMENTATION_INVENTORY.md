@@ -6,7 +6,7 @@
 
 ## Capability map
 
-Machine-readable capability keys: `stochastic-processes-and-coefficients`, `instruments-payoffs-product-adapters`, `one-dimensional-pricing-workflow`, `multidimensional-adi-solving`, `boundary-conditions`, `greeks-and-sensitivities`, `validation-benchmarks-capability-evidence`.
+Machine-readable capability keys: `stochastic-processes-and-coefficients`, `instruments-payoffs-product-adapters`, `one-dimensional-pricing-workflow`, `multidimensional-adi-solving`, `grids-and-local-metrics`, `boundary-conditions`, `greeks-and-sensitivities`, `validation-benchmarks-capability-evidence`.
 
 | Capability group | Canonical implementation | Public import surface | Legacy/duplicate paths that must not reappear | Evidence |
 |---|---|---|---|---|
@@ -14,6 +14,7 @@ Machine-readable capability keys: `stochastic-processes-and-coefficients`, `inst
 | Instruments, payoffs, and product adapters | `src/finite_difference_options/pricing/instruments/` with package-boundary adapters under `src/finite_difference_options/instruments/` | `finite_difference_options.pricing.instruments`, `finite_difference_options.instruments` | `src/instruments.py`, `src/options.py`, `src/payoffs.py` | `tests/test_options.py`, `tests/test_unified_pricing_engine.py`, `tests/test_callable_bond.py` |
 | One-dimensional pricing workflow | `src/finite_difference_options/pricing/workflows/option_pricer.py` and `src/finite_difference_options/pricing/engines/finite_difference.py` | `finite_difference_options.pricing.workflows`, `finite_difference_options.pricing.engines` | `src/option_pricer.py`, `src/pde_pricer.py`, `src/pricer.py` | `tests/test_option_pricer.py`, `tests/test_pde_pricer.py`, `tests/test_pricing_engine_imports.py` |
 | Multidimensional / ADI solving | `src/finite_difference_options/solvers/adi.py` and `src/finite_difference_options/solvers/base.py` | `finite_difference_options.solvers` | `src/multidimensional_solver.py`, `src/adi_solver.py`, `src/solver_factory.py` | `tests/test_adi_solver_operator_split.py`, `tests/test_multidimensional_adapter_coefficients.py` |
+| Grid contracts and local metrics | `src/finite_difference_options/grids/` | `finite_difference_options.grids` | `src/grids.py`, `src/grid.py`, `src/nonuniform_grids.py` | `tests/test_grid_contracts.py`, `tests/test_adi_solver_operator_split.py` |
 | Boundary conditions | `src/finite_difference_options/boundary_conditions/` | `finite_difference_options.boundary_conditions` | `src/boundary_conditions.py`, `src/multidimensional_boundary_conditions.py` | `tests/test_boundary_conditions.py`, `tests/test_model_aware_reaction_terms.py` |
 | Greeks and sensitivities | `src/finite_difference_options/greeks/` | `finite_difference_options.greeks` | `src/greeks.py`, `src/risk_greeks.py` | `tests/test_greeks.py`, `tests/test_finite_difference_greeks.py` |
 | Validation, benchmarks, and capability evidence | `src/finite_difference_options/validation/` and `src/finite_difference_options/contracts/` | `finite_difference_options.validation`, `finite_difference_options.contracts` | `src/validation.py`, `src/benchmarks.py`, `src/capabilities.py` | `tests/test_benchmark_registry.py`, `tests/test_fd_backend_capabilities.py`, `tests/test_documentation_capabilities.py` |

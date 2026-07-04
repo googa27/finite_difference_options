@@ -21,6 +21,7 @@ required_top_level_packages = [
   "contracts",
   "exceptions",
   "greeks",
+  "grids",
   "instruments",
   "integrations",
   "models",
@@ -39,6 +40,7 @@ allowed_top_level_packages = [
   "contracts",
   "exceptions",
   "greeks",
+  "grids",
   "instruments",
   "integrations",
   "models",
@@ -50,7 +52,7 @@ allowed_top_level_packages = [
   "utils",
   "validation",
 ]
-max_top_level_package_count = 16
+max_top_level_package_count = 17
 ignore_top_level_dirs = []
 
 [repository_root]
@@ -90,6 +92,13 @@ forbidden_prefixes = ["fastapi", "typer", "uvicorn", "streamlit", "haircut", "pd
 [[import_rules]]
 source = "src/finite_difference_options/contracts"
 forbidden_prefixes = ["findiff", "fastapi", "typer", "uvicorn", "streamlit", "matplotlib", "seaborn", "plotly", "haircut", "pdp", "PDP"]
+
+[[canonical_capabilities]]
+name = "grids-and-local-metrics"
+canonical_modules = ["src/finite_difference_options/grids"]
+public_imports = ["finite_difference_options.grids"]
+forbidden_legacy_modules = ["src/grids.py", "src/grid.py", "src/nonuniform_grids.py"]
+compatibility_shims = []
 
 [[canonical_capabilities]]
 name = "stochastic-processes-and-coefficients"

@@ -13,6 +13,7 @@ Status vocabulary:
 | Capability | Status | Evidence / benchmark ID | Notes |
 |---|---:|---|---|
 | 1D Black-Scholes European call value on uniform/log-uniform grids | `validated` | `BS-CALL-PARITY-V0`, `QPS-VANILLA-CALL-V0`, `BOUNDARY-MODEL-AWARE-V0` | Public-synthetic analytical oracle and QuantProblemSpec fixture; #48 boundary resolver carries strike, rate, carry/dividend and time-to-maturity explicitly. |
+| Typed uniform/nonuniform/log tensor grid contracts | `validated` | `GRID-LOCAL-METRICS-V0` | `AxisGrid`/`TensorGrid` preserve monotone coordinates, local spacing ratios, log physical transforms, strike-centered/variance-boundary clustering, interpolation domain checks, and ADI grid diagnostics. This is grid/operator-contract evidence; nonuniform Greek convergence remains #57. |
 | 1D Black-Scholes Delta/Gamma from finite-difference price grids | `validated` | `BS-CALL-PARITY-V0` | Greeks share grid metadata; use only with validated value route. |
 | 1D vanilla boundary/reaction semantics | `validated` | `BOUNDARY-MODEL-AWARE-V0`, `REACTION-INDEPENDENT-V0` | Dirichlet/asymptotic call/put facets are model-aware and fail closed for unsupported products; spatial reaction can be supplied independently from drift while legacy GBM `mu` fallback remains disclosed for old APIs. |
 | Rannacher startup before Crank-Nicolson for kinked payoffs | `validated` | `RANNACHER-GAMMA-V0` | Two/four Backward-Euler half-step schedules are explicit and recorded. |
