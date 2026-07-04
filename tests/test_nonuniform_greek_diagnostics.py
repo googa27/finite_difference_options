@@ -85,6 +85,20 @@ def test_sample_delta_distinguishes_requested_coordinate_from_nearest_node() -> 
     assert estimate.diagnostics["domain_edge_distance"] == pytest.approx(0.8, abs=1e-12)
 
 
+def test_two_node_delta_uses_first_order_uniform_gradient() -> None:
+    estimate = FiniteDifferenceGreeks().sample_delta(
+        values=np.array([1.0, 3.0], dtype=float),
+        s=np.array([2.0, 6.0], dtype=float),
+        coordinate=4.0,
+    )
+
+    assert estimate.value == pytest.approx(0.5, abs=1e-12)
+    assert estimate.nearest_node_value == pytest.approx(0.5, abs=1e-12)
+    assert estimate.diagnostics["coordinate_spacing"] == "uniform"
+    assert estimate.diagnostics["stencil_order"] == 1
+    assert estimate.diagnostics["interpolation_method"] == "linear_interpolation"
+
+
 def test_black_scholes_nonuniform_greeks_converge_and_report_error_diagnostics() -> None:
     strike = 100.0
     spot = 103.0

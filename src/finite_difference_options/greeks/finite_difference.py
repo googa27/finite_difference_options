@@ -121,7 +121,8 @@ class FiniteDifferenceGreeks(GreeksCalculator):
             )
 
         if _is_uniform(coordinates):
-            first = np.gradient(grid, coordinates, axis=normalized_axis, edge_order=2)
+            edge_order = 1 if coordinates.shape[0] == 2 else 2
+            first = np.gradient(grid, coordinates, axis=normalized_axis, edge_order=edge_order)
             if order == 1:
                 return np.asarray(first, dtype=float)
             return np.asarray(np.gradient(first, coordinates, axis=normalized_axis, edge_order=2), dtype=float)
