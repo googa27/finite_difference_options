@@ -7,11 +7,21 @@ from .haircut_backend import (
     HaircutBackendSolveResult,
     create_backend,
 )
+from .public_solver_contract import (
+    PublicFDSolverResult,
+    ReleasedFDSolverContract,
+    released_fd_solver_contract,
+    solve_public_quant_problem_spec,
+)
 
 __all__ = [
     "FDBackendScreeningResult",
     "FiniteDifferenceHaircutBackend",
     "HaircutBackendIdentity",
     "HaircutBackendSolveResult",
+    "PublicFDSolverResult",
+    "ReleasedFDSolverContract",
     "create_backend",
+    "released_fd_solver_contract",
+    "solve_public_quant_problem_spec",
 ]

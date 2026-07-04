@@ -129,6 +129,23 @@ print(payload['result_export']['solution']['price'])
 PY
 ```
 
+### Pinares public FD solver contract
+
+The released public-synthetic FD solver seam for downstream parity checks is:
+
+```python
+from finite_difference_options.integrations import solve_public_quant_problem_spec
+from finite_difference_options.solvers import BandedOperatorCache
+from finite_difference_options.validation.pinares_fixed_price_proxy import public_pinares_fixed_price_problem_spec
+
+cache = BandedOperatorCache()
+payload = public_pinares_fixed_price_problem_spec()
+result = solve_public_quant_problem_spec(payload, operator_cache=cache)
+print(result.problem_id, result.values["price"], cache.info().as_dict())
+```
+
+The function executes only exact checked-in public-synthetic QuantProblemSpec fixtures (Black-Scholes and the Pinares fixed-price proxy). Mutated, private, ROFR, or full-family-contract payloads fail closed before numerical work.
+
 ### Heston stochastic-volatility smoke example
 
 This example is an experimental shape/finite-value smoke path for a vanilla equity call under Heston state `(log_spot, variance)`. It is not a basket option and is not advertised as a production Heston benchmark; semi-analytical Fourier oracle tests cover the Heston reference-price and Black-Scholes-limit evidence.

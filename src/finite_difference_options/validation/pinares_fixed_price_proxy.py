@@ -408,13 +408,18 @@ def run_public_pinares_fixed_price_proxy_fixture(
     *,
     case: PinaresFixedPriceProxyCase | None = None,
     grid_levels: tuple[tuple[int, int], ...] = PINARES_PROXY_GRID_LEVELS,
+    operator_cache: Any | None = None,
 ) -> PinaresFixedPriceProxyReport:
     """Run the Pinares public-synthetic fixed-price proxy parity fixture."""
 
     case = case or PinaresFixedPriceProxyCase()
     from finite_difference_options.validation.black_scholes_parity import run_public_black_scholes_parity_fixture
 
-    base_report = run_public_black_scholes_parity_fixture(case=case.as_black_scholes_case(), grid_levels=grid_levels)
+    base_report = run_public_black_scholes_parity_fixture(
+        case=case.as_black_scholes_case(),
+        grid_levels=grid_levels,
+        operator_cache=operator_cache,
+    )
     scale = case.survival_probability
     oracle_price = scale * base_report.oracle_price
     price = scale * base_report.price
@@ -467,6 +472,11 @@ def run_public_pinares_fixed_price_proxy_fixture(
             "max_t_steps": max(level[1] for level in grid_levels),
             "grid_levels": len(grid_levels),
             "deterministic": "true",
+            **(
+                {"operator_cache": operator_cache.info().as_dict()}
+                if operator_cache is not None and hasattr(operator_cache, "info")
+                else {}
+            ),
         },
     )
     return PinaresFixedPriceProxyReport(

@@ -335,6 +335,8 @@ Issue #76 extends the adapter tests to consume the same public-synthetic `QuantP
 
 Issue #59 adds the `finite_difference_options.integrations.haircut_backend` factory as the current executable Haircut backend seam. The adapter exposes backend identity, a serializable capability manifest, pre-solve route screening, explicit unsupported-route diagnostics, and an executable public-synthetic Black-Scholes evidence bundle using `BS-CALL-PARITY-V0` and `QPS-VANILLA-CALL-V0`. It deliberately refuses supported-looking private, unknown, or merely label-compatible payloads unless they match the canonical executable problem spec exported by `public_black_scholes_problem_spec()`, so no coefficients, boundaries, grids, or fallback routes are fabricated. The wheel publishes the same factory through the `haircut_engine.solver_backends` entry-point group.
 
+Project #17 adds `finite_difference_options.integrations.solve_public_quant_problem_spec` and `released_fd_solver_contract()` as the released public-synthetic FD solver contract API for Pinares fixed-price proxy parity. The API consumes exact checked-in QuantProblemSpec fixtures, preserves measure/numeraire/units/date conventions through `FDRouteRequest`, executes only the validated Black-Scholes/Pinares public-synthetic routes, and accepts an optional `BandedOperatorCache` so repeated 1D solves reuse theta-system operators and Thomas factorizations without caching RHS values or boundary data.
+
 ## 17. Canonical implementation consolidation
 
 For every duplicated capability, choose one canonical path based on correctness evidence, API clarity and maintainability. The other path becomes:
@@ -388,7 +390,7 @@ Optimization order:
 1. Establish manufactured/analytical correctness and observed order.
 2. Profile grid/operator construction, boundary application, factorization, solve/ADI substeps, Greeks and serialization.
 3. Remove repeated construction, dense conversion and unnecessary histories.
-4. Reuse operators/factorizations with complete cache keys.
+4. Reuse operators/factorizations with complete cache keys. The validated public 1D cache key includes grid bytes, dtype, coefficients, theta and time step; ADI line-system cache keys include directional grid, drift/covariance line, theta and time step, and both report hit/miss/reuse diagnostics.
 5. Compare stencil, linear-solver and ADI policies at equal error.
 6. Establish noise-aware regression budgets.
 
