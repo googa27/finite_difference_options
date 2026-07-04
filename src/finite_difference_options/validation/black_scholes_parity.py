@@ -26,9 +26,7 @@ from finite_difference_options.instruments.base import EuropeanCall
 from finite_difference_options.pricing.engines import BlackScholesPDE
 from finite_difference_options.processes.affine import GeometricBrownianMotion
 
-BoundaryType = Literal[
-    "dirichlet", "neumann", "robin", "second_derivative", "asymptotic"
-]
+BoundaryType = Literal["dirichlet", "neumann", "robin", "second_derivative", "asymptotic"]
 TimeDirection = Literal["increasing", "decreasing"]
 
 
@@ -165,12 +163,8 @@ class BlackScholesParityReport:
 
         final_s_steps = self.observations[-1].s_steps
         final_t_steps = self.observations[-1].t_steps
-        valuation_time_index = _portable_row_index(
-            self.time_axis.valuation_index, final_t_steps
-        )
-        maturity_time_index = _portable_row_index(
-            self.time_axis.maturity_index, final_t_steps
-        )
+        valuation_time_index = _portable_row_index(self.time_axis.valuation_index, final_t_steps)
+        maturity_time_index = _portable_row_index(self.time_axis.maturity_index, final_t_steps)
         time_axis_payload = {
             **self.time_axis.as_dict(),
             "valuation_index": valuation_time_index,
@@ -237,14 +231,10 @@ class BlackScholesParityReport:
         }
 
 
-def black_scholes_call_oracle(
-    spot: float, strike: float, rate: float, sigma: float, maturity: float
-) -> float:
+def black_scholes_call_oracle(spot: float, strike: float, rate: float, sigma: float, maturity: float) -> float:
     """Analytical Black--Scholes call price used as the public oracle."""
 
-    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (
-        sigma * sqrt(maturity)
-    )
+    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
     d2 = d1 - sigma * sqrt(maturity)
     return float(spot * norm.cdf(d1) - strike * exp(-rate * maturity) * norm.cdf(d2))
 
@@ -254,9 +244,7 @@ def black_scholes_call_greeks(
 ) -> dict[str, float]:
     """Analytical Black--Scholes call delta and gamma used for benchmark deltas."""
 
-    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (
-        sigma * sqrt(maturity)
-    )
+    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
     return {
         "delta": float(norm.cdf(d1)),
         "gamma": float(norm.pdf(d1) / (spot * sigma * sqrt(maturity))),
@@ -317,9 +305,7 @@ def _build_public_problem_spec(
                 {
                     "name": "S",
                     "role": "underlying",
-                    "unit": case.normalized_units().get(
-                        "underlying", "synthetic_currency"
-                    ),
+                    "unit": case.normalized_units().get("underlying", "synthetic_currency"),
                     "coordinate": "spot",
                 }
             ],
@@ -382,6 +368,7 @@ def run_public_black_scholes_parity_fixture(
     *,
     case: BlackScholesParityCase | None = None,
     grid_levels: tuple[tuple[int, int], ...] = ((40, 40), (80, 120), (120, 200)),
+    operator_cache: Any | None = None,
 ) -> BlackScholesParityReport:
     """Run the public-synthetic Black--Scholes fixture and emit evidence.
 
@@ -391,16 +378,17 @@ def run_public_black_scholes_parity_fixture(
     """
 
     case = case or BlackScholesParityCase()
-    oracle_price = black_scholes_call_oracle(
-        case.spot, case.strike, case.rate, case.sigma, case.maturity
-    )
-    reference_greeks = black_scholes_call_greeks(
-        case.spot, case.strike, case.rate, case.sigma, case.maturity
-    )
+    oracle_price = black_scholes_call_oracle(case.spot, case.strike, case.rate, case.sigma, case.maturity)
+    reference_greeks = black_scholes_call_greeks(case.spot, case.strike, case.rate, case.sigma, case.maturity)
 
     model = GeometricBrownianMotion(mu=case.rate, sigma=case.sigma)
     instrument = EuropeanCall(strike=case.strike, maturity=case.maturity, model=model)
     pricer = BlackScholesPDE(instrument=instrument)
+    cached_solver = None
+    if operator_cache is not None:
+        from finite_difference_options.solvers import CachedBlackScholesFiniteDifferenceSolver
+
+        cached_solver = CachedBlackScholesFiniteDifferenceSolver(theta=0.5, cache=operator_cache)
     greek_calculator = FiniteDifferenceGreeks()
 
     observations: list[ConvergenceObservation] = []
@@ -413,7 +401,17 @@ def run_public_black_scholes_parity_fixture(
     for s_steps, t_steps in grid_levels:
         s_grid = np.linspace(0.0, case.s_max, s_steps)
         t_grid = np.linspace(0.0, case.maturity, t_steps)
-        values = pricer.price(option=instrument, s=s_grid, t=t_grid)
+        if cached_solver is None:
+            values = pricer.price(option=instrument, s=s_grid, t=t_grid)
+        else:
+            values = cached_solver.solve_european(
+                spot_grid=s_grid,
+                time_grid=t_grid,
+                strike=case.strike,
+                risk_free_rate=case.rate,
+                volatility=case.sigma,
+                option_type="call",
+            )
         price = float(np.interp(case.spot, s_grid, values[valuation_index]))
 
         observations.append(
@@ -431,11 +429,7 @@ def run_public_black_scholes_parity_fixture(
             final_s_grid = s_grid
             final_t_grid = t_grid
 
-    assert (
-        final_values is not None
-        and final_s_grid is not None
-        and final_t_grid is not None
-    )
+    assert final_values is not None and final_s_grid is not None and final_t_grid is not None
 
     delta_slice = greek_calculator.delta(final_values, final_s_grid)[valuation_index]
     gamma_slice = greek_calculator.gamma(final_values, final_s_grid)[valuation_index]
@@ -464,17 +458,11 @@ def run_public_black_scholes_parity_fixture(
     gamma_abs_error = abs(fd_gamma - reference_greeks["gamma"])
     errors = {
         "price_abs": float(abs(fd_price - oracle_price)),
-        "price_rel": float(
-            abs(fd_price - oracle_price) / max(1e-12, abs(oracle_price))
-        ),
+        "price_rel": float(abs(fd_price - oracle_price) / max(1e-12, abs(oracle_price))),
         "delta_abs": float(delta_abs_error),
-        "delta_rel": float(
-            delta_abs_error / max(1e-12, abs(reference_greeks["delta"]))
-        ),
+        "delta_rel": float(delta_abs_error / max(1e-12, abs(reference_greeks["delta"]))),
         "gamma_abs": float(gamma_abs_error),
-        "gamma_rel": float(
-            gamma_abs_error / max(1e-12, abs(reference_greeks["gamma"]))
-        ),
+        "gamma_rel": float(gamma_abs_error / max(1e-12, abs(reference_greeks["gamma"]))),
         "max_abs_price_error": float(max(row.abs_error for row in observations)),
     }
 
@@ -527,6 +515,11 @@ def run_public_black_scholes_parity_fixture(
             "max_t_steps": max(level[1] for level in grid_levels),
             "grid_levels": len(grid_levels),
             "deterministic": "true",
+            **(
+                {"operator_cache": operator_cache.info().as_dict()}
+                if operator_cache is not None and hasattr(operator_cache, "info")
+                else {}
+            ),
         },
     )
 
@@ -563,9 +556,7 @@ def export_public_black_scholes_fixture_json(
     report = run_public_black_scholes_parity_fixture(case=case, grid_levels=grid_levels)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(report.as_dict(), indent=2, sort_keys=True), encoding="utf-8"
-    )
+    output_path.write_text(json.dumps(report.as_dict(), indent=2, sort_keys=True), encoding="utf-8")
     return output_path
 
 
@@ -587,9 +578,7 @@ def _compute_no_arbitrage_assertions(
     }
 
 
-def _config_hash(
-    case: BlackScholesParityCase, grid_levels: tuple[tuple[int, int], ...]
-) -> str:
+def _config_hash(case: BlackScholesParityCase, grid_levels: tuple[tuple[int, int], ...]) -> str:
     payload: dict[str, Any] = {
         "fixture_id": case.fixture_id,
         "spot": case.spot,

@@ -18,6 +18,7 @@ covariance contribution exactly once.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from hashlib import sha256
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -50,21 +51,25 @@ class ADISolver:
     max_iterations: int = 1000
     tolerance: float = 1e-8
     scheme: str = "douglas"
+    enable_operator_cache: bool = True
     last_diagnostics: dict[str, Any] = field(default_factory=dict, init=False)
+    _line_system_cache: dict[tuple[object, ...], tuple[Array, Array, Array]] = field(
+        default_factory=dict,
+        init=False,
+        repr=False,
+    )
+    _line_cache_hits: int = field(default=0, init=False)
+    _line_cache_misses: int = field(default=0, init=False)
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.theta <= 1.0:
             raise ValidationError(f"theta must be between 0 and 1, got {self.theta}")
         if self.max_iterations <= 0:
-            raise ValidationError(
-                f"max_iterations must be positive, got {self.max_iterations}"
-            )
+            raise ValidationError(f"max_iterations must be positive, got {self.max_iterations}")
         if self.tolerance <= 0:
             raise ValidationError(f"tolerance must be positive, got {self.tolerance}")
         if self.scheme != "douglas":
-            raise ValidationError(
-                f"unsupported ADI scheme {self.scheme!r}; only 'douglas' is implemented"
-            )
+            raise ValidationError(f"unsupported ADI scheme {self.scheme!r}; only 'douglas' is implemented")
 
     def solve_2d(
         self,
@@ -111,9 +116,7 @@ class ADISolver:
                 dt,
                 boundary_conditions,
             )
-            tau_solution[step + 1] = self._apply_positivity_floor(
-                next_solution, enabled=positivity_floor
-            )
+            tau_solution[step + 1] = self._apply_positivity_floor(next_solution, enabled=positivity_floor)
 
         self.last_diagnostics = self._diagnostics(
             dimension=2,
@@ -140,9 +143,7 @@ class ADISolver:
         nt = self._validate_time_grid(time_grid)
         nx, ny, nz = len(grids[0]), len(grids[1]), len(grids[2])
         self._validate_3d_inputs(drift, covariance, initial_condition, nx, ny, nz)
-        reaction_field = self._coerce_field(
-            "reaction", reaction, (nx, ny, nz), default=0.0
-        )
+        reaction_field = self._coerce_field("reaction", reaction, (nx, ny, nz), default=0.0)
         source_field = self._coerce_field("source", source, (nx, ny, nz), default=0.0)
 
         tau_solution = np.zeros((nt, nx, ny, nz), dtype=float)
@@ -165,9 +166,7 @@ class ADISolver:
                 dt,
                 boundary_conditions,
             )
-            tau_solution[step + 1] = self._apply_positivity_floor(
-                next_solution, enabled=positivity_floor
-            )
+            tau_solution[step + 1] = self._apply_positivity_floor(next_solution, enabled=positivity_floor)
 
         self.last_diagnostics = self._diagnostics(
             dimension=3,
@@ -196,14 +195,10 @@ class ADISolver:
         full_old += self._mixed_operator(u_old, covariance, grids)
         full_old += -reaction * u_old + source
 
-        predictor = self._apply_boundary_conditions_2d(
-            u_old + dt * full_old, grids, boundary_conditions
-        )
+        predictor = self._apply_boundary_conditions_2d(u_old + dt * full_old, grids, boundary_conditions)
         rhs_x = predictor - self.theta * dt * directional_old[0]
         x_solved = self._solve_direction(rhs_x, drift, covariance, grids, dt, axis=0)
-        x_solved = self._apply_boundary_conditions_2d(
-            x_solved, grids, boundary_conditions
-        )
+        x_solved = self._apply_boundary_conditions_2d(x_solved, grids, boundary_conditions)
 
         rhs_y = x_solved - self.theta * dt * directional_old[1]
         y_solved = self._solve_direction(rhs_y, drift, covariance, grids, dt, axis=1)
@@ -229,17 +224,11 @@ class ADISolver:
         full_old += self._mixed_operator(u_old, covariance, grids)
         full_old += -reaction * u_old + source
 
-        current = self._apply_boundary_conditions_3d(
-            u_old + dt * full_old, grids, boundary_conditions
-        )
+        current = self._apply_boundary_conditions_3d(u_old + dt * full_old, grids, boundary_conditions)
         for axis, old_directional in enumerate(directional_old):
             rhs = current - self.theta * dt * old_directional
-            current = self._solve_direction(
-                rhs, drift, covariance, grids, dt, axis=axis
-            )
-            current = self._apply_boundary_conditions_3d(
-                current, grids, boundary_conditions
-            )
+            current = self._solve_direction(rhs, drift, covariance, grids, dt, axis=axis)
+            current = self._apply_boundary_conditions_3d(current, grids, boundary_conditions)
         return current
 
     def _validate_2d_inputs(
@@ -251,17 +240,11 @@ class ADISolver:
         ny: int,
     ) -> None:
         if drift.shape != (nx, ny, 2):
-            raise ValidationError(
-                f"drift must have shape ({nx}, {ny}, 2), got {drift.shape}"
-            )
+            raise ValidationError(f"drift must have shape ({nx}, {ny}, 2), got {drift.shape}")
         if covariance.shape != (nx, ny, 2, 2):
-            raise ValidationError(
-                f"covariance must have shape ({nx}, {ny}, 2, 2), got {covariance.shape}"
-            )
+            raise ValidationError(f"covariance must have shape ({nx}, {ny}, 2, 2), got {covariance.shape}")
         if initial_condition.shape != (nx, ny):
-            raise ValidationError(
-                f"initial_condition must have shape ({nx}, {ny}), got {initial_condition.shape}"
-            )
+            raise ValidationError(f"initial_condition must have shape ({nx}, {ny}), got {initial_condition.shape}")
         self._validate_finite_and_psd(drift, covariance)
 
     def _validate_3d_inputs(
@@ -274,13 +257,9 @@ class ADISolver:
         nz: int,
     ) -> None:
         if drift.shape != (nx, ny, nz, 3):
-            raise ValidationError(
-                f"drift must have shape ({nx}, {ny}, {nz}, 3), got {drift.shape}"
-            )
+            raise ValidationError(f"drift must have shape ({nx}, {ny}, {nz}, 3), got {drift.shape}")
         if covariance.shape != (nx, ny, nz, 3, 3):
-            raise ValidationError(
-                f"covariance must have shape ({nx}, {ny}, {nz}, 3, 3), got {covariance.shape}"
-            )
+            raise ValidationError(f"covariance must have shape ({nx}, {ny}, {nz}, 3, 3), got {covariance.shape}")
         if initial_condition.shape != (nx, ny, nz):
             raise ValidationError(
                 f"initial_condition must have shape ({nx}, {ny}, {nz}), got {initial_condition.shape}"
@@ -292,31 +271,22 @@ class ADISolver:
             raise ValidationError("ADI drift contains non-finite values")
         if not np.all(np.isfinite(covariance)):
             raise ValidationError("ADI covariance contains non-finite values")
-        if not np.allclose(
-            covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12
-        ):
+        if not np.allclose(covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12):
             raise ValidationError("ADI covariance must be symmetric")
-        eigenvalues = np.linalg.eigvalsh(
-            covariance.reshape(-1, covariance.shape[-1], covariance.shape[-1])
-        )
+        eigenvalues = np.linalg.eigvalsh(covariance.reshape(-1, covariance.shape[-1], covariance.shape[-1]))
         min_eigenvalue = float(np.min(eigenvalues))
         if min_eigenvalue < -1e-10:
             raise ValidationError(
-                "ADI covariance must be positive semi-definite; "
-                f"minimum eigenvalue is {min_eigenvalue:.2e}"
+                f"ADI covariance must be positive semi-definite; minimum eigenvalue is {min_eigenvalue:.2e}"
             )
 
     def _validate_time_grid(self, time_grid: Array) -> int:
         if time_grid.ndim != 1 or len(time_grid) < 2:
-            raise ValidationError(
-                "time_grid must be a one-dimensional array with at least two nodes"
-            )
+            raise ValidationError("time_grid must be a one-dimensional array with at least two nodes")
         if not np.all(np.isfinite(time_grid)):
             raise ValidationError("time_grid contains non-finite values")
         if not np.all(np.diff(time_grid) > 0.0):
-            raise ValidationError(
-                "time_grid must be strictly increasing in calendar time"
-            )
+            raise ValidationError("time_grid must be strictly increasing in calendar time")
         return len(time_grid)
 
     def _validate_grids(self, grids: tuple[Array, ...]) -> tuple[Array, ...]:
@@ -324,9 +294,7 @@ class ADISolver:
         for axis, grid in enumerate(grids):
             candidate = np.asarray(grid, dtype=float)
             if candidate.ndim != 1 or len(candidate) < 3:
-                raise ValidationError(
-                    f"grid axis {axis} must be one-dimensional with at least three nodes"
-                )
+                raise ValidationError(f"grid axis {axis} must be one-dimensional with at least three nodes")
             if not np.all(np.isfinite(candidate)):
                 raise ValidationError(f"grid axis {axis} contains non-finite values")
             if not np.all(np.diff(candidate) > 0.0):
@@ -367,9 +335,7 @@ class ADISolver:
         first, second = self._axis_first_second(u, grids[axis], axis=axis)
         return 0.5 * covariance[..., axis, axis] * second + drift[..., axis] * first
 
-    def _mixed_operator(
-        self, u: Array, covariance: Array, grids: tuple[Array, ...]
-    ) -> Array:
+    def _mixed_operator(self, u: Array, covariance: Array, grids: tuple[Array, ...]) -> Array:
         result = np.zeros_like(u, dtype=float)
         for axis_a in range(len(grids)):
             first_a = self._axis_first_derivative(u, grids[axis_a], axis=axis_a)
@@ -378,9 +344,7 @@ class ADISolver:
                 result += covariance[..., axis_a, axis_b] * cross
         return result
 
-    def _axis_first_second(
-        self, u: Array, grid: Array, *, axis: int
-    ) -> tuple[Array, Array]:
+    def _axis_first_second(self, u: Array, grid: Array, *, axis: int) -> tuple[Array, Array]:
         first = np.zeros_like(u, dtype=float)
         second = np.zeros_like(u, dtype=float)
         for idx in range(1, len(grid) - 1):
@@ -409,9 +373,7 @@ class ADISolver:
     ) -> Array:
         result = rhs.copy()
         other_axes = [range(size) for dim, size in enumerate(rhs.shape) if dim != axis]
-        for fixed_indices in np.ndindex(
-            *(len(axis_values) for axis_values in other_axes)
-        ):
+        for fixed_indices in np.ndindex(*(len(axis_values) for axis_values in other_axes)):
             line_selector: list[Any] = [slice(None)] * rhs.ndim
             fixed_iter = iter(fixed_indices)
             for dim in range(rhs.ndim):
@@ -420,13 +382,24 @@ class ADISolver:
             selector = tuple(line_selector)
             drift_line = drift[selector + (axis,)]
             covariance_line = covariance[selector + (axis, axis)]
-            lower, diag, upper = self._line_system(
-                drift_line, covariance_line, grids[axis], dt
-            )
-            result[selector] = self._solve_tridiagonal(
-                lower, diag, upper, rhs[selector]
-            )
+            lower, diag, upper = self._cached_line_system(drift_line, covariance_line, grids[axis], dt)
+            result[selector] = self._solve_tridiagonal(lower, diag, upper, rhs[selector])
         return result
+
+    def _cached_line_system(
+        self, drift_line: Array, covariance_line: Array, grid: Array, dt: float
+    ) -> tuple[Array, Array, Array]:
+        if not self.enable_operator_cache:
+            return self._line_system(drift_line, covariance_line, grid, dt)
+        key = self._line_system_key(drift_line, covariance_line, grid, dt)
+        cached = self._line_system_cache.get(key)
+        if cached is not None:
+            self._line_cache_hits += 1
+            return cached
+        self._line_cache_misses += 1
+        system = self._line_system(drift_line, covariance_line, grid, dt)
+        self._line_system_cache[key] = system
+        return system
 
     def _line_system(
         self, drift_line: Array, covariance_line: Array, grid: Array, dt: float
@@ -450,6 +423,22 @@ class ADISolver:
             upper[idx] = -self.theta * dt * high_op
         return lower, diag, upper
 
+    def _line_system_key(self, drift_line: Array, covariance_line: Array, grid: Array, dt: float) -> tuple[object, ...]:
+        drift = np.ascontiguousarray(drift_line, dtype=float)
+        covariance = np.ascontiguousarray(covariance_line, dtype=float)
+        grid_values = np.ascontiguousarray(grid, dtype=float)
+        return (
+            "adi_line_system_v1",
+            float(self.theta),
+            float(dt),
+            drift.shape,
+            covariance.shape,
+            grid_values.shape,
+            sha256(drift.tobytes()).hexdigest(),
+            sha256(covariance.tobytes()).hexdigest(),
+            sha256(grid_values.tobytes()).hexdigest(),
+        )
+
     def _first_weights(self, hm: float, hp: float) -> tuple[float, float, float]:
         return (
             -hp / (hm * (hm + hp)),
@@ -464,9 +453,7 @@ class ADISolver:
             2.0 / (hp * (hm + hp)),
         )
 
-    def _axis_slices(
-        self, axis: int, ndim: int, idx: int
-    ) -> tuple[tuple[Any, ...], tuple[Any, ...], tuple[Any, ...]]:
+    def _axis_slices(self, axis: int, ndim: int, idx: int) -> tuple[tuple[Any, ...], tuple[Any, ...], tuple[Any, ...]]:
         lower: list[Any] = [slice(None)] * ndim
         center: list[Any] = [slice(None)] * ndim
         upper: list[Any] = [slice(None)] * ndim
@@ -523,13 +510,9 @@ class ADISolver:
             try:
                 return boundary_conditions.apply_boundaries(u, grids)
             except Exception as exc:  # pragma: no cover - manager-specific path
-                raise ValidationError(
-                    "2D boundary manager failed during ADI substep"
-                ) from exc
+                raise ValidationError("2D boundary manager failed during ADI substep") from exc
         if not isinstance(boundary_conditions, dict):
-            raise ValidationError(
-                "2D boundary_conditions must be a dict or boundary manager"
-            )
+            raise ValidationError("2D boundary_conditions must be a dict or boundary manager")
 
         result = u.copy()
         for boundary_location, boundary_spec in boundary_conditions.items():
@@ -544,9 +527,7 @@ class ADISolver:
             elif boundary_location == "top":
                 result[:, -1] = self._boundary_values(kind, value, result[:, -2])
             else:
-                raise ValidationError(
-                    f"unsupported 2D boundary location {boundary_location!r}"
-                )
+                raise ValidationError(f"unsupported 2D boundary location {boundary_location!r}")
         return result
 
     def _apply_boundary_conditions_3d(
@@ -561,13 +542,9 @@ class ADISolver:
             try:
                 return boundary_conditions.apply_boundaries(u, grids)
             except Exception as exc:  # pragma: no cover - manager-specific path
-                raise ValidationError(
-                    "3D boundary manager failed during ADI substep"
-                ) from exc
+                raise ValidationError("3D boundary manager failed during ADI substep") from exc
         if not isinstance(boundary_conditions, dict):
-            raise ValidationError(
-                "3D boundary_conditions must be a dict or boundary manager"
-            )
+            raise ValidationError("3D boundary_conditions must be a dict or boundary manager")
 
         result = u.copy()
         for boundary_location, boundary_spec in boundary_conditions.items():
@@ -586,14 +563,10 @@ class ADISolver:
             elif boundary_location == "back":
                 result[:, :, -1] = self._boundary_values(kind, value, result[:, :, -2])
             else:
-                raise ValidationError(
-                    f"unsupported 3D boundary location {boundary_location!r}"
-                )
+                raise ValidationError(f"unsupported 3D boundary location {boundary_location!r}")
         return result
 
-    def _boundary_values(
-        self, kind: str, value: Any, neighbour: Array
-    ) -> Array | float:
+    def _boundary_values(self, kind: str, value: Any, neighbour: Array) -> Array | float:
         if kind == "dirichlet":
             return value
         if kind == "zero_gradient":
@@ -630,16 +603,19 @@ class ADISolver:
             "theta": self.theta,
             "time_orientation": "forward_tau_internal_calendar_output",
             "steps": len(time_grid) - 1,
-            "mixed_derivative_pairs": [
-                (a, b) for a in range(dimension) for b in range(a + 1, dimension)
-            ],
-            "grid_uniformity": [
-                bool(np.allclose(np.diff(grid), np.diff(grid)[0])) for grid in grids
-            ],
+            "mixed_derivative_pairs": [(a, b) for a in range(dimension) for b in range(a + 1, dimension)],
+            "grid_uniformity": [bool(np.allclose(np.diff(grid), np.diff(grid)[0])) for grid in grids],
             "reaction_treatment": "explicit_predictor_once",
             "source_treatment": "explicit_predictor_once",
             "positivity_floor": positivity_floor,
             "boundary_treatment": "payoff_predictor_and_each_directional_substep",
+            "operator_cache": {
+                "enabled": self.enable_operator_cache,
+                "entries": len(self._line_system_cache),
+                "hits": self._line_cache_hits,
+                "misses": self._line_cache_misses,
+                "reuse_count": self._line_cache_hits,
+            },
         }
 
 

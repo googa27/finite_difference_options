@@ -243,6 +243,8 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
     ),
     feature_support={
         "pinares_fixed_price_proxy": CapabilityStatus.VALIDATED.value,
+        "released_public_solver_contract": CapabilityStatus.VALIDATED.value,
+        "operator_factorization_cache": CapabilityStatus.VALIDATED.value,
         "one_dimensional_generator_pde": CapabilityStatus.VALIDATED.value,
         "mixed_derivative": CapabilityStatus.EXPERIMENTAL.value,
         "jump_integral": CapabilityStatus.UNSUPPORTED.value,
@@ -269,6 +271,7 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "default_theta": 0.5,
         "pinares_fixed_price_proxy_max_s_steps": 180,
         "pinares_fixed_price_proxy_max_t_steps": 240,
+        "operator_factorization_cache": "enabled_for_public_black_scholes_and_pinares_proxy",
         "deterministic": "true",
     },
     notes=(
