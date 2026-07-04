@@ -171,6 +171,15 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
         independence="closed-form call oracle scaled outside the FD grid by public-synthetic survival_probability",
         notes="Proxy evidence only; ROFR/full family-contract valuation remains unsupported in this backend.",
     )
+    nonuniform_greek_oracle = OracleSpec(
+        kind="analytical",
+        source="closed-form Black-Scholes Delta/Gamma plus polynomial manufactured derivatives",
+        independence=(
+            "tests evaluate local-coordinate stencil estimates and requested-coordinate "
+            "sampling outside solver routing"
+        ),
+        notes="Issue #57 evidence for nonuniform-grid Greek estimation and diagnostics.",
+    )
     return (
         BenchmarkCase(
             benchmark_id="BS-CALL-PARITY-V0",
@@ -716,7 +725,10 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
                 kind="manufactured",
                 source="quadratic-polynomial derivative exactness and ADI AxisGrid regression tests",
                 independence="tests evaluate local stencil weights and ADI diagnostics without a pricing facade",
-                notes="Grid contract evidence only; nonuniform Greek convergence remains owned by #57.",
+                notes=(
+                    "Grid contract evidence; nonuniform Greek convergence is covered separately by "
+                    "FD-GREEKS-NONUNIFORM-V0."
+                ),
             ),
             tolerances=(
                 TolerancePolicy(
@@ -735,6 +747,49 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             capability_rows=("Typed uniform/nonuniform/log tensor grid contracts",),
             fixture_paths=("tests/test_grid_contracts.py",),
             issue_refs=("googa27/finite_difference_options#47",),
+            resource_policy={"deterministic": "true"},
+        ),
+        BenchmarkCase(
+            benchmark_id="FD-GREEKS-NONUNIFORM-V0",
+            title="Nonuniform-grid finite-difference Greek diagnostics",
+            family="analytical_oracle",
+            status="validated",
+            route_id="fd.greeks.nonuniform_requested_coordinate",
+            model="Black-Scholes / manufactured polynomial",
+            instrument="European call and smooth polynomial value slice",
+            state_convention="spot-coordinate value slices with explicit requested-coordinate sampling",
+            grid_family="strictly increasing nonuniform and strike-centered physical spot grids",
+            time_schedule="value-slice post-processing; expiry kink coordinates fail closed",
+            oracle=nonuniform_greek_oracle,
+            tolerances=(
+                TolerancePolicy(
+                    "delta_abs",
+                    5.0e-2,
+                    "absolute Delta error",
+                    "strike-centered nonuniform refinement against closed-form Black-Scholes Delta",
+                ),
+                TolerancePolicy(
+                    "gamma_abs",
+                    2.0e-2,
+                    "absolute Gamma error",
+                    "strike-centered nonuniform refinement against closed-form Black-Scholes Gamma",
+                ),
+                TolerancePolicy(
+                    "boolean_invariant",
+                    True,
+                    "all diagnostics",
+                    "stencil/interpolation/error/expiry diagnostic invariants hold",
+                ),
+            ),
+            invariants=(
+                "local_coordinate_spacing_used",
+                "requested_coordinate_distinct_from_nearest_node",
+                "refinement_error_reported",
+                "expiry_kink_rejected",
+            ),
+            capability_rows=("1D Black-Scholes Delta/Gamma from finite-difference price grids",),
+            fixture_paths=("tests/test_nonuniform_greek_diagnostics.py",),
+            issue_refs=("googa27/finite_difference_options#57",),
             resource_policy={"deterministic": "true"},
         ),
         BenchmarkCase(
@@ -926,8 +981,14 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             time_schedule="not applicable",
             oracle=OracleSpec(
                 kind="fixture",
-                source="docs/architecture_contract.toml canonical_capabilities plus docs/CANONICAL_IMPLEMENTATION_INVENTORY.md",
-                independence="architecture tests parse the machine-readable contract and inspect the live repository tree",
+                source=(
+                    "docs/architecture_contract.toml canonical_capabilities plus "
+                    "docs/CANONICAL_IMPLEMENTATION_INVENTORY.md"
+                ),
+                independence=(
+                    "architecture tests parse the machine-readable contract and inspect "
+                    "the live repository tree"
+                ),
                 notes="Evidence for issue #52 consolidation governance; not numerical convergence evidence.",
             ),
             tolerances=(
@@ -935,7 +996,10 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
                     "boolean_invariant",
                     True,
                     "all invariants",
-                    "canonical paths exist, public imports map to package modules, and forbidden legacy modules are absent",
+                    (
+                        "canonical paths exist, public imports map to package modules, "
+                        "and forbidden legacy modules are absent"
+                    ),
                 ),
             ),
             invariants=(

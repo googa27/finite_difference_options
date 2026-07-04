@@ -8,10 +8,11 @@ from .base import (
     GreeksCalculator,
     GreeksCalculatorFactory,
 )
-from .finite_difference import FiniteDifferenceGreeks
+from .finite_difference import FiniteDifferenceGreeks, GreekEstimate
 
 __all__ = [
     "FiniteDifferenceGreeks",
+    "GreekEstimate",
     "GreeksCalculator",
     "FDCalculator1D",
     "FDCalculator2D",
