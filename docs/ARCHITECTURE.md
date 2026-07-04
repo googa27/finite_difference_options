@@ -302,9 +302,11 @@ Issue #63 replaces the former callable-bond global value cap with an explicit Be
 
 Finite-difference Greeks are separate from PDE discretization operators but share grid metadata. A result records coordinate transform, stencil/order, one-sided treatment, evaluation/interpolation point, smoothing policy and error evidence.
 
+Issue #57 makes nonuniform requested-coordinate Greek estimation executable in `FiniteDifferenceGreeks`. Uniform grids keep the legacy `np.gradient` path for stable public fixtures, while nonuniform grids use direct local-coordinate finite-difference weights for first and second spatial derivatives. `sample_delta` and `sample_gamma` return `GreekEstimate` records that distinguish requested-coordinate interpolation from nearest-node values and include stencil order, uniform/nonuniform spacing class, bracketing coordinates, nearby spacings, domain-edge distance, reference/refinement error indicators and the explicit expiry-kink policy. At expiry, callers must name nonsmooth coordinates; Delta/Gamma sampling at such a coordinate fails closed because the payoff derivative is undefined or distributional.
+
 Issue #56 adds a blocking kinked-call regression showing that four BE half-steps reduce near-strike Gamma high-frequency roughness versus starting directly with CN on the same grid. The schedule is available through `FiniteDifferenceSolver.last_step_schedule` and the legacy `PDEModel.last_step_schedule` bridge until typed result DTOs replace array-only returns.
 
-Nonuniform-grid first and second derivatives use dedicated formulas. Payoff-kink tests distinguish pre-asymptotic behavior, Rannacher effects and smooth-region convergence. Parameter sensitivities by bump-and-resolve disclose bump size and solver tolerance interaction.
+Black-Scholes nonuniform-Greek evidence is `FD-GREEKS-NONUNIFORM-V0`: polynomial tests pin the local second-derivative stencil, strike-centered nonuniform grids converge against closed-form Delta/Gamma under refinement, and diagnostics report independent/reference agreement rather than silently returning a scalar.
 
 ## 16. Backend plugin architecture
 

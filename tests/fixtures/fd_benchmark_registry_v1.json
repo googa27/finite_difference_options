@@ -1,5 +1,5 @@
 {
-  "case_count": 21,
+  "case_count": 22,
   "cases": [
     {
       "benchmark_id": "BS-CALL-PARITY-V0",
@@ -674,7 +674,7 @@
       "oracle": {
         "independence": "tests evaluate local stencil weights and ADI diagnostics without a pricing facade",
         "kind": "manufactured",
-        "notes": "Grid contract evidence only; nonuniform Greek convergence remains owned by #57.",
+        "notes": "Grid contract evidence; nonuniform Greek convergence is covered separately by FD-GREEKS-NONUNIFORM-V0.",
         "source": "quadratic-polynomial derivative exactness and ADI AxisGrid regression tests"
       },
       "resource_policy": {
@@ -691,6 +691,64 @@
           "metric": "boolean_invariant",
           "norm": "all invariants",
           "notes": "nonuniform derivative, interpolation, transform and ADI diagnostic checks pass",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "FD-GREEKS-NONUNIFORM-V0",
+      "capability_rows": [
+        "1D Black-Scholes Delta/Gamma from finite-difference price grids"
+      ],
+      "family": "analytical_oracle",
+      "fixture_paths": [
+        "tests/test_nonuniform_greek_diagnostics.py"
+      ],
+      "grid_family": "strictly increasing nonuniform and strike-centered physical spot grids",
+      "instrument": "European call and smooth polynomial value slice",
+      "invariants": [
+        "local_coordinate_spacing_used",
+        "requested_coordinate_distinct_from_nearest_node",
+        "refinement_error_reported",
+        "expiry_kink_rejected"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#57"
+      ],
+      "model": "Black-Scholes / manufactured polynomial",
+      "notes": "",
+      "oracle": {
+        "independence": "tests evaluate local-coordinate stencil estimates and requested-coordinate sampling outside solver routing",
+        "kind": "analytical",
+        "notes": "Issue #57 evidence for nonuniform-grid Greek estimation and diagnostics.",
+        "source": "closed-form Black-Scholes Delta/Gamma plus polynomial manufactured derivatives"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.greeks.nonuniform_requested_coordinate",
+      "runner": null,
+      "state_convention": "spot-coordinate value slices with explicit requested-coordinate sampling",
+      "status": "validated",
+      "time_schedule": "value-slice post-processing; expiry kink coordinates fail closed",
+      "title": "Nonuniform-grid finite-difference Greek diagnostics",
+      "tolerances": [
+        {
+          "metric": "delta_abs",
+          "norm": "absolute Delta error",
+          "notes": "strike-centered nonuniform refinement against closed-form Black-Scholes Delta",
+          "threshold": 0.05
+        },
+        {
+          "metric": "gamma_abs",
+          "norm": "absolute Gamma error",
+          "notes": "strike-centered nonuniform refinement against closed-form Black-Scholes Gamma",
+          "threshold": 0.02
+        },
+        {
+          "metric": "boolean_invariant",
+          "norm": "all diagnostics",
+          "notes": "stencil/interpolation/error/expiry diagnostic invariants hold",
           "threshold": true
         }
       ]

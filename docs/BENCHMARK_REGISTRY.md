@@ -57,6 +57,7 @@ The static registry fixture currently contains these versioned evidence IDs:
 | `HESTON-BS-LIMIT-V0` | executable Heston-to-Black-Scholes limit runner |
 | `HESTON-VARIANCE-BOUNDARY-V0` | Heston variance-boundary and Feller-policy diagnostic evidence |
 | `GRID-LOCAL-METRICS-V0` | typed AxisGrid/TensorGrid validation, local nonuniform derivative metrics, log/clustered factories and ADI grid diagnostics |
+| `FD-GREEKS-NONUNIFORM-V0` | nonuniform requested-coordinate Delta/Gamma stencil, interpolation, refinement/reference-error and expiry-kink diagnostics |
 | `ADI-SMOKE-V0` | ADI finite-value/orientation smoke evidence |
 | `ADI-OPERATOR-SPLIT-V0` | ADI operator split coefficient evidence |
 | `FACTOR-ROLE-COMPAT-V0` | factor-role payoff compatibility fail-closed gate |

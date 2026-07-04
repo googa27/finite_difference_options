@@ -96,7 +96,7 @@ Issue #63 makes this prohibition executable for callable fixed-rate bonds: Bermu
 
 ### FR-FD-009 — Greeks and sensitivities
 
-Every Greek identifies differentiated coordinate/parameter, grid and transform, stencil/order, boundary behavior, payoff-kink policy, interpolation point and error/reference evidence. Nonuniform-grid derivatives require dedicated coefficients and convergence tests. Owner: #57.
+Every Greek identifies differentiated coordinate/parameter, grid and transform, stencil/order, boundary behavior, payoff-kink policy, interpolation point and error/reference evidence. Nonuniform-grid derivatives use local coordinate stencils, requested-coordinate sampling is explicitly distinguished from nearest-node output, and `GreekEstimate` diagnostics report interpolation method, nearby spacings, domain-edge distance, refinement/reference errors and expiry-kink rejection. Issue #57 evidence is `FD-GREEKS-NONUNIFORM-V0`.
 
 ### FR-FD-010 — Diagnostics and failures
 
