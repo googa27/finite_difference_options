@@ -213,14 +213,16 @@ Contracts are immutable or snapshot-able and serialization-tested. `tests/fixtur
 
 ## 9. Grid architecture
 
-Grid APIs declare dimension, coordinate system, monotonic nodes, transforms, truncation/far-field policy and boundary locations. Supported families may include:
+Grid APIs declare dimension, coordinate system, monotonic nodes, transforms, truncation/far-field policy and boundary locations. Issue #47 makes this executable through `finite_difference_options.grids.AxisGrid` and `TensorGrid`: raw NumPy arrays remain accepted by legacy solvers, but typed axes preserve family/coordinate-system metadata, local spacing ratios, physical coordinates for log axes, interpolation domain checks and public diagnostics. Supported families include:
 
 - uniform physical-coordinate grids;
 - uniform log-coordinate grids;
-- nonuniform clustered grids;
+- sinh/tanh clustered grids;
+- strike-centered grids;
+- variance-boundary clustered grids;
 - multidimensional tensor-product grids.
 
-Validation checks finite monotone coordinates, minimum node count, spacing ratios, transform invertibility and requested evaluation points. Non-tensor unstructured grids are outside the FD core unless a dedicated method is added.
+Validation checks finite monotone coordinates, minimum node count, spacing ratios, transform invertibility and requested evaluation points. Non-tensor unstructured grids are outside the FD core unless a dedicated method is added. ADI line systems and directional/mixed derivative operators consume the local grid metrics rather than a single global spacing, and solver diagnostics preserve each axis's grid identity.
 
 ## 10. Differential operators
 

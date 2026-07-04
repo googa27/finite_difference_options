@@ -1,5 +1,5 @@
 {
-  "case_count": 20,
+  "case_count": 21,
   "cases": [
     {
       "benchmark_id": "BS-CALL-PARITY-V0",
@@ -645,6 +645,52 @@
           "metric": "boolean_invariant",
           "norm": "all invariants",
           "notes": "variance boundary diagnostics present",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "GRID-LOCAL-METRICS-V0",
+      "capability_rows": [
+        "Typed uniform/nonuniform/log tensor grid contracts"
+      ],
+      "family": "manufactured_solution",
+      "fixture_paths": [
+        "tests/test_grid_contracts.py"
+      ],
+      "grid_family": "uniform, log-uniform, sinh/tanh clustered, strike-centered and variance-boundary axes",
+      "instrument": "operator-level polynomial fixture",
+      "invariants": [
+        "strict_monotonicity",
+        "quadratic_derivative_exactness",
+        "interpolation_domain_rejection",
+        "grid_identity_diagnostics"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#47"
+      ],
+      "model": "finite-difference grid contract",
+      "notes": "",
+      "oracle": {
+        "independence": "tests evaluate local stencil weights and ADI diagnostics without a pricing facade",
+        "kind": "manufactured",
+        "notes": "Grid contract evidence only; nonuniform Greek convergence remains owned by #57.",
+        "source": "quadratic-polynomial derivative exactness and ADI AxisGrid regression tests"
+      },
+      "resource_policy": {
+        "deterministic": "true"
+      },
+      "route_id": "fd.grids.axis_tensor_local_metrics",
+      "runner": null,
+      "state_convention": "solver-coordinate axes with optional physical/log transform metadata",
+      "status": "validated",
+      "time_schedule": "grid/operator construction before time march",
+      "title": "Typed nonuniform grid contracts and local derivative metrics",
+      "tolerances": [
+        {
+          "metric": "boolean_invariant",
+          "norm": "all invariants",
+          "notes": "nonuniform derivative, interpolation, transform and ADI diagnostic checks pass",
           "threshold": true
         }
       ]

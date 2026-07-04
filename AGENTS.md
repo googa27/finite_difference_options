@@ -102,6 +102,7 @@ Dimension, process class or option type alone does not define this information.
 ## 8. Grid and operator rules
 
 - Validate grid monotonicity, minimum size, spacing ratios, transforms and requested evaluation points.
+- Use `AxisGrid`/`TensorGrid` for new grid semantics so local spacings, transforms, boundary locations and diagnostics are preserved instead of passing anonymous arrays.
 - Distinguish uniform, nonuniform and transformed-grid formulas.
 - Every derivative operator declares order, local stencil, boundary closure and bias.
 - Upwinding is selected by typed policy, not hidden branching.

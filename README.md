@@ -25,6 +25,7 @@ A finite-difference PDE framework for option-pricing experiments and backend-con
 - **Basket Options**: Multi-asset derivatives with flexible weighting
 - **Greeks Computation**: Delta, Gamma, Theta, Vega via finite differences
 - **Rannacher Startup**: Configurable two/four Backward-Euler half-step damping before Crank-Nicolson for kinked payoffs and near-strike Greeks
+- **Nonuniform grid contracts**: `AxisGrid`/`TensorGrid` preserve local spacing metrics, log transforms, strike-centered and variance-boundary clustered factories, interpolation domain checks, and ADI diagnostics
 - **ADI Solver**: Alternating Direction Implicit method for multi-dimensional PDEs
 
 ### Development & Quality

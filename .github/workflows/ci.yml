@@ -46,6 +46,7 @@ jobs:
           for name in [
               'finite_difference_options',
               'finite_difference_options.contracts',
+              'finite_difference_options.grids',
               'finite_difference_options.integrations.haircut_backend',
               'finite_difference_options.validation.black_scholes_parity',
           ]:
