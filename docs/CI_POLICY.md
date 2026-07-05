@@ -32,9 +32,15 @@ The test job installs the development profile with `python -m pip install -e '.[
    - `python scripts/check_markdown_links.py`;
    - `pytest -q tests/architecture tests/test_packaging_contract.py --no-cov`;
 3. stable regression suite:
-   - `pytest -q --cov=finite_difference_options --cov-report=xml --junitxml=junit.xml`.
+   - `pytest -q --cov=finite_difference_options --cov-report=xml --junitxml=junit.xml`;
+4. derivative validation artifact:
+   - `python scripts/run_greek_derivative_validation.py --mode pr --output artifacts/fd-greek-derivative-validation.json`.
 
-The stable suite is now the whole deterministic Python suite. Known broader performance/application maturity work is still tracked in GitHub issues, but package/import regressions are blocking.
+The stable suite is now the whole deterministic Python suite. Known broader performance/application maturity work is still tracked in GitHub issues, but package/import regressions are blocking. The derivative artifact is uploaded with coverage/JUnit artifacts so PRs expose Delta/Gamma convergence, strike-alignment and Rannacher-stability evidence instead of relying only on console logs.
+
+### Scheduled derivative validation
+
+The `Derivative validation broad matrix` workflow runs weekly and on demand. It executes `scripts/run_greek_derivative_validation.py --mode broad` and uploads `fd-greek-derivative-validation-broad.json`; failures are blocking for that workflow and indicate that the derivative maturity claim needs review before release.
 
 ### Optional-profile job
 

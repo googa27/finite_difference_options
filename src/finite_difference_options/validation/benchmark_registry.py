@@ -793,6 +793,67 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             resource_policy={"deterministic": "true"},
         ),
         BenchmarkCase(
+            benchmark_id="FD-GREEKS-VALIDATION-V0",
+            title="Derivative convergence, strike-alignment and Rannacher stability gates",
+            family="analytical_oracle",
+            status="validated",
+            route_id="fd.greeks.validation_matrix",
+            model="Black-Scholes / GBM",
+            instrument="European call derivative validation matrix",
+            state_convention=(
+                "requested spot-coordinate Delta/Gamma across moneyness, maturity, volatility and "
+                "strike-alignment cases"
+            ),
+            grid_family="strike-centered nonuniform grids plus shifted uniform alignment grids",
+            time_schedule="value-slice derivative validation plus Rannacher startup stability check",
+            oracle=nonuniform_greek_oracle,
+            tolerances=(
+                TolerancePolicy(
+                    "delta_abs",
+                    1.0e-3,
+                    "maximum finest-grid absolute Delta error",
+                    "closed-form Black-Scholes Delta over the PR validation matrix",
+                ),
+                TolerancePolicy(
+                    "gamma_abs",
+                    3.0e-4,
+                    "maximum finest-grid absolute Gamma error",
+                    "closed-form Black-Scholes Gamma over the PR validation matrix",
+                ),
+                TolerancePolicy(
+                    "boolean_invariant",
+                    True,
+                    "all derivative-validation invariants",
+                    "refinement, alignment, expiry and Rannacher stability gates pass",
+                ),
+            ),
+            invariants=(
+                "nonuniform_delta_converged",
+                "nonuniform_gamma_converged",
+                "refinement_improves_all_cases",
+                "strike_alignment_bounded",
+                "rannacher_smooths_kinked_gamma",
+                "expiry_kink_rejected",
+            ),
+            capability_rows=(
+                "1D Black-Scholes Delta/Gamma from finite-difference price grids",
+                "Rannacher startup before Crank-Nicolson for kinked payoffs",
+            ),
+            fixture_paths=("tests/test_derivative_validation_gates.py",),
+            issue_refs=(
+                "googa27/finite_difference_options#25",
+                "googa27/finite_difference_options#57",
+                "googa27/finite_difference_options#58",
+            ),
+            resource_policy={
+                "benchmark_cases": 12,
+                "grid_levels": 3,
+                "deterministic": "true",
+                "max_runtime_seconds": 30.0,
+            },
+            runner="greek_derivative_validation",
+        ),
+        BenchmarkCase(
             benchmark_id="ADI-SMOKE-V0",
             title="ADI multidimensional finite-value smoke route",
             family="smoke",
@@ -1274,6 +1335,38 @@ def _pinares_fail_closed_result(case: BenchmarkCase) -> BenchmarkRunResult:
     )
 
 
+def _greek_derivative_validation_result(case: BenchmarkCase) -> BenchmarkRunResult:
+    from finite_difference_options.validation.greek_derivative_gates import (
+        run_greek_derivative_validation,
+    )
+
+    report = run_greek_derivative_validation(mode="pr")
+    metrics: dict[str, float | bool | int | str] = {
+        **report.metrics,
+        "delta_abs": report.metrics["max_delta_abs_error"],
+        "gamma_abs": report.metrics["max_gamma_abs_error"],
+        "boolean_invariant": report.passed,
+    }
+    invariants = dict(report.invariants)
+    invariants.update(_tolerance_invariants(case, metrics))
+    return BenchmarkRunResult(
+        benchmark_id=case.benchmark_id,
+        passed=report.passed and all(invariants.values()),
+        metrics=metrics,
+        evidence={
+            "artifact_schema_version": "finite-difference-greek-validation/v0",
+            "mode": report.mode,
+            "thresholds": asdict(report.thresholds),
+            "benchmark_cases": len(report.matrix),
+            "strike_alignment": report.strike_alignment,
+            "rannacher": report.rannacher,
+            "expiry_policy": report.expiry_policy,
+            "deterministic": True,
+        },
+        invariants=invariants,
+    )
+
+
 def _american_lcp_result(case: BenchmarkCase) -> BenchmarkRunResult:
     from finite_difference_options.solvers import ProjectedSORLCP
 
@@ -1447,6 +1540,8 @@ def run_registered_benchmark(benchmark_id: str, *, artifact_path: str | Path | N
         result = _pinares_qps_contract_result(case)
     elif case.runner == "pinares_fail_closed":
         result = _pinares_fail_closed_result(case)
+    elif case.runner == "greek_derivative_validation":
+        result = _greek_derivative_validation_result(case)
     elif case.runner == "american_lcp":
         result = _american_lcp_result(case)
     elif case.runner == "heston_black_scholes_limit":

@@ -1,5 +1,5 @@
 {
-  "case_count": 22,
+  "case_count": 23,
   "cases": [
     {
       "benchmark_id": "BS-CALL-PARITY-V0",
@@ -749,6 +749,72 @@
           "metric": "boolean_invariant",
           "norm": "all diagnostics",
           "notes": "stencil/interpolation/error/expiry diagnostic invariants hold",
+          "threshold": true
+        }
+      ]
+    },
+    {
+      "benchmark_id": "FD-GREEKS-VALIDATION-V0",
+      "capability_rows": [
+        "1D Black-Scholes Delta/Gamma from finite-difference price grids",
+        "Rannacher startup before Crank-Nicolson for kinked payoffs"
+      ],
+      "family": "analytical_oracle",
+      "fixture_paths": [
+        "tests/test_derivative_validation_gates.py"
+      ],
+      "grid_family": "strike-centered nonuniform grids plus shifted uniform alignment grids",
+      "instrument": "European call derivative validation matrix",
+      "invariants": [
+        "nonuniform_delta_converged",
+        "nonuniform_gamma_converged",
+        "refinement_improves_all_cases",
+        "strike_alignment_bounded",
+        "rannacher_smooths_kinked_gamma",
+        "expiry_kink_rejected"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#25",
+        "googa27/finite_difference_options#57",
+        "googa27/finite_difference_options#58"
+      ],
+      "model": "Black-Scholes / GBM",
+      "notes": "",
+      "oracle": {
+        "independence": "tests evaluate local-coordinate stencil estimates and requested-coordinate sampling outside solver routing",
+        "kind": "analytical",
+        "notes": "Issue #57 evidence for nonuniform-grid Greek estimation and diagnostics.",
+        "source": "closed-form Black-Scholes Delta/Gamma plus polynomial manufactured derivatives"
+      },
+      "resource_policy": {
+        "benchmark_cases": 12,
+        "deterministic": "true",
+        "grid_levels": 3,
+        "max_runtime_seconds": 30.0
+      },
+      "route_id": "fd.greeks.validation_matrix",
+      "runner": "greek_derivative_validation",
+      "state_convention": "requested spot-coordinate Delta/Gamma across moneyness, maturity, volatility and strike-alignment cases",
+      "status": "validated",
+      "time_schedule": "value-slice derivative validation plus Rannacher startup stability check",
+      "title": "Derivative convergence, strike-alignment and Rannacher stability gates",
+      "tolerances": [
+        {
+          "metric": "delta_abs",
+          "norm": "maximum finest-grid absolute Delta error",
+          "notes": "closed-form Black-Scholes Delta over the PR validation matrix",
+          "threshold": 0.001
+        },
+        {
+          "metric": "gamma_abs",
+          "norm": "maximum finest-grid absolute Gamma error",
+          "notes": "closed-form Black-Scholes Gamma over the PR validation matrix",
+          "threshold": 0.0003
+        },
+        {
+          "metric": "boolean_invariant",
+          "norm": "all derivative-validation invariants",
+          "notes": "refinement, alignment, expiry and Rannacher stability gates pass",
           "threshold": true
         }
       ]

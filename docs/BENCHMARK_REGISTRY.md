@@ -31,14 +31,9 @@ The registry is the evidence index behind `docs/CAPABILITY_MATRIX.md`. A capabil
 
 Only rows with an explicit runner can execute numerical code through `run_registered_benchmark(...)`. Metadata-only rows fail closed if called directly so no consumer mistakes registry coverage for executed evidence.
 
-## Current executable runner
+`BS-CALL-PARITY-V0`, `QPS-VANILLA-CALL-V0`, `PINARES-FD-FIXED-PRICE-PROXY-V0`, `PINARES-QPS-FIXED-PRICE-PROXY-V0`, `PINARES-FD-FAIL-CLOSED-V0`, `FD-GREEKS-VALIDATION-V0`, `AMERICAN-LCP-V0` and `HESTON-BS-LIMIT-V0` execute deterministic runners through `run_registered_benchmark(...)`.
 
-`BS-CALL-PARITY-V0` executes the public-synthetic Black-Scholes call fixture and verifies:
-
-- convergence against the analytical Black-Scholes oracle;
-- price, Delta and Gamma tolerances;
-- value bound, upper bound, Delta bounds and nonnegative Gamma invariants;
-- deterministic solver evidence with route/backend/config/fixture IDs.
+`FD-GREEKS-VALIDATION-V0` writes the Issue #58 Greek derivative validation artifact: PR-fast CI covers 12 Black-Scholes cases across moneyness, maturity and volatility; scheduled broad CI extends the matrix and uploads `fd-greek-derivative-validation-broad.json`.
 
 ## Registry rows
 
@@ -58,6 +53,7 @@ The static registry fixture currently contains these versioned evidence IDs:
 | `HESTON-VARIANCE-BOUNDARY-V0` | Heston variance-boundary and Feller-policy diagnostic evidence |
 | `GRID-LOCAL-METRICS-V0` | typed AxisGrid/TensorGrid validation, local nonuniform derivative metrics, log/clustered factories and ADI grid diagnostics |
 | `FD-GREEKS-NONUNIFORM-V0` | nonuniform requested-coordinate Delta/Gamma stencil, interpolation, refinement/reference-error and expiry-kink diagnostics |
+| `FD-GREEKS-VALIDATION-V0` | executable derivative convergence, strike-alignment sensitivity, expiry-kink and Rannacher stability artifact gate for #58 |
 | `ADI-SMOKE-V0` | ADI finite-value/orientation smoke evidence |
 | `ADI-OPERATOR-SPLIT-V0` | ADI operator split coefficient evidence |
 | `FACTOR-ROLE-COMPAT-V0` | factor-role payoff compatibility fail-closed gate |

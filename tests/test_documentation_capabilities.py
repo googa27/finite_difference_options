@@ -40,6 +40,7 @@ def test_capability_matrix_is_authoritative_and_cites_evidence_ids() -> None:
     for evidence_id in [
         "BS-CALL-PARITY-V0",
         "RANNACHER-GAMMA-V0",
+        "FD-GREEKS-VALIDATION-V0",
         "QPS-VANILLA-CALL-V0",
         "FACTOR-ROLE-COMPAT-V0",
         "API-REQUEST-GUARDS-V0",

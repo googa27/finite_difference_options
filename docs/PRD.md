@@ -96,7 +96,7 @@ Issue #63 makes this prohibition executable for callable fixed-rate bonds: Bermu
 
 ### FR-FD-009 — Greeks and sensitivities
 
-Every Greek identifies differentiated coordinate/parameter, grid and transform, stencil/order, boundary behavior, payoff-kink policy, interpolation point and error/reference evidence. Nonuniform-grid derivatives use local coordinate stencils, requested-coordinate sampling is explicitly distinguished from nearest-node output, and `GreekEstimate` diagnostics report interpolation method, nearby spacings, domain-edge distance, refinement/reference errors and expiry-kink rejection. Issue #57 evidence is `FD-GREEKS-NONUNIFORM-V0`.
+Every Greek identifies differentiated coordinate/parameter, grid and transform, stencil/order, boundary behavior, payoff-kink policy, interpolation point and error/reference evidence. Nonuniform-grid derivatives use local coordinate stencils, requested-coordinate sampling is explicitly distinguished from nearest-node output, and `GreekEstimate` diagnostics report interpolation method, nearby spacings, domain-edge distance, refinement/reference errors and expiry-kink rejection. Issue #57 evidence is `FD-GREEKS-NONUNIFORM-V0`; issue #58 evidence is `FD-GREEKS-VALIDATION-V0`, which gates Delta/Gamma convergence over moneyness/maturity/volatility, strike-node alignment sensitivity, expiry-kink rejection and Rannacher near-strike Gamma roughness.
 
 ### FR-FD-010 — Diagnostics and failures
 
@@ -106,7 +106,7 @@ A failed solve or invalid operator cannot be returned as a successful price arra
 
 ### FR-FD-011 — Numerical validation
 
-Tests cover heat and advection–diffusion–reaction manufactured solutions, Black–Scholes values and boundaries, spatial/temporal convergence, nonuniform grids and payoff kinks, time/state-dependent coefficients, correlated mixed derivatives, ADI splitting error, obstacle complementarity when supported, and invalid covariance/grid/boundary/solver requests.
+Tests cover heat and advection–diffusion–reaction manufactured solutions, Black–Scholes values and boundaries, spatial/temporal convergence, nonuniform grids and payoff kinks, time/state-dependent coefficients, correlated mixed derivatives, ADI splitting error, obstacle complementarity when supported, and invalid covariance/grid/boundary/solver requests. Derivative claims must include matrix evidence across moneyness, maturity, volatility, strike-node alignment and startup policy, with JSON artifacts written by CI.
 
 A single endpoint price comparison is insufficient.
 
