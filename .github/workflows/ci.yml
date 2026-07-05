@@ -91,6 +91,8 @@ jobs:
           pytest -q tests/architecture tests/test_packaging_contract.py --no-cov
       - name: Stable regression suite
         run: pytest -q --cov=finite_difference_options --cov-report=xml --junitxml=junit.xml
+      - name: Derivative validation artifact
+        run: python scripts/run_greek_derivative_validation.py --mode pr --output artifacts/fd-greek-derivative-validation.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -98,6 +100,7 @@ jobs:
           path: |
             coverage.xml
             junit.xml
+            artifacts/fd-greek-derivative-validation.json
           if-no-files-found: warn
           retention-days: 14
 
