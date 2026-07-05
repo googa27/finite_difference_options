@@ -510,6 +510,98 @@ def export_public_pinares_fixed_price_proxy_fixture_json(
     return output_path
 
 
+def build_pinares_fd_provider_evidence_manifest(
+    report: PinaresFixedPriceProxyReport | None = None,
+) -> dict[str, Any]:
+    """Return dashboard-consumable FD provider evidence for the Pinares proxy route.
+
+    The manifest is intentionally route evidence only: it summarizes the public-
+    synthetic deterministic fixed-price option proxy, exposes accuracy/resource
+    budgets, and states fail-closed boundaries for the real Pinares family deal.
+    """
+
+    active_report = report or run_public_pinares_fixed_price_proxy_fixture()
+    manifest = DEFAULT_FD_CAPABILITY_MANIFEST
+    case = active_report.case
+    resource_controls = dict(active_report.evidence.resource_controls)
+    error_budgets = {
+        "price_abs_uf": case.price_abs_tolerance_uf,
+        "delta_abs": case.delta_abs_tolerance,
+        "gamma_abs": case.gamma_abs_tolerance,
+    }
+    return {
+        "schema": "pinares.provider_evidence_manifest.v1",
+        "producer": "finite_difference_options",
+        "provider_role": "deterministic-pde-provider",
+        "issue_refs": ["googa27/finite_difference_options#135"],
+        "project_ref": "googa27#19",
+        "privacy_class": "public_synthetic",
+        "evidence_class": "deterministic_proxy_not_full_family_contract_valuation",
+        "problem": {
+            "problem_id": case.problem_id,
+            "problem_hash": case.problem_hash,
+            "fixture_id": case.fixture_id,
+            "measure": "Q*",
+            "numeraire": "UF_money_market_account_proxy",
+            "valuation_date": case.valuation_date,
+            "maturity_date": case.maturity_date,
+            "units": case.normalized_units(),
+        },
+        "fixture_refs": {
+            "quant_problem_spec": "tests/fixtures/quant_problem_specs/pinares_fixed_price_proxy.json",
+            "result_export": "tests/fixtures/pinares_fd_fixed_price_proxy_v1.json",
+            "provider_evidence_manifest": "tests/fixtures/pinares_fd_provider_evidence_manifest_v1.json",
+        },
+        "capability_manifest": {
+            "backend_id": manifest.backend_id,
+            "contract_version": manifest.contract_version,
+            "status": manifest.status.value,
+            "feature_support": dict(manifest.feature_support),
+            "diagnostics": list(manifest.diagnostics),
+        },
+        "route": {
+            "route_id": case.route_id,
+            "method_kind": "finite_difference",
+            "grid_type": "uniform",
+            "time_integrator": "theta_crank_nicolson",
+            "theta": 0.5,
+            "boundary_convention": "Dirichlet at S=0; linear-growth far-field at S_max",
+            "state_dimension": 1,
+            "requested_outputs": ["value", "delta", "gamma"],
+        },
+        "resource_controls": resource_controls,
+        "error_budgets": error_budgets,
+        "parity_metrics": {
+            "price_abs_uf": active_report.errors["price_abs"],
+            "price_rel": active_report.errors["price_rel"],
+            "delta_abs": active_report.errors["delta_abs"],
+            "gamma_abs": active_report.errors["gamma_abs"],
+            "converged": active_report.converged,
+            "no_arbitrage": active_report.no_arbitrage,
+        },
+        "performance_sidecar": {
+            "runtime": {"seconds": None, "policy": "deterministic fixture omits wall-clock timing"},
+            "operator_factorization_cache": manifest.resource_controls.get("operator_factorization_cache"),
+            "max_grid": {
+                "s_steps": max(level[0] for level in active_report.grid_levels),
+                "t_steps": max(level[1] for level in active_report.grid_levels),
+            },
+        },
+        "unsupported_routes": {
+            "rofr": "fail_closed",
+            "full_family_contract": "fail_closed",
+            "legal_tax_conclusion": "fail_closed",
+            "liquidity_default": "fail_closed",
+            "market_rent_alternative": "fail_closed",
+        },
+        "limitations": [
+            "fixed-price proxy only; ROFR is not a vanilla call",
+            "public-synthetic fixture only; no private family facts or PDP rows",
+            "FD backend supplies numerical route evidence, not legal/tax advice",
+        ],
+    }
+
+
 def _config_hash(case: PinaresFixedPriceProxyCase, grid_levels: tuple[tuple[int, int], ...]) -> str:
     payload = {
         "fixture_id": case.fixture_id,
@@ -541,6 +633,7 @@ __all__ = [
     "PINARES_QPS_CONTRACT_BENCHMARK_ID",
     "PinaresFixedPriceProxyCase",
     "PinaresFixedPriceProxyReport",
+    "build_pinares_fd_provider_evidence_manifest",
     "export_public_pinares_fixed_price_proxy_fixture_json",
     "public_pinares_fixed_price_problem_spec",
     "public_pinares_full_deal_unsupported_problem_spec",

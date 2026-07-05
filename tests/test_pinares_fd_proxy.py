@@ -24,6 +24,7 @@ from finite_difference_options.validation.pinares_fixed_price_proxy import (
     PINARES_FIXED_PRICE_PROXY_ROUTE_ID,
     PINARES_QPS_CONTRACT_BENCHMARK_ID,
     PinaresFixedPriceProxyCase,
+    build_pinares_fd_provider_evidence_manifest,
     public_pinares_fixed_price_problem_spec,
     public_pinares_full_deal_unsupported_problem_spec,
     run_public_pinares_fixed_price_proxy_fixture,
@@ -32,6 +33,7 @@ from finite_difference_options.validation.pinares_fixed_price_proxy import (
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parent / "fixtures"
 QPS_FIXTURE = FIXTURE_DIR / "quant_problem_specs" / "pinares_fixed_price_proxy.json"
 RESULT_FIXTURE = FIXTURE_DIR / "pinares_fd_fixed_price_proxy_v1.json"
+PROVIDER_MANIFEST_FIXTURE = FIXTURE_DIR / "pinares_fd_provider_evidence_manifest_v1.json"
 
 
 def _load_qps_fixture() -> dict[str, Any]:
@@ -128,16 +130,41 @@ def test_pinares_problem_spec_uses_requested_grid_levels_in_resource_controls() 
 def test_pinares_static_fixtures_match_generated_contracts() -> None:
     qps_cached = _load_qps_fixture()
     result_cached = json.loads(RESULT_FIXTURE.read_text(encoding="utf-8"))
+    provider_manifest_cached = json.loads(PROVIDER_MANIFEST_FIXTURE.read_text(encoding="utf-8"))
     report = run_public_pinares_fixed_price_proxy_fixture()
 
     assert qps_cached == public_pinares_fixed_price_problem_spec()
     assert result_cached == json.loads(json.dumps(report.as_dict()))
+    assert provider_manifest_cached == build_pinares_fd_provider_evidence_manifest(report)
     assert qps_cached["solver_plan"]["error_budgets"] == {
         "delta_abs": 1.0e-3,
         "gamma_abs": 5.0e-6,
         "price_abs_uf": 1.0,
     }
     assert result_cached["unsupported_scope"]["rofr"].startswith("unsupported")
+
+
+def test_pinares_fd_provider_evidence_manifest_reports_dashboard_sidecar_fields() -> None:
+    report = run_public_pinares_fixed_price_proxy_fixture()
+    manifest = build_pinares_fd_provider_evidence_manifest(report)
+
+    assert manifest["schema"] == "pinares.provider_evidence_manifest.v1"
+    assert manifest["producer"] == "finite_difference_options"
+    assert manifest["privacy_class"] == "public_synthetic"
+    assert manifest["issue_refs"] == ["googa27/finite_difference_options#135"]
+    assert manifest["evidence_class"] == "deterministic_proxy_not_full_family_contract_valuation"
+    assert manifest["capability_manifest"]["backend_id"] == DEFAULT_FD_CAPABILITY_MANIFEST.backend_id
+    assert manifest["capability_manifest"]["contract_version"] == DEFAULT_FD_CAPABILITY_MANIFEST.contract_version
+    assert manifest["route"]["route_id"] == PINARES_FIXED_PRICE_PROXY_ROUTE_ID
+    assert manifest["route"]["method_kind"] == "finite_difference"
+    assert manifest["route"]["boundary_convention"] == "Dirichlet at S=0; linear-growth far-field at S_max"
+    assert manifest["resource_controls"]["max_s_steps"] == 180
+    assert manifest["performance_sidecar"]["runtime"]["seconds"] is None
+    assert manifest["performance_sidecar"]["operator_factorization_cache"] == (
+        "enabled_for_public_black_scholes_and_pinares_proxy"
+    )
+    assert manifest["parity_metrics"]["price_abs_uf"] <= manifest["error_budgets"]["price_abs_uf"]
+    assert manifest["unsupported_routes"]["full_family_contract"] == "fail_closed"
 
 
 def test_pinares_registered_benchmarks_execute_and_fail_closed() -> None:
