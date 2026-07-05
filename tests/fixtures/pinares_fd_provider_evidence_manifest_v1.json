@@ -1,0 +1,124 @@
+{
+  "capability_manifest": {
+    "backend_id": "finite_difference_options.fd_backend.v0",
+    "contract_version": "0.1.0",
+    "diagnostics": [
+      "unsupported dimension",
+      "unsupported PDE term",
+      "unsupported boundary condition",
+      "unsupported exercise style",
+      "obstacle/complementarity diagnostics",
+      "missing measure/numeraire/units/date convention"
+    ],
+    "feature_support": {
+      "american_black_scholes_lcp": "validated",
+      "bermudan_black_scholes_lcp": "validated",
+      "hjb_control": "unsupported",
+      "jump_integral": "unsupported",
+      "mixed_derivative": "experimental",
+      "multidimensional_american_lcp": "experimental",
+      "obstacle_lcp": "validated",
+      "one_dimensional_generator_pde": "validated",
+      "operator_factorization_cache": "validated",
+      "pinares_fixed_price_proxy": "validated",
+      "released_public_solver_contract": "validated",
+      "rofr_full_family_contract": "unsupported"
+    },
+    "status": "validated"
+  },
+  "error_budgets": {
+    "delta_abs": 0.001,
+    "gamma_abs": 5e-06,
+    "price_abs_uf": 1.0
+  },
+  "evidence_class": "deterministic_proxy_not_full_family_contract_valuation",
+  "fixture_refs": {
+    "provider_evidence_manifest": "tests/fixtures/pinares_fd_provider_evidence_manifest_v1.json",
+    "quant_problem_spec": "tests/fixtures/quant_problem_specs/pinares_fixed_price_proxy.json",
+    "result_export": "tests/fixtures/pinares_fd_fixed_price_proxy_v1.json"
+  },
+  "issue_refs": [
+    "googa27/finite_difference_options#135"
+  ],
+  "limitations": [
+    "fixed-price proxy only; ROFR is not a vanilla call",
+    "public-synthetic fixture only; no private family facts or PDP rows",
+    "FD backend supplies numerical route evidence, not legal/tax advice"
+  ],
+  "parity_metrics": {
+    "converged": true,
+    "delta_abs": 8.842159257821391e-05,
+    "gamma_abs": 1.7468969201214594e-06,
+    "no_arbitrage": {
+      "delta_lower_bound_ok": true,
+      "delta_upper_bound_ok": true,
+      "gamma_non_negative_ok": true,
+      "survival_scale_ok": true,
+      "upper_bound_ok": true,
+      "upper_gap_uf": 5587.899061209176,
+      "value_bound_ok": true,
+      "value_minus_intrinsic_uf": 232.10093879082405
+    },
+    "price_abs_uf": 0.3014449648889274,
+    "price_rel": 0.0013004556649950714
+  },
+  "performance_sidecar": {
+    "max_grid": {
+      "s_steps": 180,
+      "t_steps": 240
+    },
+    "operator_factorization_cache": "enabled_for_public_black_scholes_and_pinares_proxy",
+    "runtime": {
+      "policy": "deterministic fixture omits wall-clock timing",
+      "seconds": null
+    }
+  },
+  "privacy_class": "public_synthetic",
+  "problem": {
+    "fixture_id": "public-synthetic.pinares-fixed-price-proxy.v1",
+    "maturity_date": "2027-06-30",
+    "measure": "Q*",
+    "numeraire": "UF_money_market_account_proxy",
+    "problem_hash": "publicsyntheticpinares001",
+    "problem_id": "pinares.fixed_price_option_proxy.v1",
+    "units": {
+      "S": "UF",
+      "rate": "1/year",
+      "time": "year",
+      "underlying": "UF",
+      "value": "UF"
+    },
+    "valuation_date": "2026-06-30"
+  },
+  "producer": "finite_difference_options",
+  "project_ref": "googa27#19",
+  "provider_role": "deterministic-pde-provider",
+  "resource_controls": {
+    "deterministic": "true",
+    "grid_levels": 3,
+    "max_s_steps": 180,
+    "max_t_steps": 240
+  },
+  "route": {
+    "boundary_convention": "Dirichlet at S=0; linear-growth far-field at S_max",
+    "grid_type": "uniform",
+    "method_kind": "finite_difference",
+    "requested_outputs": [
+      "value",
+      "delta",
+      "gamma"
+    ],
+    "route_id": "fd.pinares_fixed_price_proxy.crank_nicolson",
+    "state_dimension": 1,
+    "theta": 0.5,
+    "time_integrator": "theta_crank_nicolson"
+  },
+  "schema": "pinares.provider_evidence_manifest.v1",
+  "unsupported_routes": {
+    "full_family_contract": "fail_closed",
+    "legal_tax_conclusion": "fail_closed",
+    "liquidity_default": "fail_closed",
+    "market_rent_alternative": "fail_closed",
+    "rofr": "fail_closed"
+  }
+}
