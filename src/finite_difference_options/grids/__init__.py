@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from math import atanh
 from types import MappingProxyType
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterator, Mapping, Sequence
 
 import numpy as np
 from numpy.typing import NDArray
@@ -70,7 +70,7 @@ class AxisGrid:
 
         return len(self.coordinates)
 
-    def __iter__(self) -> Iterable[float]:
+    def __iter__(self) -> Iterator[float]:
         """Iterate over solver coordinates."""
 
         return iter(self.coordinates)
@@ -258,7 +258,7 @@ class TensorGrid:
 
         return len(self.axes)
 
-    def __iter__(self) -> Iterable[AxisGrid]:
+    def __iter__(self) -> Iterator[AxisGrid]:
         """Iterate over axes in tensor-index order."""
 
         return iter(self.axes)

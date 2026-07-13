@@ -197,6 +197,7 @@ class FiniteDifferenceHaircutBackend:
             run_public_pinares_fixed_price_proxy_fixture,
         )
 
+        parity_report: Any
         if problem_id == PINARES_FIXED_PRICE_PROXY_PROBLEM_ID:
             parity_report = run_public_pinares_fixed_price_proxy_fixture()
             values = {

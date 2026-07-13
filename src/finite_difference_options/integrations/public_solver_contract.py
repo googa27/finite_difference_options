@@ -133,6 +133,7 @@ def solve_public_quant_problem_spec(
             )
         )
 
+    report: Any
     if problem_id == "pinares.fixed_price_option_proxy.v1":
         from finite_difference_options.validation.pinares_fixed_price_proxy import (
             run_public_pinares_fixed_price_proxy_fixture,

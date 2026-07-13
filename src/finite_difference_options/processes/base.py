@@ -25,33 +25,24 @@ from ..utils.state_handling import ensure_state_array, validate_state_dimensions
 
 
 class ProcessDimension(BaseModel):
-    """Container and validator for process dimensionality.
-
-    The dimension is a small strongly typed value object so that process and
-    solver code can reliably branch on state space shape.  A value of ``1``
-    indicates a univariate process while values greater than one indicate
-    multi-dimensional dynamics.
-
-    Parameters
-    ----------
-    value : int
-        Number of state dimensions.
-    """
+    """Validated positive state-space dimension value object."""
 
     value: int
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    @field_validator("value", mode="before")
+    @classmethod
+    def reject_bool_value(cls, v: object) -> object:
+        """Reject bool before Pydantic can coerce it to ``0`` or ``1``."""
+        if isinstance(v, bool):
+            raise ValidationError("Process dimension must be an integer, got bool")
+        return v
+
     @field_validator("value")
     @classmethod
-    def validate_value(cls, v):
-        """Validate that process dimension is strictly positive.
-
-        Raises
-        ------
-        ValidationError
-            If ``value < 1``.
-        """
+    def validate_value(cls, v: int) -> int:
+        """Validate that process dimension is strictly positive."""
         if v < 1:
             raise ValidationError(f"Process dimension must be positive, got {v}")
         return v
@@ -79,19 +70,30 @@ class ProcessDimension(BaseModel):
         return self.value > 1
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, ProcessDimension):
+        """Compare only with the same value-object type.
+
+        Cross-type equality to ``int`` is deliberately rejected: in Python,
+        ``bool`` is an ``int`` subclass and ``True == 1``.  Keeping equality
+        type-strict avoids a transitivity bridge where
+        ``ProcessDimension(1) == 1`` and ``1 == True`` but
+        ``ProcessDimension(1) != True``.
+        """
+        if type(other) is type(self):
             return self.value == other.value
-        if isinstance(other, int) and not isinstance(other, bool):
-            return self.value == other
         return NotImplemented
 
     def __hash__(self) -> int:
-        """Hash consistently with the lawful integer equality shortcut."""
+        """Hash consistently with type-strict equality."""
 
-        return hash(self.value)
+        return hash((type(self), self.value))
 
     def __int__(self) -> int:
         """Return the validated positive dimension for APIs requiring ``int``."""
+
+        return self.value
+
+    def __index__(self) -> int:
+        """Return the validated positive dimension for index-oriented APIs."""
 
         return self.value
 
@@ -168,8 +170,7 @@ class AffineCovarianceForm:
         linear = np.asarray(self.linear, dtype=float)
         if constant.ndim != 2 or constant.shape[0] != constant.shape[1]:
             raise ValidationError(
-                "constant affine covariance term must be a square matrix, "
-                f"got shape {constant.shape}"
+                f"constant affine covariance term must be a square matrix, got shape {constant.shape}"
             )
         dimension = constant.shape[0]
         if linear.shape != (dimension, dimension, dimension):
@@ -180,9 +181,7 @@ class AffineCovarianceForm:
         if not np.allclose(constant, constant.T, rtol=1e-10, atol=1e-12):
             raise ValidationError("constant affine covariance term must be symmetric")
         if not np.allclose(linear, np.swapaxes(linear, -1, -2), rtol=1e-10, atol=1e-12):
-            raise ValidationError(
-                "linear affine covariance tensor slices must be symmetric"
-            )
+            raise ValidationError("linear affine covariance tensor slices must be symmetric")
         object.__setattr__(self, "constant", constant)
         object.__setattr__(self, "linear", linear)
 
@@ -268,9 +267,7 @@ class StochasticProcess(ABC):
         ...
 
     @abstractmethod
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         r"""Compute diffusion covariance matrix :math:`\Sigma(t, x)`.
 
         Parameters
@@ -328,9 +325,7 @@ class StochasticProcess(ABC):
         is_single_point = original.ndim == 1
         states = original.reshape(1, -1) if is_single_point else original
         if not np.all(np.isfinite(states)):
-            raise ValidationError(
-                f"{self.__class__.__name__} state contains non-finite values"
-            )
+            raise ValidationError(f"{self.__class__.__name__} state contains non-finite values")
         return original, states, is_single_point
 
     def discount(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -394,9 +389,7 @@ class StochasticProcess(ABC):
         elif array.shape == (1,) and batch_size != 1:
             array = np.full(batch_size, float(array[0]), dtype=float)
         if array.shape != (batch_size,):
-            raise ValidationError(
-                f"{field_name} must have shape ({batch_size},), got {array.shape}"
-            )
+            raise ValidationError(f"{field_name} must have shape ({batch_size},), got {array.shape}")
         if not np.all(np.isfinite(array)):
             raise ValidationError(f"{field_name} contains non-finite values")
         return array
@@ -410,15 +403,9 @@ class StochasticProcess(ABC):
 
         original, states, is_single_point = self._canonical_state_batch(state)
         batch_size = states.shape[0]
-        drift = self._normalise_vector_field(
-            self.drift(time, original), "drift", batch_size
-        )
-        covariance = self._normalise_matrix_field(
-            self.covariance(time, original), "covariance", batch_size
-        )
-        discount = self._normalise_scalar_field(
-            self.discount(time, original), "discount", batch_size
-        )
+        drift = self._normalise_vector_field(self.drift(time, original), "drift", batch_size)
+        covariance = self._normalise_matrix_field(self.covariance(time, original), "covariance", batch_size)
+        discount = self._normalise_scalar_field(self.discount(time, original), "discount", batch_size)
         return ProcessCoefficientEvaluation(
             time=time,
             states=states,
@@ -442,14 +429,11 @@ class StochasticProcess(ABC):
         asymmetry = covariance - np.swapaxes(covariance, -1, -2)
         max_asymmetry = float(np.max(np.abs(asymmetry)))
         if max_asymmetry > tolerance:
-            raise ValidationError(
-                f"process covariance must be symmetric; max asymmetry is {max_asymmetry:.2e}"
-            )
+            raise ValidationError(f"process covariance must be symmetric; max asymmetry is {max_asymmetry:.2e}")
         min_eigenvalue = float(np.min(np.linalg.eigvalsh(covariance)))
         if min_eigenvalue < -tolerance:
             raise ValidationError(
-                "process covariance must be positive semi-definite; "
-                f"minimum eigenvalue is {min_eigenvalue:.2e}"
+                f"process covariance must be positive semi-definite; minimum eigenvalue is {min_eigenvalue:.2e}"
             )
         return CovarianceValidationResult(
             min_eigenvalue=min_eigenvalue,
@@ -481,9 +465,7 @@ class StochasticProcess(ABC):
             else self._normalise_scalar_field(discount, "discount", batch_size)
         )
         source_array = self._normalise_scalar_field(source, "source", batch_size)
-        diffusion_term = 0.5 * np.einsum(
-            "nij,nij->n", coefficients.covariance, hessian_array
-        )
+        diffusion_term = 0.5 * np.einsum("nij,nij->n", coefficients.covariance, hessian_array)
         drift_term = np.einsum("ni,ni->n", coefficients.drift, gradient_array)
         return diffusion_term + drift_term - discount_array * value_array + source_array
 
@@ -540,9 +522,7 @@ class AffineProcess(StochasticProcess):
         return ProcessType.AFFINE
 
     @abstractmethod
-    def affine_drift_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Get affine drift coefficients α(t), β(t).
 
         Returns
@@ -553,9 +533,7 @@ class AffineProcess(StochasticProcess):
         ...
 
     @abstractmethod
-    def affine_covariance_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         r"""Get affine covariance coefficients ``a0(t), a_linear(t)``.
 
         Returns
@@ -612,9 +590,7 @@ class AffineProcess(StochasticProcess):
         beta = np.asarray(beta, dtype=float)
         dimension = self.dimension.value
         if alpha.shape != (dimension,):
-            raise ValidationError(
-                f"affine drift alpha must have shape ({dimension},), got {alpha.shape}"
-            )
+            raise ValidationError(f"affine drift alpha must have shape ({dimension},), got {alpha.shape}")
         if beta.shape == (dimension,):
             if dimension != 1:
                 raise ValidationError(
@@ -622,17 +598,13 @@ class AffineProcess(StochasticProcess):
                 )
             beta = beta.reshape(1, 1)
         if beta.shape != (dimension, dimension):
-            raise ValidationError(
-                f"affine drift beta must have shape ({dimension}, {dimension}), got {beta.shape}"
-            )
+            raise ValidationError(f"affine drift beta must have shape ({dimension}, {dimension}), got {beta.shape}")
 
         if state.ndim == 1:
             return alpha + beta @ state
         return state @ beta.T + alpha
 
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         r"""Compute affine covariance ``a0(t)+sum_k x_k a_k(t)``."""
         state = ensure_state_array(state)
         self.validate_state(state)
