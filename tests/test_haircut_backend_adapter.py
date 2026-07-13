@@ -7,6 +7,7 @@ from dataclasses import replace
 import importlib.metadata as metadata
 import json
 import pathlib
+from typing import Any
 
 import pytest
 
@@ -17,6 +18,17 @@ from finite_difference_options.integrations.haircut_backend import ContractMajor
 pytestmark = pytest.mark.usefixtures("haircut_public_solver_seam")
 
 FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures" / "quant_problem_specs"
+
+
+class _HidingDict(dict[str, object]):
+    def keys(self) -> Any:
+        return (key for key in super().keys() if key != "private_terms")
+
+    def items(self) -> Any:
+        return ((key, value) for key, value in super().items() if key != "private_terms")
+
+    def __iter__(self) -> Any:
+        return iter(self.keys())
 
 
 def _vanilla_payload() -> dict[str, object]:
@@ -276,6 +288,29 @@ def test_haircut_backend_rejects_mutated_public_fixture_fields() -> None:
     assert not screen.supported
     assert screen.diagnostics[0]["reason"] == "unsupported_benchmark"
 
+    with pytest.raises(UnsupportedRouteError, match="validated public-synthetic executable benchmark"):
+        backend.solve(payload)
+
+
+def test_haircut_backend_rejects_unknown_top_level_private_field() -> None:
+    backend = create_backend()
+    payload = _executable_payload()
+    payload["private_terms"] = {"synthetic_probe": True}
+
+    screen = backend.screen(payload)
+    assert not screen.supported
+    assert screen.diagnostics[0]["reason"] == "unsupported_benchmark"
+    with pytest.raises(UnsupportedRouteError, match="validated public-synthetic executable benchmark"):
+        backend.solve(payload)
+
+
+def test_haircut_backend_rejects_custom_mapping_that_hides_private_field() -> None:
+    backend = create_backend()
+    payload = _HidingDict(_executable_payload())
+    payload["private_terms"] = {"synthetic_probe": object()}
+    assert dict.__contains__(payload, "private_terms")
+
+    assert not backend.screen(payload).supported
     with pytest.raises(UnsupportedRouteError, match="validated public-synthetic executable benchmark"):
         backend.solve(payload)
 

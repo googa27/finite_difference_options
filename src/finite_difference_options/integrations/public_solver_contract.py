@@ -21,6 +21,7 @@ from finite_difference_options.contracts import (
     UnsupportedRouteError,
     ensure_route_supported,
 )
+from finite_difference_options.integrations.public_fixture_identity import matches_exact_public_fixture
 
 PublicContractStatus = Literal["passed", "failed"]
 
@@ -90,7 +91,7 @@ def released_fd_solver_contract(
             "finite_difference_options.integrations.public_solver_contract:solve_public_quant_problem_spec",
             "finite_difference_options.integrations.haircut_backend:create_backend",
         ),
-        entry_point_groups=("haircut.solver_backends", "haircut_engine.solver_backends"),
+        entry_point_groups=("haircut.solver_backends",),
         issue_refs=(
             "googa27/finite_difference_options#55",
             "googa27/finite_difference_options#130",
@@ -219,25 +220,7 @@ def _is_public_synthetic_contract_payload(
         expected = public_pinares_fixed_price_problem_spec()
     else:
         return False
-    return _canonical_fixture_shape(payload) == _canonical_fixture_shape(expected)
-
-
-def _canonical_fixture_shape(payload: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        key: payload.get(key)
-        for key in (
-            "schema_version",
-            "artifact_manifest",
-            "problem_id",
-            "problem_hash",
-            "valuation_context",
-            "mathematical_problem",
-            "solver_plan",
-            "financial_graph",
-            "result_bundle",
-            "benchmark_ids",
-        )
-    }
+    return matches_exact_public_fixture(payload, expected)
 
 
 def _optional_string(value: Any) -> str | None:
