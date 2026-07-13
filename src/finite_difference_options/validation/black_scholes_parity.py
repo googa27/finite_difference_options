@@ -280,7 +280,6 @@ def _build_public_problem_spec(
             "expression": "-r V",
         },
     ]
-
     return {
         "schema_version": "quant-problem-spec/v0",
         "privacy_class": "public_synthetic",

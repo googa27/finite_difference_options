@@ -34,6 +34,19 @@ def test_axis_grid_rejects_invalid_coordinates_and_reports_spacing() -> None:
     assert grid.to_public_dict()["family"] == "custom"
 
 
+def test_axis_grid_sequence_dunders_match_coordinate_contract() -> None:
+    grid = AxisGrid(name="x", coordinates=(0.0, 0.25, 1.0), family="custom")
+
+    assert len(grid) == grid.node_count == 3
+    assert tuple(grid) == grid.coordinates
+    assert grid[0] == pytest.approx(grid.lower)
+    assert grid[-1] == pytest.approx(grid.upper)
+
+    exported = np.asarray(grid)
+    exported[0] = 99.0
+    assert grid[0] == pytest.approx(0.0)
+
+
 def test_nonuniform_axis_derivatives_are_quadratic_exact() -> None:
     grid = AxisGrid(name="x", coordinates=(-1.0, -0.3, 0.2, 0.9, 2.0), family="custom")
     x = grid.coordinates_array
@@ -89,6 +102,18 @@ def test_tensor_grid_diagnostics_track_axis_local_metrics() -> None:
     assert public["shape"] == [9, 5]
     assert public["axes"][0]["uniform"] is False
     assert public["axes"][1]["uniform"] is True
+
+
+def test_tensor_grid_collection_dunders_match_axis_contract() -> None:
+    spot = uniform_axis(name="spot", lower=0.0, upper=2.0, nodes=5)
+    variance = uniform_axis(name="variance", lower=0.0, upper=0.5, nodes=3)
+    tensor = TensorGrid(axes=(spot, variance))
+
+    assert len(tensor) == tensor.dimension == 2
+    assert tuple(tensor) == tensor.axes
+    assert tensor[0] is spot
+    assert tensor[-1] is variance
+    assert tensor.shape == (len(spot), len(variance))
 
 
 def test_adi_accepts_axis_grid_objects_and_reports_grid_identity() -> None:
