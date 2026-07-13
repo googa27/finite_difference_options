@@ -2,17 +2,57 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from finite_difference_options.contracts import DEFAULT_FD_CAPABILITY_MANIFEST, UnsupportedRouteError
 from finite_difference_options.integrations import released_fd_solver_contract, solve_public_quant_problem_spec
 from finite_difference_options.solvers import BandedOperatorCache
-from finite_difference_options.validation.black_scholes_parity import run_public_black_scholes_parity_fixture
+from finite_difference_options.validation.black_scholes_parity import (
+    public_black_scholes_problem_spec,
+    run_public_black_scholes_parity_fixture,
+)
 from finite_difference_options.validation.pinares_fixed_price_proxy import (
     PINARES_FIXED_PRICE_PROXY_PROBLEM_ID,
     public_pinares_fixed_price_problem_spec,
     run_public_pinares_fixed_price_proxy_fixture,
 )
+
+
+class _AlwaysEqual:
+    def __eq__(self, _other: object) -> bool:
+        return True
+
+
+class _HidingDict(dict[str, object]):
+    def keys(self) -> Any:
+        return (key for key in super().keys() if key != "private_terms")
+
+    def items(self) -> Any:
+        return ((key, value) for key, value in super().items() if key != "private_terms")
+
+    def __iter__(self) -> Any:
+        return iter(self.keys())
+
+
+def _apply_noncanonical_mutation(payload: dict[str, object], mutation: str) -> None:
+    if mutation == "unknown_private_field":
+        payload["private_terms"] = {"synthetic_probe": object()}
+    elif mutation == "unknown_conventions":
+        payload["conventions"] = {"measure": "PRIVATE_MEASURE", "numeraire": object()}
+    elif mutation == "missing_problem_hash":
+        del payload["problem_hash"]
+    elif mutation == "boolean_strike":
+        payload["financial_graph"]["instrument"]["strike"] = True  # type: ignore[index]
+    elif mutation == "float_grid_level":
+        payload["solver_plan"]["resource_controls"]["grid_levels"] = 3.0  # type: ignore[index]
+    elif mutation == "nan_coefficient":
+        payload["mathematical_problem"]["pde_operator_terms"][0]["coefficient"] = float("nan")  # type: ignore[index]
+    elif mutation == "custom_equality":
+        payload["financial_graph"]["instrument"]["kind"] = _AlwaysEqual()  # type: ignore[index]
+    else:
+        raise AssertionError(f"unknown test mutation {mutation}")
 
 
 def test_released_public_solver_contract_advertises_pinares_and_cache_support() -> None:
@@ -25,6 +65,8 @@ def test_released_public_solver_contract_advertises_pinares_and_cache_support() 
     assert PINARES_FIXED_PRICE_PROXY_PROBLEM_ID in contract.supported_problem_ids
     assert "public_synthetic" in contract.supported_privacy_classes
     assert "solve_public_quant_problem_spec" in contract.entry_points[0]
+    assert contract.entry_point_groups == ("haircut.solver_backends",)
+    assert "haircut_engine.solver_backends" not in contract.entry_point_groups
     assert manifest["feature_support"]["pinares_fixed_price_proxy"] == "validated"
     assert manifest["feature_support"]["released_public_solver_contract"] == "validated"
     assert manifest["feature_support"]["operator_factorization_cache"] == "validated"
@@ -92,6 +134,43 @@ def test_public_solver_contract_rejects_label_compatible_mutated_payload_before_
             "expression": "max(S - K, 0)",
         },
     }
+
+    with pytest.raises(UnsupportedRouteError, match="exact validated public-synthetic"):
+        solve_public_quant_problem_spec(payload, operator_cache=BandedOperatorCache())
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "unknown_private_field",
+        "unknown_conventions",
+        "missing_problem_hash",
+        "boolean_strike",
+        "float_grid_level",
+        "nan_coefficient",
+        "custom_equality",
+    ),
+)
+def test_public_solver_contract_rejects_noncanonical_json_before_solve(mutation: str) -> None:
+    payload = public_black_scholes_problem_spec()
+    _apply_noncanonical_mutation(payload, mutation)
+
+    with pytest.raises(UnsupportedRouteError, match="exact validated public-synthetic"):
+        solve_public_quant_problem_spec(payload, operator_cache=BandedOperatorCache())
+
+
+def test_public_pinares_contract_rejects_unknown_nonjson_field_before_solve() -> None:
+    payload = public_pinares_fixed_price_problem_spec()
+    payload["conventions"] = {"measure": "PRIVATE_MEASURE", "numeraire": object()}
+
+    with pytest.raises(UnsupportedRouteError, match="exact validated public-synthetic"):
+        solve_public_quant_problem_spec(payload, operator_cache=BandedOperatorCache())
+
+
+def test_custom_mapping_cannot_hide_private_fields_from_public_solver() -> None:
+    payload = _HidingDict(public_black_scholes_problem_spec())
+    payload["private_terms"] = {"synthetic_probe": object()}
+    assert dict.__contains__(payload, "private_terms")
 
     with pytest.raises(UnsupportedRouteError, match="exact validated public-synthetic"):
         solve_public_quant_problem_spec(payload, operator_cache=BandedOperatorCache())

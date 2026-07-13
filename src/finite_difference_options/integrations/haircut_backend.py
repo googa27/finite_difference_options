@@ -24,6 +24,7 @@ from finite_difference_options.contracts import (
     diagnose_unsupported_route,
     ensure_route_supported,
 )
+from finite_difference_options.integrations.public_fixture_identity import matches_exact_public_fixture
 from finite_difference_options.integrations.haircut_protocol import (
     HAIRCUT_PUBLIC_CONTRACT_VERSION,
     ContractMajorMismatchError,
@@ -332,35 +333,13 @@ def _matches_public_fixture(problem_id: str | None, payload: Mapping[str, Any]) 
 def _matches_public_vanilla_call_fixture(payload: Mapping[str, Any]) -> bool:
     from finite_difference_options.validation.black_scholes_parity import public_black_scholes_problem_spec
 
-    expected = _canonical_fixture_shape(public_black_scholes_problem_spec())
-    actual = _canonical_fixture_shape(payload)
-    return actual == expected
+    return matches_exact_public_fixture(payload, public_black_scholes_problem_spec())
 
 
 def _matches_public_pinares_fixed_price_proxy_fixture(payload: Mapping[str, Any]) -> bool:
     from finite_difference_options.validation.pinares_fixed_price_proxy import public_pinares_fixed_price_problem_spec
 
-    expected = _canonical_fixture_shape(public_pinares_fixed_price_problem_spec())
-    actual = _canonical_fixture_shape(payload)
-    return actual == expected
-
-
-def _canonical_fixture_shape(payload: Mapping[str, Any]) -> dict[str, Any]:
-    return {
-        key: payload.get(key)
-        for key in (
-            "schema_version",
-            "artifact_manifest",
-            "problem_id",
-            "problem_hash",
-            "valuation_context",
-            "mathematical_problem",
-            "solver_plan",
-            "financial_graph",
-            "result_bundle",
-            "benchmark_ids",
-        )
-    }
+    return matches_exact_public_fixture(payload, public_pinares_fixed_price_problem_spec())
 
 
 def _tuple(value: Any) -> tuple[Any, ...]:
