@@ -5,11 +5,17 @@ from __future__ import annotations
 import ast
 import json
 import pathlib
+import tomllib
 
 import pytest
 
 from finite_difference_options.contracts import UnsupportedRouteError
-from finite_difference_options.integrations.haircut_backend import create_backend
+from finite_difference_options.integrations.haircut_backend import (
+    LEGACY_ENTRY_POINT_GROUP,
+    PREFERRED_ENTRY_POINT_GROUP,
+    create_backend,
+    solver_backend_entry_point_contract,
+)
 
 FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures" / "quant_problem_specs"
 
@@ -44,6 +50,7 @@ def test_haircut_backend_identity_and_manifest_are_lightweight() -> None:
     assert backend.identity.maturity == "validated_public_synthetic"
     assert backend.identity.issue_refs == (
         "googa27/finite_difference_options#59",
+        "googa27/finite_difference_options#139",
         "googa27/haircut-engine#195",
     )
     manifest = backend.capability_manifest()
@@ -158,7 +165,9 @@ def test_haircut_backend_module_keeps_validation_runners_lazy() -> None:
     top_level_imports = [node for node in tree.body if isinstance(node, ast.ImportFrom) and node.module is not None]
 
     assert not [
-        node.module for node in top_level_imports if node.module.startswith("finite_difference_options.validation")
+        node.module
+        for node in top_level_imports
+        if node.module is not None and node.module.startswith("finite_difference_options.validation")
     ]
 
 
@@ -173,10 +182,29 @@ def test_haircut_backend_solve_executes_only_validated_public_synthetic_fixture(
     assert result.values["price"] == pytest.approx(result.values["oracle_price"], abs=1.0e-2)
     assert result.diagnostics["fallbacks"] == ()
     assert result.evidence["privacy_class"] == "public_synthetic"
+    assert result.evidence["contract_family"] == "FPF.solver_result_evidence.v1"
+    assert result.evidence["status"] == "passed"
+    assert result.evidence["measure"] == result.request["measure"]
     assert result.evidence["valuation_date"] == result.request["valuation_date"]
     assert result.evidence["numeraire"] == result.request["numeraire"]
     assert result.evidence["units"] == result.request["units"]
     assert result.request["boundary_conditions"] == ("dirichlet",)
+
+
+def test_haircut_entry_point_group_mismatch_has_preferred_and_legacy_alias() -> None:
+    pyproject = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+    entry_points = pyproject["project"]["entry-points"]
+    target = "finite_difference_options.integrations.haircut_backend:create_backend"
+
+    assert entry_points[PREFERRED_ENTRY_POINT_GROUP]["finite_difference_options"] == target
+    assert entry_points[LEGACY_ENTRY_POINT_GROUP]["finite_difference_options"] == target
+
+    contract = solver_backend_entry_point_contract()
+    assert contract["preferred_group"] == "haircut.solver_backends"
+    assert contract["legacy_groups"] == ("haircut_engine.solver_backends",)
+    deprecations = contract["deprecations"]
+    assert isinstance(deprecations, tuple)
+    assert deprecations[0]["status"] == "compatibility_only"
 
 
 def test_haircut_backend_rejects_public_benchmark_on_private_payload() -> None:

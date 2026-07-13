@@ -86,6 +86,9 @@ Issues = "https://github.com/googa27/finite_difference_options/issues"
 [project.scripts]
 fd-options = "finite_difference_options.cli.main:app"
 
+[project.entry-points."haircut.solver_backends"]
+finite_difference_options = "finite_difference_options.integrations.haircut_backend:create_backend"
+
 [project.entry-points."haircut_engine.solver_backends"]
 finite_difference_options = "finite_difference_options.integrations.haircut_backend:create_backend"
 

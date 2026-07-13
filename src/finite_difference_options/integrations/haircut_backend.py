@@ -28,6 +28,14 @@ from finite_difference_options.contracts import (
 
 AdapterStatus = Literal["supported", "unsupported"]
 SolveStatus = Literal["passed", "failed"]
+PREFERRED_ENTRY_POINT_GROUP = "haircut.solver_backends"
+LEGACY_ENTRY_POINT_GROUP = "haircut_engine.solver_backends"
+ENTRY_POINT_DEPRECATION = {
+    "deprecated_group": LEGACY_ENTRY_POINT_GROUP,
+    "preferred_group": PREFERRED_ENTRY_POINT_GROUP,
+    "removal_not_before": "0.3.0",
+    "status": "compatibility_only",
+}
 
 _EXECUTABLE_PUBLIC_BENCHMARKS = {
     "BS-FD-ORACLE-V0",
@@ -114,6 +122,7 @@ class FiniteDifferenceHaircutBackend:
             entry_point="finite_difference_options.integrations.haircut_backend:create_backend",
             issue_refs=(
                 "googa27/finite_difference_options#59",
+                "googa27/finite_difference_options#139",
                 "googa27/haircut-engine#195",
             ),
         )
@@ -188,6 +197,7 @@ class FiniteDifferenceHaircutBackend:
             run_public_pinares_fixed_price_proxy_fixture,
         )
 
+        parity_report: Any
         if problem_id == PINARES_FIXED_PRICE_PROXY_PROBLEM_ID:
             parity_report = run_public_pinares_fixed_price_proxy_fixture()
             values = {
@@ -229,10 +239,16 @@ class FiniteDifferenceHaircutBackend:
         }
         evidence = {
             **parity_report.evidence.as_dict(),
+            "contract_family": "FPF.solver_result_evidence.v1",
             "adapter_schema_version": self.identity.adapter_schema_version,
             "source_schema_version": request.source_schema_version,
             "problem_id": problem_id,
             "privacy_class": _optional_string(payload.get("privacy_class")),
+            "measure": request.measure,
+            "numeraire": request.numeraire,
+            "units": dict(request.units),
+            "status": "passed" if passed else "failed",
+            "backend_capability_status": self._manifest.status.value,
         }
         return HaircutBackendSolveResult(
             backend_id=self._manifest.backend_id,
@@ -249,9 +265,25 @@ class FiniteDifferenceHaircutBackend:
 def create_backend(
     manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST,
 ) -> FiniteDifferenceHaircutBackend:
-    """Entry-point factory for `haircut_engine.solver_backends` discovery."""
+    """Entry-point factory for ``haircut.solver_backends`` discovery.
+
+    The historical ``haircut_engine.solver_backends`` group remains declared in
+    packaging metadata as a compatibility/deprecation alias so installed older
+    Haircut Engine versions continue to discover this backend.
+    """
 
     return FiniteDifferenceHaircutBackend(manifest=manifest)
+
+
+def solver_backend_entry_point_contract() -> dict[str, object]:
+    """Return the concrete preferred and legacy Haircut entry-point contract."""
+
+    return {
+        "preferred_group": PREFERRED_ENTRY_POINT_GROUP,
+        "legacy_groups": (LEGACY_ENTRY_POINT_GROUP,),
+        "object": "finite_difference_options.integrations.haircut_backend:create_backend",
+        "deprecations": (dict(ENTRY_POINT_DEPRECATION),),
+    }
 
 
 def _execution_diagnostics(
@@ -394,5 +426,8 @@ __all__ = [
     "FiniteDifferenceHaircutBackend",
     "HaircutBackendIdentity",
     "HaircutBackendSolveResult",
+    "LEGACY_ENTRY_POINT_GROUP",
+    "PREFERRED_ENTRY_POINT_GROUP",
     "create_backend",
+    "solver_backend_entry_point_contract",
 ]

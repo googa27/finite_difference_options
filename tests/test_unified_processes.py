@@ -1,5 +1,7 @@
 """Tests for unified stochastic processes."""
 
+import operator
+
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
@@ -46,6 +48,72 @@ class TestProcessDimension:
 
         with pytest.raises(ValidationError, match="Process dimension must be positive"):
             ProcessDimension(value=-1)
+
+    def test_dimension_value_dunders_are_lawful_and_hash_consistent(self) -> None:
+        """ProcessDimension exposes integer conversion without integer equality."""
+        dim = ProcessDimension(value=3)
+
+        assert int(dim) == 3
+        assert operator.index(dim) == 3
+        assert dim == ProcessDimension(value=3)
+        assert dim != ProcessDimension(value=2)
+        assert dim != 3
+        assert 3 != dim
+        assert dim != True  # noqa: E712 - bool must not act as an accepted dimension int.
+        assert True != dim  # noqa: E712 - bool must not act as an accepted dimension int.
+        assert hash(dim) == hash(ProcessDimension(value=3))
+        assert len({dim, ProcessDimension(value=3)}) == 1
+        assert len({dim, 3}) == 2
+        assert repr(dim) == "ProcessDimension(value=3)"
+
+    def test_bool_dimension_construction_is_rejected(self) -> None:
+        """Bool inputs must not be coerced into dimensions 0 or 1."""
+        for value in (True, False):
+            with pytest.raises(ValidationError, match="Process dimension must be an integer, got bool"):
+                ProcessDimension(value=value)
+
+    def test_dimension_equality_laws_for_sampled_values(self) -> None:
+        """Sample equality/hash laws over dimensions and bool/int bridge values."""
+        values = [
+            ProcessDimension(value=1),
+            ProcessDimension(value=1),
+            ProcessDimension(value=2),
+            1,
+            True,
+            2,
+            False,
+            "1",
+            object(),
+        ]
+
+        for left in values:
+            assert left == left
+            for right in values:
+                assert (left == right) == (right == left)
+                if left == right:
+                    assert hash(left) == hash(right)
+                for third in values:
+                    if left == right and right == third:
+                        assert left == third
+
+    def test_dimension_dict_and_set_semantics_do_not_alias_int_or_bool(self) -> None:
+        """ProcessDimension(1) remains a distinct dict/set key from 1/True."""
+        dim = ProcessDimension(value=1)
+        mapping = {dim: "dimension", 1: "integer"}
+
+        assert mapping[dim] == "dimension"
+        assert mapping[1] == "integer"
+        assert len(mapping) == 2
+
+        mapping[True] = "bool-overwrites-int"
+        assert mapping[dim] == "dimension"
+        assert mapping[1] == "bool-overwrites-int"
+        assert len(mapping) == 2
+
+        assert len({dim, 1}) == 2
+        dimension_set = {dim, 1}
+        dimension_set.add(True)
+        assert len(dimension_set) == 2
 
 
 class TestGeometricBrownianMotion:
