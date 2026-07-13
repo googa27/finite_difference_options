@@ -44,6 +44,7 @@ def test_haircut_backend_identity_and_manifest_are_lightweight() -> None:
     assert backend.identity.maturity == "validated_public_synthetic"
     assert backend.identity.issue_refs == (
         "googa27/finite_difference_options#59",
+        "googa27/finite_difference_options#139",
         "googa27/haircut-engine#195",
     )
     manifest = backend.capability_manifest()
