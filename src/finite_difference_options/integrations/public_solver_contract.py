@@ -38,6 +38,7 @@ class ReleasedFDSolverContract:
     supported_privacy_classes: tuple[str, ...]
     capability_manifest: dict[str, Any]
     entry_points: tuple[str, ...]
+    entry_point_groups: tuple[str, ...]
     issue_refs: tuple[str, ...]
 
     def as_dict(self) -> dict[str, Any]:
@@ -89,9 +90,11 @@ def released_fd_solver_contract(
             "finite_difference_options.integrations.public_solver_contract:solve_public_quant_problem_spec",
             "finite_difference_options.integrations.haircut_backend:create_backend",
         ),
+        entry_point_groups=("haircut.solver_backends", "haircut_engine.solver_backends"),
         issue_refs=(
             "googa27/finite_difference_options#55",
             "googa27/finite_difference_options#130",
+            "googa27/finite_difference_options#139",
         ),
     )
 
@@ -172,10 +175,16 @@ def solve_public_quant_problem_spec(
     }
     evidence = {
         **report.evidence.as_dict(),
+        "contract_family": "FPF.solver_result_evidence.v1",
         "adapter_schema_version": released_fd_solver_contract(manifest).adapter_schema_version,
         "source_schema_version": request.source_schema_version,
         "problem_id": problem_id,
         "privacy_class": privacy_class,
+        "measure": request.measure,
+        "numeraire": request.numeraire,
+        "units": dict(request.units),
+        "status": "passed" if report.converged else "failed",
+        "backend_capability_status": manifest.status.value,
     }
     return PublicFDSolverResult(
         schema_version="finite-difference-options.public-fd-solver-result/v0",

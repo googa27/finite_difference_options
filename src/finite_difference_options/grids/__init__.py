@@ -253,6 +253,21 @@ class TensorGrid:
             raise ValidationError("TensorGrid axis names must be unique")
         object.__setattr__(self, "axes", axes)
 
+    def __len__(self) -> int:
+        """Return the number of tensor axes."""
+
+        return len(self.axes)
+
+    def __iter__(self) -> Iterable[AxisGrid]:
+        """Iterate over axes in tensor-index order."""
+
+        return iter(self.axes)
+
+    def __getitem__(self, index: int) -> AxisGrid:
+        """Return one axis by tensor-index position."""
+
+        return self.axes[index]
+
     @property
     def dimension(self) -> int:
         """Tensor dimension."""

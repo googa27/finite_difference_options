@@ -78,10 +78,22 @@ class ProcessDimension(BaseModel):
         """
         return self.value > 1
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, ProcessDimension):
             return self.value == other.value
-        return self.value == other
+        if isinstance(other, int) and not isinstance(other, bool):
+            return self.value == other
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        """Hash consistently with the lawful integer equality shortcut."""
+
+        return hash(self.value)
+
+    def __int__(self) -> int:
+        """Return the validated positive dimension for APIs requiring ``int``."""
+
+        return self.value
 
     def __repr__(self) -> str:
         return f"ProcessDimension(value={self.value})"
