@@ -102,12 +102,12 @@ def validate_positive_state_components(
         component_names = [f"component_{i}" for i in component_indices]
 
     if state.ndim == 1:
-        for idx, name in zip(component_indices, component_names):
+        for idx, name in zip(component_indices, component_names, strict=True):
             if state[idx] < 0:
                 raise ValidationError(f"{name} must be non-negative, got {state[idx]}")
             result[idx] = max(state[idx], min_value)
     else:
-        for idx, name in zip(component_indices, component_names):
+        for idx, name in zip(component_indices, component_names, strict=True):
             if np.any(state[:, idx] < 0):
                 negative_mask = state[:, idx] < 0
                 raise ValidationError(

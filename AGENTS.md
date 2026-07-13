@@ -150,14 +150,16 @@ Nonuniform-grid derivatives use dedicated coefficients and convergence tests. Pa
 
 The Haircut adapter must:
 
-- expose lightweight identity, solver-contract range, maturity and capabilities;
+- expose Haircut's public `BackendIdentity` and `BackendCapabilityManifest` shapes, solver-contract range, maturity and capabilities;
+- publish exactly one canonical `haircut.solver_backends` entry point and no legacy `haircut_engine.solver_backends` FD backend entry point unless a deprecation test explicitly governs a temporary alias;
+- fail closed on solver-contract major mismatch;
 - validate the request before grid or operator work;
 - map generic records into canonical native FD contracts without reinterpretation;
 - reject absent coefficients, unsupported BCs and invalid covariance;
 - use only validated canonical numerical policies;
 - return solution, Greeks and complete diagnostics;
 - work from a clean installed wheel;
-- import no Haircut domain/application, PDP or delivery modules.
+- import only Haircut's public solver protocol seam and no Haircut domain/application, PDP or delivery modules.
 
 Advertise only capabilities backed by repository-local tests and shared parity evidence.
 

@@ -315,7 +315,7 @@ Black-Scholes nonuniform-Greek evidence is split between `FD-GREEKS-NONUNIFORM-V
 Candidate entry point:
 
 ```toml
-[project.entry-points."haircut_engine.solver_backends"]
+[project.entry-points."haircut.solver_backends"]
 finite_difference_options = "finite_difference_options.integrations.haircut_backend:create_backend"
 ```
 
@@ -329,7 +329,7 @@ Adapter lifecycle:
 6. Solve and normalize values, Greeks and diagnostics.
 7. Record package, contract, benchmark-registry and environment identity.
 
-The adapter imports no Haircut domain/application, PDP or delivery modules and advertises only tested capabilities.
+The adapter imports only Haircut's public solver protocol seam (`haircut.solvers.backend_protocol` and `haircut.solvers.contracts`), no Haircut domain/application, PDP or delivery modules, and advertises only tested capabilities. Contract-major drift fails closed before a backend object is returned.
 
 Issue #79 adds `src/finite_difference_options/contracts/backend_capabilities.py` as the first executable FD adapter contract. It owns the data-only `FDCapabilityManifest`, `FDRouteRequest`, and `UnsupportedRouteDiagnostic` records used to screen QuantProblemSpec-style payloads before grid, operator, or ADI allocation. The default manifest intentionally advertises only validated FD/ADI capabilities: 1D/2D/3D uniform or log-uniform parabolic routes, drift/diffusion/reaction/source/mixed-derivative terms, Dirichlet/Neumann/Robin/second-derivative boundaries, European exercise, value/Delta/Gamma outputs, and theta/Crank-Nicolson/Rannacher/explicit/ADI controls.
 
@@ -339,7 +339,11 @@ Issue #80 adds the public-synthetic Black-Scholes call parity fixture in `src/fi
 
 Issue #76 extends the adapter tests to consume the same public-synthetic `QuantProblemSpec` vanilla-call JSON fixture validated by `haircut-engine` #91. The fixture is vendored under `tests/fixtures/quant_problem_specs/` as a data contract, not as a Python import, and the adapter must preserve schema version, measure, numeraire, units, valuation/vintage timing, boundary details, and requested outputs before route support is claimed. Issue #59 keeps that Haircut-origin fixture as a screening/fail-closed compatibility fixture: it is not executed unless its canonical fields match this repository's executable Black-Scholes oracle fixture.
 
-Issue #59 adds the `finite_difference_options.integrations.haircut_backend` factory as the current executable Haircut backend seam. The adapter exposes backend identity, a serializable capability manifest, pre-solve route screening, explicit unsupported-route diagnostics, and an executable public-synthetic Black-Scholes evidence bundle using `BS-CALL-PARITY-V0` and `QPS-VANILLA-CALL-V0`. It deliberately refuses supported-looking private, unknown, or merely label-compatible payloads unless they match the canonical executable problem spec exported by `public_black_scholes_problem_spec()`, so no coefficients, boundaries, grids, or fallback routes are fabricated. The wheel publishes the same factory through the `haircut_engine.solver_backends` entry-point group.
+Issue #59 adds the `finite_difference_options.integrations.haircut_backend` factory as the current executable Haircut backend seam. The adapter exposes backend identity, a serializable capability manifest, pre-solve route screening, explicit unsupported-route diagnostics, and an executable public-synthetic Black-Scholes evidence bundle using `BS-CALL-PARITY-V0` and `QPS-VANILLA-CALL-V0`. It deliberately refuses supported-looking private, unknown, or merely label-compatible payloads unless they match the canonical executable problem spec exported by `public_black_scholes_problem_spec()`, so no coefficients, boundaries, grids, or fallback routes are fabricated.
+
+Issue #140 replaces the legacy `haircut_engine.solver_backends` group with the canonical `haircut.solver_backends` group. A built FD wheel now declares exactly one `finite_difference_options` backend entry point under the canonical group and no FD backend entry point under the legacy group. The executable screen/solve adapter remains in `integrations/haircut_backend.py`, while `integrations/haircut_protocol.py` is the single optional boundary that maps the native FD capability manifest into Haircut's public `BackendIdentity` and `BackendCapabilityManifest` dataclasses when a released Haircut wheel is installed. Neither module redefines Haircut generic protocol shapes or adds a production local-path/VCS dependency.
+
+The issue #140 repository-wide mypy gate also records a scoped legacy no-growth exception in `mypy.ini`. It suppresses only the pre-existing error-code categories in the exact named legacy modules; `integrations/haircut_backend.py`, `integrations/haircut_protocol.py`, and every unlisted module remain fully checked. The pre-existing global missing-stub policy is unchanged and is now pinned by the same fitness test so broader global suppressions cannot appear silently. Owner: finite_difference_options maintainers. Risk: a same-category error inside a listed legacy module can be masked. Refactoring trigger: any feature change to a suppressed function/module must remove the relevant code suppression, or the portfolio typing initiative must retire the baseline. `tests/architecture/test_mypy_ratchet.py` prevents the exception set from broadening silently.
 
 Project #17 adds `finite_difference_options.integrations.solve_public_quant_problem_spec` and `released_fd_solver_contract()` as the released public-synthetic FD solver contract API for Pinares fixed-price proxy parity. The API consumes exact checked-in QuantProblemSpec fixtures, preserves measure/numeraire/units/date conventions through `FDRouteRequest`, executes only the validated Black-Scholes/Pinares public-synthetic routes, and accepts an optional `BandedOperatorCache` so repeated 1D solves reuse theta-system operators and Thomas factorizations without caching RHS values or boundary data.
 

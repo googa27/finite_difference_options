@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import inspect
-import pathlib
-import sys
 
 
 import numpy as np

@@ -63,7 +63,7 @@ class SpatialOperator:
                 rate = float(model_rate)
                 source = "model.risk_free_rate"
             elif getattr(self.model, "mu", None) is not None:
-                rate = float(getattr(self.model, "mu"))
+                rate = float(self.model.mu)
                 source = "legacy model.mu"
             else:
                 rate = 0.0

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import pathlib
-import sys
 
 
 from finite_difference_options.contracts import SolverEvidence  # noqa: E402

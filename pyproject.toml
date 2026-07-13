@@ -89,9 +89,6 @@ fd-options = "finite_difference_options.cli.main:app"
 [project.entry-points."haircut.solver_backends"]
 finite_difference_options = "finite_difference_options.integrations.haircut_backend:create_backend"
 
-[project.entry-points."haircut_engine.solver_backends"]
-finite_difference_options = "finite_difference_options.integrations.haircut_backend:create_backend"
-
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["finite_difference_options*"]
@@ -103,6 +100,7 @@ finite_difference_options = ["py.typed"]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+extend-exclude = [".agent_workspace", "build"]
 
 [tool.ruff.lint]
 select = ["E", "F", "B"]

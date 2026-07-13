@@ -130,13 +130,19 @@ def test_entry_points_advertise_cli_and_haircut_backend() -> None:
         for ep in console_scripts
     )
 
-    solver_backends = metadata.entry_points(group="haircut_engine.solver_backends")
-    assert any(
-        ep.name == "finite_difference_options"
-        and ep.value
-        == "finite_difference_options.integrations.haircut_backend:create_backend"
+    solver_backends = metadata.entry_points(group="haircut.solver_backends")
+    matches = [
+        ep
         for ep in solver_backends
-    )
+        if ep.name == "finite_difference_options"
+        and ep.value == "finite_difference_options.integrations.haircut_backend:create_backend"
+    ]
+    assert len(matches) == 1
+    assert not [
+        ep
+        for ep in metadata.entry_points(group="haircut_engine.solver_backends")
+        if ep.name == "finite_difference_options"
+    ]
 
 
 def test_python_sources_do_not_mutate_sys_path_for_checkout_only_imports() -> None:

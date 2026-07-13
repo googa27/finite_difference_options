@@ -1,7 +1,5 @@
 """Tests for the finite difference Black--Scholes pricer."""
 
-import pathlib
-import sys
 
 
 import numpy as np

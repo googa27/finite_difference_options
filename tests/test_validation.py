@@ -1,7 +1,5 @@
 """Tests for input validation functionality."""
 
-import pathlib
-import sys
 
 
 import numpy as np

@@ -1,7 +1,5 @@
 """Tests for OptionPricer.compute_grid."""
 
-import pathlib
-import sys
 
 
 import numpy as np

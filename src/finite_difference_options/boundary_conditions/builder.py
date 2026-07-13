@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 import findiff as fd
 import numpy as np
-from findiff import BoundaryConditions, FinDiff
+from findiff import BoundaryConditions
 from numpy.typing import NDArray
 
 from finite_difference_options.exceptions import BoundaryConditionError
@@ -248,7 +248,7 @@ class BlackScholesBoundaryBuilder:
             and getattr(model, "mu", None) is not None
         ):
             return (
-                self._finite_rate(getattr(model, "mu"), "legacy model.mu"),
+                self._finite_rate(model.mu, "legacy model.mu"),
                 "legacy model.mu",
             )
         raise BoundaryConditionError(

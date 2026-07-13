@@ -30,6 +30,8 @@ from finite_difference_options.validation.pinares_fixed_price_proxy import (
     run_public_pinares_fixed_price_proxy_fixture,
 )
 
+pytestmark = pytest.mark.usefixtures("haircut_public_solver_seam")
+
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parent / "fixtures"
 QPS_FIXTURE = FIXTURE_DIR / "quant_problem_specs" / "pinares_fixed_price_proxy.json"
 RESULT_FIXTURE = FIXTURE_DIR / "pinares_fd_fixed_price_proxy_v1.json"

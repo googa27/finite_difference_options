@@ -280,9 +280,9 @@ def _build_public_problem_spec(
             "expression": "-r V",
         },
     ]
-
     return {
         "schema_version": "quant-problem-spec/v0",
+        "privacy_class": "public_synthetic",
         "artifact_manifest": {
             "schema_version": "artifact-manifest/v0",
             "manifest_id": "public-synthetic-bs-call-oracle-fixture-v0",

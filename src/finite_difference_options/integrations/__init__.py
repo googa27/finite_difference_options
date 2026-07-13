@@ -1,10 +1,11 @@
 """Cross-repository integration adapters for finite_difference_options."""
 
 from .haircut_backend import (
+    ContractMajorMismatchError,
     FDBackendScreeningResult,
     FiniteDifferenceHaircutBackend,
-    HaircutBackendIdentity,
     HaircutBackendSolveResult,
+    HaircutProtocolUnavailableError,
     create_backend,
 )
 from .public_solver_contract import (
@@ -15,10 +16,11 @@ from .public_solver_contract import (
 )
 
 __all__ = [
+    "ContractMajorMismatchError",
     "FDBackendScreeningResult",
     "FiniteDifferenceHaircutBackend",
-    "HaircutBackendIdentity",
     "HaircutBackendSolveResult",
+    "HaircutProtocolUnavailableError",
     "PublicFDSolverResult",
     "ReleasedFDSolverContract",
     "create_backend",

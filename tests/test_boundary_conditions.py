@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import math
-import pathlib
-import sys
 from types import SimpleNamespace
 
 
