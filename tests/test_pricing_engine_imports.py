@@ -1,7 +1,5 @@
 """Tests covering the finite difference pricing engine import surface."""
 
-import pathlib
-import sys
 
 
 from finite_difference_options.pricing import (

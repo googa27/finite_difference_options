@@ -1,11 +1,8 @@
 """Tests for option base class and subclasses."""
 
-import pathlib
-import sys
 
 
 import numpy as np
-import pytest
 
 from finite_difference_options.processes.affine import GeometricBrownianMotion
 from finite_difference_options.instruments.base import (

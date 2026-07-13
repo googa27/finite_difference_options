@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import ast
+from dataclasses import replace
+import importlib.metadata as metadata
 import json
 import pathlib
 
 import pytest
 
-from finite_difference_options.contracts import UnsupportedRouteError
-from finite_difference_options.integrations.haircut_backend import create_backend
+from finite_difference_options.contracts import DEFAULT_FD_CAPABILITY_MANIFEST, UnsupportedRouteError
+from finite_difference_options.integrations import haircut_protocol
+from finite_difference_options.integrations.haircut_backend import ContractMajorMismatchError, create_backend
+
+pytestmark = pytest.mark.usefixtures("haircut_public_solver_seam")
 
 FIXTURE_DIR = pathlib.Path(__file__).parent / "fixtures" / "quant_problem_specs"
 
@@ -25,9 +30,7 @@ def _executable_payload() -> dict[str, object]:
         public_black_scholes_problem_spec,
     )
 
-    payload = public_black_scholes_problem_spec()
-    payload["privacy_class"] = "public_synthetic"
-    return payload
+    return public_black_scholes_problem_spec()
 
 
 def _section(payload: dict[str, object], name: str) -> dict[str, object]:
@@ -36,19 +39,73 @@ def _section(payload: dict[str, object], name: str) -> dict[str, object]:
     return section
 
 
-def test_haircut_backend_identity_and_manifest_are_lightweight() -> None:
+def test_haircut_backend_identity_and_manifest_use_haircut_public_shapes() -> None:
+    from haircut.solvers.backend_protocol import BackendIdentity, BackendMaturity
+    from haircut.solvers.contracts import BackendCapabilityManifest, MethodMaturity
+
     backend = create_backend()
 
-    assert backend.identity.backend_id == "finite_difference_options.fd_backend.v0"
-    assert backend.identity.contract_version == backend.manifest.contract_version
-    assert backend.identity.maturity == "validated_public_synthetic"
-    assert backend.identity.issue_refs == (
-        "googa27/finite_difference_options#59",
-        "googa27/haircut-engine#195",
+    assert isinstance(backend.identity, BackendIdentity)
+    assert backend.identity.distribution_name == "finite-difference-options"
+    assert backend.identity.implementation_id == "finite_difference_options.fd_backend.v0"
+    assert str(backend.identity.contract_version) == backend.manifest.contract_version
+    assert backend.identity.maturity is BackendMaturity.VALIDATED
+    assert backend.identity.build_metadata["entry_point_group"] == "haircut.solver_backends"
+    assert backend.identity.build_metadata["issue_refs"] == (
+        "googa27/finite_difference_options#59,googa27/finite_difference_options#140,googa27/haircut-engine#217"
     )
-    manifest = backend.capability_manifest()
-    assert manifest["backend_id"] == "finite_difference_options.fd_backend.v0"
-    assert manifest["status"] == "validated"
+
+    manifest = backend.capability_manifest
+    assert isinstance(manifest, BackendCapabilityManifest)
+    assert manifest.backend_id == "finite_difference_options.fd_backend.v0"
+    assert manifest.contract_version == backend.manifest.contract_version
+    assert len(manifest.methods) == 1
+    method = manifest.methods[0]
+    assert method.backend_id == manifest.backend_id
+    assert method.maturity is MethodMaturity.VALIDATED
+    assert method.fallback_policy == "fail_closed_no_fallback"
+    assert "value" in method.output_types
+
+    fd_manifest = backend.fd_capability_manifest()
+    assert fd_manifest["backend_id"] == "finite_difference_options.fd_backend.v0"
+    assert fd_manifest["status"] == "validated"
+
+
+def test_haircut_backend_imports_only_public_solver_protocol_seam(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[str] = []
+    original_import_module = haircut_protocol.importlib.import_module
+
+    def _spy_import_module(name: str):
+        if name.startswith("haircut"):
+            seen.append(name)
+        return original_import_module(name)
+
+    monkeypatch.setattr(haircut_protocol.importlib, "import_module", _spy_import_module)
+
+    create_backend()
+
+    assert set(seen) <= {"haircut.solvers.backend_protocol", "haircut.solvers.contracts"}
+
+
+def test_haircut_backend_fails_closed_on_contract_major_mismatch() -> None:
+    manifest = replace(DEFAULT_FD_CAPABILITY_MANIFEST, contract_version="1.0.0")
+
+    with pytest.raises(ContractMajorMismatchError, match="contract major mismatch"):
+        create_backend(manifest=manifest, expected_contract_version="0.1.0")
+
+
+def test_built_distribution_declares_exactly_one_canonical_haircut_entry_point() -> None:
+    canonical = metadata.entry_points(group="haircut.solver_backends")
+    legacy = metadata.entry_points(group="haircut_engine.solver_backends")
+
+    matches = [
+        ep
+        for ep in canonical
+        if ep.name == "finite_difference_options"
+        and ep.value == "finite_difference_options.integrations.haircut_backend:create_backend"
+    ]
+    assert len(matches) == 1
+    assert not [ep for ep in legacy if ep.name == "finite_difference_options"]
 
 
 def test_haircut_backend_screen_preserves_quant_problem_spec_without_solving() -> None:

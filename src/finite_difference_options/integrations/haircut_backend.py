@@ -1,12 +1,11 @@
 """Haircut Engine finite-difference backend adapter.
 
 This module is deliberately thin and domain-neutral. It exposes a Haircut-style
-backend object without importing Haircut Engine, PDP, API, CLI, UI, plotting, or
-frontend packages. The adapter first screens a shared QuantProblemSpec-like
-payload through the FD capability manifest. It executes only validated public-
-synthetic fixtures that this repository owns as evidence (currently Black-Scholes
-and the Pinares fixed-price proxy); all other supported-looking requests fail
-closed until a concrete native route is proven.
+backend object without importing Haircut Engine domain/application/PDP/delivery
+packages. The adapter imports only Haircut's public solver protocol seam at
+factory time, maps the repository-local FD capability manifest into Haircut's
+public BackendIdentity/BackendCapabilityManifest shapes, and fails closed on
+contract-major drift. Numerical validation runners remain lazy.
 """
 
 from __future__ import annotations
@@ -24,6 +23,12 @@ from finite_difference_options.contracts import (
     UnsupportedRouteError,
     diagnose_unsupported_route,
     ensure_route_supported,
+)
+from finite_difference_options.integrations.haircut_protocol import (
+    HAIRCUT_PUBLIC_CONTRACT_VERSION,
+    ContractMajorMismatchError,
+    HaircutProtocolUnavailableError,
+    build_haircut_contracts,
 )
 
 AdapterStatus = Literal["supported", "unsupported"]
@@ -43,22 +48,6 @@ _EXECUTED_REGISTRY_BENCHMARKS_BY_PROBLEM = {
     ),
 }
 _PUBLIC_SYNTHETIC_PROBLEM_IDS = frozenset(_EXECUTED_REGISTRY_BENCHMARKS_BY_PROBLEM)
-
-
-@dataclass(frozen=True)
-class HaircutBackendIdentity:
-    """Lightweight backend identity suitable for plugin discovery."""
-
-    backend_id: str
-    name: str
-    adapter_schema_version: str
-    contract_version: str
-    maturity: str
-    entry_point: str
-    issue_refs: tuple[str, ...]
-
-    def as_dict(self) -> dict[str, Any]:
-        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -101,37 +90,44 @@ class HaircutBackendSolveResult:
 
 
 class FiniteDifferenceHaircutBackend:
-    """Thin fail-closed adapter implementing the current FD backend contract."""
+    """Thin fail-closed adapter implementing Haircut's public backend contract."""
 
-    def __init__(self, manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST) -> None:
-        self._manifest = manifest
-        self._identity = HaircutBackendIdentity(
-            backend_id=manifest.backend_id,
-            name="finite_difference_options",
-            adapter_schema_version="haircut-fd-backend-adapter/v0",
-            contract_version=manifest.contract_version,
-            maturity="validated_public_synthetic",
-            entry_point="finite_difference_options.integrations.haircut_backend:create_backend",
-            issue_refs=(
-                "googa27/finite_difference_options#59",
-                "googa27/haircut-engine#195",
-            ),
+    def __init__(
+        self,
+        manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST,
+        *,
+        expected_contract_version: str = HAIRCUT_PUBLIC_CONTRACT_VERSION,
+    ) -> None:
+        contracts = build_haircut_contracts(
+            manifest,
+            expected_contract_version=expected_contract_version,
         )
+        self._manifest = manifest
+        self._identity = contracts.identity
+        self._capability_manifest = contracts.capability_manifest
 
     @property
-    def identity(self) -> HaircutBackendIdentity:
+    def identity(self) -> Any:
+        """Return Haircut's public ``BackendIdentity`` shape."""
+
         return self._identity
 
     @property
     def manifest(self) -> FDCapabilityManifest:
+        """Return the native FD capability manifest used for request screening."""
+
         return self._manifest
 
-    def capability_manifest(self) -> dict[str, Any]:
-        """Return data-only capability metadata without importing numerical routes."""
+    @property
+    def capability_manifest(self) -> Any:
+        """Return Haircut's public ``BackendCapabilityManifest`` shape."""
 
-        manifest = asdict(self._manifest)
-        manifest["status"] = self._manifest.status.value
-        return manifest
+        return self._capability_manifest
+
+    def fd_capability_manifest(self) -> dict[str, Any]:
+        """Return the repository-local FD manifest for adapter diagnostics."""
+
+        return _fd_manifest_as_dict(self._manifest)
 
     def screen(self, payload: Mapping[str, Any]) -> FDBackendScreeningResult:
         """Map and validate a QuantProblemSpec-like payload before numerical work."""
@@ -145,16 +141,15 @@ class FiniteDifferenceHaircutBackend:
             status="unsupported" if diagnostics else "supported",
             request=asdict(request),
             diagnostics=tuple(_diagnostic_as_dict(diagnostic) for diagnostic in diagnostics),
-            manifest=self.capability_manifest(),
+            manifest=self.fd_capability_manifest(),
         )
 
     def solve(self, payload: Mapping[str, Any]) -> HaircutBackendSolveResult:
-        """Execute the validated public-synthetic Black-Scholes fixture.
+        """Execute the validated public-synthetic fixture.
 
-        The method intentionally refuses generic supported-looking payloads until
-        they carry an executable benchmark/fixture that this repository validates.
-        This prevents silent fallback to placeholder coefficients or hard-coded
-        route semantics.
+        Generic supported-looking payloads are refused until they carry an
+        executable benchmark/fixture that this repository validates. This avoids
+        silent fallback to placeholder coefficients or hard-coded route semantics.
         """
 
         request = FDRouteRequest.from_quant_problem_spec(payload)
@@ -177,17 +172,14 @@ class FiniteDifferenceHaircutBackend:
                 )
             )
 
-        from finite_difference_options.validation.benchmark_registry import (
-            run_registered_benchmark,
-        )
-        from finite_difference_options.validation.black_scholes_parity import (
-            run_public_black_scholes_parity_fixture,
-        )
+        from finite_difference_options.validation.benchmark_registry import run_registered_benchmark
+        from finite_difference_options.validation.black_scholes_parity import run_public_black_scholes_parity_fixture
         from finite_difference_options.validation.pinares_fixed_price_proxy import (
             PINARES_FIXED_PRICE_PROXY_PROBLEM_ID,
             run_public_pinares_fixed_price_proxy_fixture,
         )
 
+        parity_report: Any
         if problem_id == PINARES_FIXED_PRICE_PROXY_PROBLEM_ID:
             parity_report = run_public_pinares_fixed_price_proxy_fixture()
             values = {
@@ -229,7 +221,7 @@ class FiniteDifferenceHaircutBackend:
         }
         evidence = {
             **parity_report.evidence.as_dict(),
-            "adapter_schema_version": self.identity.adapter_schema_version,
+            "adapter_schema_version": "haircut-fd-backend-adapter/v0",
             "source_schema_version": request.source_schema_version,
             "problem_id": problem_id,
             "privacy_class": _optional_string(payload.get("privacy_class")),
@@ -248,15 +240,21 @@ class FiniteDifferenceHaircutBackend:
 
 def create_backend(
     manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST,
+    *,
+    expected_contract_version: str = HAIRCUT_PUBLIC_CONTRACT_VERSION,
 ) -> FiniteDifferenceHaircutBackend:
-    """Entry-point factory for `haircut_engine.solver_backends` discovery."""
+    """Entry-point factory for canonical ``haircut.solver_backends`` discovery."""
 
-    return FiniteDifferenceHaircutBackend(manifest=manifest)
+    return FiniteDifferenceHaircutBackend(manifest=manifest, expected_contract_version=expected_contract_version)
 
 
-def _execution_diagnostics(
-    payload: Mapping[str, Any],
-) -> tuple[UnsupportedRouteDiagnostic, ...]:
+def _fd_manifest_as_dict(manifest: FDCapabilityManifest) -> dict[str, Any]:
+    payload = asdict(manifest)
+    payload["status"] = manifest.status.value
+    return payload
+
+
+def _execution_diagnostics(payload: Mapping[str, Any]) -> tuple[UnsupportedRouteDiagnostic, ...]:
     benchmark_ids = _benchmark_ids(payload)
     problem_id = _optional_string(payload.get("problem_id"))
     if _is_executable_public_synthetic_payload(problem_id, benchmark_ids, payload):
@@ -332,9 +330,7 @@ def _matches_public_fixture(problem_id: str | None, payload: Mapping[str, Any]) 
 
 
 def _matches_public_vanilla_call_fixture(payload: Mapping[str, Any]) -> bool:
-    from finite_difference_options.validation.black_scholes_parity import (
-        public_black_scholes_problem_spec,
-    )
+    from finite_difference_options.validation.black_scholes_parity import public_black_scholes_problem_spec
 
     expected = _canonical_fixture_shape(public_black_scholes_problem_spec())
     actual = _canonical_fixture_shape(payload)
@@ -342,9 +338,7 @@ def _matches_public_vanilla_call_fixture(payload: Mapping[str, Any]) -> bool:
 
 
 def _matches_public_pinares_fixed_price_proxy_fixture(payload: Mapping[str, Any]) -> bool:
-    from finite_difference_options.validation.pinares_fixed_price_proxy import (
-        public_pinares_fixed_price_problem_spec,
-    )
+    from finite_difference_options.validation.pinares_fixed_price_proxy import public_pinares_fixed_price_problem_spec
 
     expected = _canonical_fixture_shape(public_pinares_fixed_price_problem_spec())
     actual = _canonical_fixture_shape(payload)
@@ -390,9 +384,10 @@ def _optional_string(value: Any) -> str | None:
 
 
 __all__ = [
+    "ContractMajorMismatchError",
     "FDBackendScreeningResult",
     "FiniteDifferenceHaircutBackend",
-    "HaircutBackendIdentity",
     "HaircutBackendSolveResult",
+    "HaircutProtocolUnavailableError",
     "create_backend",
 ]

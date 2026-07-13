@@ -1,7 +1,5 @@
 """Tests for finite difference Greek calculations."""
 
-import pathlib
-import sys
 
 
 import numpy as np
