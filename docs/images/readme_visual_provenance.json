@@ -1,0 +1,112 @@
+{
+  "assets": {
+    "black_scholes": {
+      "dark_pixel_ratio": 0.9748967149126406,
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "path": "docs/images/fd_black_scholes_convergence.png",
+      "size_px": [
+        4022,
+        1648
+      ],
+      "visual_qa": "pass"
+    },
+    "pinares_proxy": {
+      "dark_pixel_ratio": 0.9747396600252012,
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "path": "docs/images/fd_pinares_proxy_convergence.png",
+      "size_px": [
+        4022,
+        1648
+      ],
+      "visual_qa": "pass"
+    }
+  },
+  "evidence": {
+    "black_scholes": {
+      "converged": true,
+      "delta_abs_error": 0.0008618817908638832,
+      "final_abs_error": 0.0001092933164004023,
+      "final_price": 0.10461512903825608,
+      "fixture_id": "public-synthetic.black-scholes-call.v0",
+      "gamma_abs_error": 0.005006001870237364,
+      "oracle_price": 0.10450583572185568,
+      "route_id": "fd.black_scholes_1d.crank_nicolson",
+      "rows": [
+        {
+          "abs_error": 0.0015034724143622447,
+          "oracle_price": 0.10450583572185568,
+          "price": 0.10300236330749343,
+          "s_steps": 40,
+          "t_steps": 40
+        },
+        {
+          "abs_error": 0.00024191966108828844,
+          "oracle_price": 0.10450583572185568,
+          "price": 0.10474775538294397,
+          "s_steps": 80,
+          "t_steps": 120
+        },
+        {
+          "abs_error": 0.0001092933164004023,
+          "oracle_price": 0.10450583572185568,
+          "price": 0.10461512903825608,
+          "s_steps": 120,
+          "t_steps": 200
+        }
+      ],
+      "tolerance": 0.0005
+    },
+    "pinares_proxy": {
+      "converged": true,
+      "delta_abs_error": 8.842159257821391e-05,
+      "final_abs_error_uf": 0.3014449648889274,
+      "final_price_uf": 232.10093879082405,
+      "fixture_id": "public-synthetic.pinares-fixed-price-proxy.v1",
+      "gamma_abs_error": 1.7468969201214594e-06,
+      "omission_note": null,
+      "oracle_price_uf": 231.79949382593512,
+      "price_abs_tolerance_uf": 1.0,
+      "route_id": "fd.pinares_fixed_price_proxy.crank_nicolson",
+      "rows": [
+        {
+          "abs_error_uf": 0.9843755163362012,
+          "oracle_price_uf": 231.79949382593512,
+          "price_uf": 232.78386934227132,
+          "s_steps": 80,
+          "t_steps": 80
+        },
+        {
+          "abs_error_uf": 0.682389007329481,
+          "oracle_price_uf": 231.79949382593512,
+          "price_uf": 232.4818828332646,
+          "s_steps": 120,
+          "t_steps": 160
+        },
+        {
+          "abs_error_uf": 0.3014449648889274,
+          "oracle_price_uf": 231.79949382593512,
+          "price_uf": 232.10093879082405,
+          "s_steps": 180,
+          "t_steps": 240
+        }
+      ]
+    }
+  },
+  "generator": "scripts/generate_readme_validation_visuals.py",
+  "palette": {
+    "analytical_reference": "#2dd4ff",
+    "background": "#0d1117",
+    "boundary_stability_caveat": "#f0883e",
+    "numerical_error": "#ff4db8",
+    "panel": "#161b22",
+    "secondary_route": "#a371f7",
+    "validated_pass": "#3fb950"
+  },
+  "repository": "finite_difference_options"
+}
