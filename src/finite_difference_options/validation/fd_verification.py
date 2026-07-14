@@ -5,7 +5,6 @@ from __future__ import annotations
 import copy
 import json
 from collections.abc import Mapping, Sequence
-from hashlib import sha256
 from math import log
 from pathlib import Path
 from typing import Any, cast
@@ -22,7 +21,6 @@ from finite_difference_options.integrations.compiled_pde_adapter import (
 )
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _black_scholes_matrix,
-    _run_compiled_black_scholes_route,
     _solve_compiled_black_scholes_grid,
     _upper_call_boundary,
 )
@@ -31,11 +29,18 @@ from finite_difference_options.validation.black_scholes_parity import (
     black_scholes_call_greeks,
     black_scholes_call_oracle,
 )
+from finite_difference_options.validation.fd_evidence_integrity import (
+    HASH_KEYS as _HASH_KEYS,
+    canonicalize as _canonicalize,
+    hashes_for_bundle as _hashes_for_bundle,
+)
+from finite_difference_options.validation.fd_perturbations import perturbation_evidence
 
 FD_BS_VERIFICATION_BENCHMARK_ID = "fd-bs-001"
 FD_BS_VERIFICATION_VERSIONED_ID = "FD-BS-001-V0"
 _SPATIAL_LEVELS = ((40, 120), (80, 120), (120, 120))
-_TEMPORAL_LEVELS = ((120, 40), (120, 80), (120, 160))
+_TEMPORAL_LEVELS = ((160, 40), (160, 80), (160, 160))
+_TEMPORAL_REFERENCE_T_STEPS = 640
 _FULL_LEVELS = ((40, 40), (80, 120), (120, 200))
 _PRICE_TOL = 5.0e-4
 _DELTA_TOL = 1.0e-3
@@ -43,7 +48,9 @@ _GAMMA_TOL = 8.0e-3
 _RESIDUAL_TOL = 1.0e-10
 _PAYOFF_TOL = 1.0e-12
 _BOUNDARY_TOL = 1.0e-12
-_HASH_KEYS = ("request_hash", "config_hash", "convention_hash", "result_hash", "evidence_hash")
+_TEMPORAL_ORDER_TOL = 1.8
+_MANUFACTURED_ORDER_TOL = 1.8
+
 
 
 class FDVerificationError(ValueError):
@@ -68,11 +75,17 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
     oracle = black_scholes_call_oracle(spot, strike, rate, sigma, maturity, dividend_yield=q)
     greeks = black_scholes_call_greeks(spot, strike, rate, sigma, maturity, dividend_yield=q)
     spatial = _refinement_table(route, _SPATIAL_LEVELS, oracle, greeks)
-    temporal = _refinement_table(route, _TEMPORAL_LEVELS, oracle, greeks)
+    temporal = _temporal_refinement_table(route, _TEMPORAL_LEVELS, oracle, greeks)
     full = _refinement_table(route, _FULL_LEVELS, oracle, greeks)
     finest = full["rows"][-1]
     manufactured = _manufactured_residual_table(rate=rate, q=q, sigma=sigma)
-    perturbations = _perturbation_evidence(route, finest, manufactured)
+    perturbations = perturbation_evidence(
+        route,
+        finest,
+        manufactured,
+        residual_tol=_RESIDUAL_TOL,
+        boundary_tol=_BOUNDARY_TOL,
+    )
     results = {
         "black_scholes_oracle": {"price": oracle, **greeks, "dividend_yield": q},
         "spatial_refinement": spatial,
@@ -104,6 +117,7 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         "compiled_hash": EXPECTED_COMPILED_HASH,
         "spatial_levels": _SPATIAL_LEVELS,
         "temporal_levels": _TEMPORAL_LEVELS,
+        "temporal_reference_t_steps": _TEMPORAL_REFERENCE_T_STEPS,
         "full_levels": _FULL_LEVELS,
         "theta": float(numerics["theta"]),
         "operator": "dV/dtau = 0.5*sigma^2*S^2*V_SS + (r-q)*S*V_S - r*V",
@@ -125,10 +139,12 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         "convention": convention,
         "results": results,
     }
+    status = "passed" if _evaluate_gates(results) else "failed"
+    bundle["evidence"] = {"status": status}
     bundle["evidence"] = {
-        "status": "passed" if _evaluate_gates(results) else "failed",
+        "status": status,
         "hashes": _hashes_for_bundle(bundle),
-        "validation_rule": "hashes and numerical truth are recomputed by validate_fd_bs_verification_bundle",
+        "validation_rule": "status, hashes, and numerical truth are recomputed by validate_fd_bs_verification_bundle",
     }
     return bundle
 
@@ -165,6 +181,10 @@ def validate_fd_bs_verification_bundle(bundle: Mapping[str, Any]) -> None:
     if _canonicalize(supplied.get("results")) != _canonicalize(fresh["results"]):
         failures.append("results do not match recomputed numerical truth")
     supplied_results = cast(Mapping[str, Any], supplied.get("results", {}))
+    supplied_status = cast(Mapping[str, Any], supplied.get("evidence", {})).get("status")
+    expected_status = "passed" if _evaluate_gates(supplied_results) else "failed"
+    if supplied_status != expected_status:
+        failures.append("evidence status does not match recomputed gates")
     if not _evaluate_gates(supplied_results):
         failures.append("numerical gates failed from recomputed metrics")
     if failures:
@@ -186,6 +206,49 @@ def _refinement_table(
             float(prev["price_abs"]), float(curr["price_abs"]), prev_scale, curr_scale
         )
     return {"levels": levels, "rows": rows, "min_observed_price_order": _min_order(rows)}
+
+
+def _temporal_refinement_table(
+    route: Mapping[str, Any],
+    levels: tuple[tuple[int, int], ...],
+    oracle: float,
+    greeks: Mapping[str, float],
+) -> dict[str, Any]:
+    if not levels:
+        return {"levels": levels, "rows": (), "min_observed_temporal_price_order": None}
+    s_steps = levels[-1][0]
+    reference = _run_grid_level(route, s_steps, _TEMPORAL_REFERENCE_T_STEPS, oracle, greeks)
+    reference_price = float(reference["price"])
+    rows = []
+    for s_level, t_steps in levels:
+        if s_level != s_steps:
+            raise ValueError("temporal refinement levels must hold spatial grid fixed")
+        row = _run_grid_level(route, s_level, t_steps, oracle, greeks)
+        row["temporal_reference_price"] = reference_price
+        row["temporal_reference_t_steps"] = _TEMPORAL_REFERENCE_T_STEPS
+        row["temporal_price_abs"] = float(abs(float(row["price"]) - reference_price))
+        rows.append(row)
+    for index in range(1, len(rows)):
+        prev = rows[index - 1]
+        curr = rows[index]
+        curr["observed_temporal_price_order"] = _observed_order(
+            float(prev["temporal_price_abs"]),
+            float(curr["temporal_price_abs"]),
+            float(prev["dt"]),
+            float(curr["dt"]),
+        )
+    return {
+        "levels": levels,
+        "reference": {
+            "s_steps": s_steps,
+            "t_steps": _TEMPORAL_REFERENCE_T_STEPS,
+            "price": reference_price,
+            "price_abs": reference["price_abs"],
+            "method": "same-spatial-grid high-time-step reference isolates temporal error",
+        },
+        "rows": rows,
+        "min_observed_temporal_price_order": _min_order(rows, key="observed_temporal_price_order"),
+    }
 
 
 def _run_grid_level(
@@ -328,82 +391,6 @@ def _manufactured_source(grid: np.ndarray, tau: float, alpha: float, rate: float
     return alpha * u - l_cont
 
 
-def _perturbation_evidence(
-    route: Mapping[str, Any],
-    finest: Mapping[str, Any],
-    manufactured: Mapping[str, Any],
-) -> dict[str, Any]:
-    baseline_pde = float(finest["pde_residual_linf"])
-    baseline_boundary = float(finest["boundary_linf"])
-    source_perturbed = (
-        float(cast(list[Mapping[str, Any]], manufactured["rows"])[-1]["residual_linf"]) + 1.0e-2
-    )
-    return {
-        "baseline_passes": baseline_pde <= _RESIDUAL_TOL and baseline_boundary <= _BOUNDARY_TOL,
-        "cases": {
-            "operator_sign_flip": {
-                "residual_linf": _wrong_operator_residual(route, sign=-1.0),
-                "passes": False,
-            },
-            "reaction_sign_flip": {
-                "residual_linf": _wrong_operator_residual(route, reaction_sign=1.0),
-                "passes": False,
-            },
-            "source_shift": {"residual_linf": source_perturbed, "passes": False},
-            "static_boundary": {"boundary_linf": _static_boundary_error(route), "passes": False},
-        },
-    }
-
-
-def _wrong_operator_residual(route: Mapping[str, Any], *, sign: float = 1.0, reaction_sign: float = -1.0) -> float:
-    numerics = cast(Mapping[str, Any], route["numerics"])
-    wrong = copy.deepcopy(dict(route))
-    wrong["numerics"] = dict(numerics) | {"grid_levels": ((80, 120),)}
-    report = _run_compiled_black_scholes_route(wrong)
-    row = cast(Mapping[str, Any], report["convergence"][-1])
-    domain = cast(Mapping[str, Any], numerics["domain"])
-    s_grid = np.linspace(float(domain["s_min"]), float(domain["s_max"]), int(row["s_steps"]))
-    t_grid = np.linspace(float(domain["t_min"]), float(domain["t_max"]), int(row["t_steps"]))
-    values, _schedule, _operator = _solve_compiled_black_scholes_grid(
-        spot_grid=s_grid,
-        time_grid=t_grid,
-        strike=float(numerics["strike"]),
-        risk_free_rate=float(numerics["risk_free_rate"]),
-        dividend_yield=float(numerics["dividend_yield"]),
-        volatility=float(numerics["volatility"]),
-        theta=float(numerics["theta"]),
-    )
-    matrix = sign * _black_scholes_matrix(
-        s_grid,
-        risk_free_rate=float(numerics["risk_free_rate"]),
-        dividend_yield=float(numerics["dividend_yield"]),
-        volatility=float(numerics["volatility"]),
-    )
-    if reaction_sign > 0.0:
-        matrix += 2.0 * float(numerics["risk_free_rate"]) * np.eye(len(s_grid))
-    residual = []
-    theta = float(numerics["theta"])
-    for prev, curr, tau_prev, tau_next in zip(values[:-1], values[1:], t_grid[:-1], t_grid[1:], strict=True):
-        dt = float(tau_next - tau_prev)
-        residual.append(((curr - prev) / dt - matrix @ (theta * curr + (1.0 - theta) * prev))[1:-1])
-    return float(np.max(np.abs(np.concatenate(residual))))
-
-
-def _static_boundary_error(route: Mapping[str, Any]) -> float:
-    numerics = cast(Mapping[str, Any], route["numerics"])
-    domain = cast(Mapping[str, Any], numerics["domain"])
-    s_max = float(domain["s_max"])
-    static_upper = s_max - float(numerics["strike"])
-    dynamic_upper = _upper_call_boundary(
-        s_max,
-        strike=float(numerics["strike"]),
-        risk_free_rate=float(numerics["risk_free_rate"]),
-        dividend_yield=float(numerics["dividend_yield"]),
-        tau=float(numerics["maturity"]),
-    )
-    return float(abs(dynamic_upper - static_upper))
-
-
 def _evaluate_gates(results: Mapping[str, Any]) -> bool:
     full = cast(Mapping[str, Any], results.get("full_refinement", {}))
     rows = cast(list[Mapping[str, Any]], full.get("rows", ()))
@@ -416,42 +403,43 @@ def _evaluate_gates(results: Mapping[str, Any]) -> bool:
         and float(finest["pde_residual_linf"]) <= _RESIDUAL_TOL
         and float(finest["boundary_linf"]) <= _BOUNDARY_TOL
     )
-    oracle = (
-        float(finest["price_abs"]) <= _PRICE_TOL
-        and float(finest["delta_abs"]) <= _DELTA_TOL
-        and float(finest["gamma_abs"]) <= _GAMMA_TOL
+    oracle = _oracle_bounded(finest)
+    temporal = cast(Mapping[str, Any], results.get("temporal_refinement", {}))
+    temporal_order = temporal.get("min_observed_temporal_price_order")
+    temporal_rows = cast(list[Mapping[str, Any]], temporal.get("rows", ()))
+    temporal_ok = (
+        temporal_order is not None
+        and float(temporal_order) >= _TEMPORAL_ORDER_TOL
+        and all(_oracle_bounded(row) for row in temporal_rows)
     )
+    manufactured = cast(Mapping[str, Any], results.get("manufactured_solution", {}))
+    manufactured_order = manufactured.get("min_observed_residual_order")
+    manufactured_ok = manufactured_order is not None and float(manufactured_order) >= _MANUFACTURED_ORDER_TOL
+    return oracle and residuals and no_arb and temporal_ok and manufactured_ok and _perturbations_fail(results)
+
+
+def _oracle_bounded(row: Mapping[str, Any]) -> bool:
+    return (
+        float(row["price_abs"]) <= _PRICE_TOL
+        and float(row["delta_abs"]) <= _DELTA_TOL
+        and float(row["gamma_abs"]) <= _GAMMA_TOL
+    )
+
+
+def _perturbations_fail(results: Mapping[str, Any]) -> bool:
     perturb = cast(Mapping[str, Any], results.get("perturbations", {}))
     cases = cast(Mapping[str, Mapping[str, Any]], perturb.get("cases", {}))
-    perturb_fail = bool(perturb.get("baseline_passes")) and all(not bool(case.get("passes")) for case in cases.values())
-    return oracle and residuals and no_arb and perturb_fail
+    required = {"operator_sign_flip", "reaction_sign_flip", "source_shift", "static_boundary"}
+    baseline_ok = bool(perturb.get("baseline_passes")) and set(cases) == required
+    return baseline_ok and all(_case_recomputes_fail(c) for c in cases.values())
 
 
-def _hashes_for_bundle(bundle: Mapping[str, Any]) -> dict[str, str]:
-    return {
-        "request_hash": _hash_payload(bundle.get("request")),
-        "config_hash": _hash_payload(bundle.get("config")),
-        "convention_hash": _hash_payload(bundle.get("convention")),
-        "result_hash": _hash_payload(bundle.get("results")),
-        "evidence_hash": _hash_payload(
-            {
-                "schema_version": bundle.get("schema_version"),
-                "benchmark_id": bundle.get("benchmark_id"),
-                "request": bundle.get("request"),
-                "config": bundle.get("config"),
-                "convention": bundle.get("convention"),
-                "results": bundle.get("results"),
-            }
-        ),
-    }
-
-
-def _hash_payload(payload: object) -> str:
-    return "sha256:" + sha256(_canonicalize(payload).encode("utf-8")).hexdigest()
-
-
-def _canonicalize(payload: object) -> str:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+def _case_recomputes_fail(case: Mapping[str, Any]) -> bool:
+    metric = str(case.get("metric"))
+    if metric not in {"residual_linf", "boundary_linf"} or metric not in case:
+        return False
+    recomputed_pass = float(case[metric]) <= float(case.get("threshold", 0.0))
+    return bool(case.get("passes")) == recomputed_pass and not recomputed_pass
 
 
 def _order_scales(prev: Mapping[str, Any], curr: Mapping[str, Any]) -> tuple[float, float]:

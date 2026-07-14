@@ -13,6 +13,7 @@ from finite_difference_options.cli.main import app
 from finite_difference_options.validation.fd_verification import (
     FD_BS_VERIFICATION_BENCHMARK_ID,
     FDVerificationError,
+    _hashes_for_bundle,
     run_fd_bs_verification_benchmark,
     validate_fd_bs_verification_bundle,
 )
@@ -30,6 +31,7 @@ def test_fd_bs_001_evidence_has_oracle_greek_residual_and_hash_gates() -> None:
         "config_hash",
         "convention_hash",
         "result_hash",
+        "status_hash",
         "evidence_hash",
     }
     finest = bundle["results"]["full_refinement"]["rows"][-1]
@@ -42,6 +44,8 @@ def test_fd_bs_001_evidence_has_oracle_greek_residual_and_hash_gates() -> None:
     assert finest["boundary_linf"] <= tolerances["boundary_linf"]
     assert len(bundle["results"]["spatial_refinement"]["rows"]) == 3
     assert len(bundle["results"]["temporal_refinement"]["rows"]) == 3
+    assert bundle["results"]["temporal_refinement"]["reference"]["t_steps"] == 640
+    assert bundle["results"]["temporal_refinement"]["min_observed_temporal_price_order"] > 1.8
     assert bundle["results"]["manufactured_solution"]["min_observed_residual_order"] > 1.9
     validate_fd_bs_verification_bundle(bundle)
 
@@ -52,6 +56,40 @@ def test_fd_bs_001_validation_recomputes_truth_and_rejects_tampering() -> None:
     tampered["results"]["full_refinement"]["rows"][-1]["price"] = 0.0
 
     with pytest.raises(FDVerificationError, match="hash mismatch|results do not match"):
+        validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_validation_rejects_rehashed_false_numerical_rows() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+    tampered = copy.deepcopy(bundle)
+    finest = tampered["results"]["full_refinement"]["rows"][-1]
+    finest["price"] = finest["oracle_price"]
+    finest["price_abs"] = 0.0
+    tampered["evidence"]["hashes"] = _hashes_for_bundle(tampered)
+
+    with pytest.raises(FDVerificationError, match="results do not match recomputed numerical truth"):
+        validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_validation_rejects_rehashed_status_tampering() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+    tampered = copy.deepcopy(bundle)
+    tampered["evidence"]["status"] = "failed"
+    tampered["evidence"]["hashes"] = _hashes_for_bundle(tampered)
+
+    with pytest.raises(FDVerificationError, match="evidence status does not match recomputed gates"):
+        validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_validation_rejects_zero_residual_false_perturbation_pass() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+    tampered = copy.deepcopy(bundle)
+    case = tampered["results"]["perturbations"]["cases"]["operator_sign_flip"]
+    case["residual_linf"] = 0.0
+    case["passes"] = False
+    tampered["evidence"]["hashes"] = _hashes_for_bundle(tampered)
+
+    with pytest.raises(FDVerificationError, match="numerical gates failed|results do not match"):
         validate_fd_bs_verification_bundle(tampered)
 
 
