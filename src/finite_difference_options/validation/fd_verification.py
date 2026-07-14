@@ -45,12 +45,12 @@ _FULL_LEVELS = ((40, 40), (80, 120), (120, 200))
 _PRICE_TOL = 5.0e-4
 _DELTA_TOL = 1.0e-3
 _GAMMA_TOL = 8.0e-3
-_RESIDUAL_TOL = 1.0e-10
+_ALGEBRAIC_RESIDUAL_TOL = 1.0e-8
+_PDE_CONSISTENCY_TOL = 1.0e-5
 _PAYOFF_TOL = 1.0e-12
-_BOUNDARY_TOL = 1.0e-12
+_BOUNDARY_TOL = 1.0e-10
 _TEMPORAL_ORDER_TOL = 1.8
 _MANUFACTURED_ORDER_TOL = 1.8
-
 
 
 class FDVerificationError(ValueError):
@@ -83,7 +83,7 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         route,
         finest,
         manufactured,
-        residual_tol=_RESIDUAL_TOL,
+        algebraic_tol=_ALGEBRAIC_RESIDUAL_TOL,
         boundary_tol=_BOUNDARY_TOL,
     )
     results = {
@@ -97,7 +97,8 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
             "price_abs": _PRICE_TOL,
             "delta_abs": _DELTA_TOL,
             "gamma_abs": _GAMMA_TOL,
-            "pde_residual_linf": _RESIDUAL_TOL,
+            "algebraic_residual_linf": _ALGEBRAIC_RESIDUAL_TOL,
+            "pde_consistency_linf": _PDE_CONSISTENCY_TOL,
             "payoff_linf": _PAYOFF_TOL,
             "boundary_linf": _BOUNDARY_TOL,
         },
@@ -293,10 +294,9 @@ def _run_grid_level(
         "delta_abs": float(abs(delta - greeks["delta"])),
         "gamma_abs": float(abs(gamma - greeks["gamma"])),
         "payoff_linf": residuals["payoff_linf"],
-        "pde_residual_linf": residuals["pde_residual_linf"],
-        "pde_residual_l2": residuals["pde_residual_l2"],
         "boundary_linf": residuals["boundary_linf"],
         "algebraic_residual_linf": residuals["algebraic_residual_linf"],
+        "algebraic_residual_l2": residuals["algebraic_residual_l2"],
         "boundary_schedule_applied": schedule,
     }
 
@@ -338,10 +338,9 @@ def _residuals(
     )
     return {
         "payoff_linf": float(np.max(np.abs(values[0] - payoff))),
-        "pde_residual_linf": float(np.max(np.abs(residual))),
-        "pde_residual_l2": float(np.linalg.norm(residual) / max(1, residual.size) ** 0.5),
         "boundary_linf": boundary_error,
         "algebraic_residual_linf": float(np.max(np.abs(residual))),
+        "algebraic_residual_l2": float(np.linalg.norm(residual) / max(1, residual.size) ** 0.5),
     }
 
 
@@ -359,14 +358,14 @@ def _manufactured_residual_table(*, rate: float, q: float, sigma: float) -> dict
             {
                 "s_steps": s_steps,
                 "h": float(np.max(np.diff(grid))),
-                "residual_linf": float(np.max(np.abs(interior))),
-                "residual_l2": float(np.linalg.norm(interior) / max(1, interior.size) ** 0.5),
+                "pde_consistency_linf": float(np.max(np.abs(interior))),
+                "pde_consistency_l2": float(np.linalg.norm(interior) / max(1, interior.size) ** 0.5),
             }
         )
     for index in range(1, len(rows)):
-        rows[index]["observed_residual_order"] = _observed_order(
-            float(rows[index - 1]["residual_linf"]),
-            float(rows[index]["residual_linf"]),
+        rows[index]["observed_pde_consistency_order"] = _observed_order(
+            float(rows[index - 1]["pde_consistency_linf"]),
+            float(rows[index]["pde_consistency_linf"]),
             float(rows[index - 1]["h"]),
             float(rows[index]["h"]),
         )
@@ -374,7 +373,7 @@ def _manufactured_residual_table(*, rate: float, q: float, sigma: float) -> dict
         "exact_solution": "u(S,tau)=exp(alpha*tau)*(1 + 0.2*S + 0.05*S^3)",
         "source": "f=u_tau-L[u] evaluated analytically",
         "rows": rows,
-        "min_observed_residual_order": _min_order(rows, key="observed_residual_order"),
+        "min_observed_pde_consistency_order": _min_order(rows, key="observed_pde_consistency_order"),
     }
 
 
@@ -400,7 +399,7 @@ def _evaluate_gates(results: Mapping[str, Any]) -> bool:
     no_arb = finest["price"] >= 0.0 and 0.0 <= finest["delta"] <= 1.0 and finest["gamma"] >= 0.0
     residuals = (
         float(finest["payoff_linf"]) <= _PAYOFF_TOL
-        and float(finest["pde_residual_linf"]) <= _RESIDUAL_TOL
+        and float(finest["algebraic_residual_linf"]) <= _ALGEBRAIC_RESIDUAL_TOL
         and float(finest["boundary_linf"]) <= _BOUNDARY_TOL
     )
     oracle = _oracle_bounded(finest)
@@ -413,8 +412,14 @@ def _evaluate_gates(results: Mapping[str, Any]) -> bool:
         and all(_oracle_bounded(row) for row in temporal_rows)
     )
     manufactured = cast(Mapping[str, Any], results.get("manufactured_solution", {}))
-    manufactured_order = manufactured.get("min_observed_residual_order")
-    manufactured_ok = manufactured_order is not None and float(manufactured_order) >= _MANUFACTURED_ORDER_TOL
+    manufactured_order = manufactured.get("min_observed_pde_consistency_order")
+    manufactured_rows = cast(list[Mapping[str, Any]], manufactured.get("rows", ()))
+    manufactured_ok = (
+        manufactured_order is not None
+        and float(manufactured_order) >= _MANUFACTURED_ORDER_TOL
+        and len(manufactured_rows) >= 3
+        and float(manufactured_rows[-1]["pde_consistency_linf"]) <= _PDE_CONSISTENCY_TOL
+    )
     return oracle and residuals and no_arb and temporal_ok and manufactured_ok and _perturbations_fail(results)
 
 

@@ -40,13 +40,15 @@ def test_fd_bs_001_evidence_has_oracle_greek_residual_and_hash_gates() -> None:
     assert finest["delta_abs"] <= tolerances["delta_abs"]
     assert finest["gamma_abs"] <= tolerances["gamma_abs"]
     assert finest["payoff_linf"] <= tolerances["payoff_linf"]
-    assert finest["pde_residual_linf"] <= tolerances["pde_residual_linf"]
+    assert finest["algebraic_residual_linf"] <= tolerances["algebraic_residual_linf"]
+    manufactured = bundle["results"]["manufactured_solution"]
+    assert manufactured["rows"][-1]["pde_consistency_linf"] <= tolerances["pde_consistency_linf"]
     assert finest["boundary_linf"] <= tolerances["boundary_linf"]
     assert len(bundle["results"]["spatial_refinement"]["rows"]) == 3
     assert len(bundle["results"]["temporal_refinement"]["rows"]) == 3
     assert bundle["results"]["temporal_refinement"]["reference"]["t_steps"] == 640
     assert bundle["results"]["temporal_refinement"]["min_observed_temporal_price_order"] > 1.8
-    assert bundle["results"]["manufactured_solution"]["min_observed_residual_order"] > 1.9
+    assert bundle["results"]["manufactured_solution"]["min_observed_pde_consistency_order"] > 1.9
     validate_fd_bs_verification_bundle(bundle)
 
 

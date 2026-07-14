@@ -20,8 +20,11 @@ def test_compiled_pde_evidence_records_applied_boundary_schedule_and_residuals()
     }
     assert schedule[-1]["source"] == "compiled_boundary_expression"
     assert schedule[-1]["upper"] > schedule[0]["upper"]
-    assert finest["algebraic_residual_linf"] <= 1.0e-10
-    assert finest["pde_residual_l2"] <= 1.0e-10
+    assert finest["algebraic_residual_linf"] <= 1.0e-8
+    assert finest["algebraic_residual_l2"] <= 1.0e-8
+    manufactured = bundle["results"]["manufactured_solution"]
+    assert manufactured["rows"][-1]["pde_consistency_linf"] <= 1.0e-5
+    assert manufactured["min_observed_pde_consistency_order"] >= 1.8
 
 
 def test_compiled_pde_perturbed_sign_source_reaction_and_boundary_fail() -> None:

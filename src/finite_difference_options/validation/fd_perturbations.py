@@ -24,25 +24,26 @@ def perturbation_evidence(
     finest: Mapping[str, Any],
     manufactured: Mapping[str, Any],
     *,
-    residual_tol: float,
+    algebraic_tol: float,
     boundary_tol: float,
 ) -> dict[str, Any]:
     """Return recomputed negative-control residual and boundary evidence."""
 
-    baseline_pde = float(finest["pde_residual_linf"])
+    baseline_algebraic = float(finest["algebraic_residual_linf"])
     baseline_boundary = float(finest["boundary_linf"])
     rate, q, sigma = _route_rates(route)
     manufactured_rows = cast(list[Mapping[str, Any]], manufactured["rows"])
     return {
-        "baseline_passes": baseline_pde <= residual_tol and baseline_boundary <= boundary_tol,
-        "baseline": {"pde_residual_linf": baseline_pde, "boundary_linf": baseline_boundary},
-        "manufactured_baseline_linf": float(manufactured_rows[-1]["residual_linf"]),
+        "baseline_passes": baseline_algebraic <= algebraic_tol and baseline_boundary <= boundary_tol,
+        "baseline": {
+            "algebraic_residual_linf": baseline_algebraic,
+            "boundary_linf": baseline_boundary,
+        },
+        "manufactured_pde_consistency_linf": float(manufactured_rows[-1]["pde_consistency_linf"]),
         "cases": {
             "operator_sign_flip": _residual_case(_wrong_operator_residual(route, sign=-1.0)),
             "reaction_sign_flip": _residual_case(_wrong_operator_residual(route, reaction_sign=1.0)),
-            "source_shift": _residual_case(
-                _source_shift_residual(rate=rate, q=q, sigma=sigma, source_shift=1.0e-2)
-            ),
+            "source_shift": _residual_case(_source_shift_residual(rate=rate, q=q, sigma=sigma, source_shift=1.0e-2)),
             "static_boundary": _boundary_case(_static_boundary_error(route)),
         },
     }
