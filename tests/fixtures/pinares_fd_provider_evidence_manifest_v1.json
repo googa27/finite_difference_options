@@ -13,6 +13,7 @@
     "feature_support": {
       "american_black_scholes_lcp": "validated",
       "bermudan_black_scholes_lcp": "validated",
+      "compiled_pde_adapter": "validated",
       "hjb_control": "unsupported",
       "jump_integral": "unsupported",
       "mixed_derivative": "experimental",

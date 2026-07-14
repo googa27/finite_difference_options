@@ -7,6 +7,8 @@ optionally computes Greeks, and can render heatmap/surface plots.
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
@@ -17,9 +19,84 @@ from finite_difference_options.pricing import OptionPricer
 from finite_difference_options.plotting.base import MatplotlibSeabornPlotter
 from finite_difference_options.processes.affine import GeometricBrownianMotion
 from finite_difference_options.instruments.base import EuropeanCall, EuropeanPut
+from finite_difference_options.integrations.compiled_pde_adapter import (
+    CompiledPDEAdapterError,
+    load_compiled_pde_json,
+    screen_compiled_pde_payload,
+    solve_compiled_pde_payload,
+)
 from finite_difference_options.plotting.config_manager import PlottingConfigManager
 
 app = typer.Typer(help="Command-line tools for option pricing.")
+qps_app = typer.Typer(
+    help="Screen and solve public-synthetic QuantProblemSpec/compiled PDE fixtures."
+)
+app.add_typer(qps_app, name="qps")
+_QPS_PAYLOAD_ARGUMENT = typer.Argument(..., exists=True, dir_okay=False, readable=True)
+_QPS_RESULT_OUT_OPTION = typer.Option(..., "--out", help="Destination for deterministic result JSON.")
+_QPS_EVIDENCE_OUT_OPTION = typer.Option(..., "--evidence", help="Destination for deterministic evidence JSON.")
+
+
+def _dump_json(payload: object) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True) + "\n"
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_dump_json(payload), encoding="utf-8")
+
+
+@qps_app.command("screen")
+def qps_screen(
+    payload: Path = _QPS_PAYLOAD_ARGUMENT,
+    json_output: bool = typer.Option(False, "--json", help="Emit deterministic JSON."),
+) -> None:
+    """Screen a public-synthetic compiled PDE fixture before numerical work."""
+
+    try:
+        screen = screen_compiled_pde_payload(load_compiled_pde_json(payload))
+    except CompiledPDEAdapterError as exc:
+        error_payload = {
+            "supported": False,
+            "diagnostics": [asdict(item) for item in exc.diagnostics],
+            "route": {},
+        }
+        typer.echo(_dump_json(error_payload) if json_output else "unsupported")
+        raise typer.Exit(1) from exc
+    screen_payload = screen.as_dict()
+    typer.echo(
+        _dump_json(screen_payload)
+        if json_output
+        else ("supported" if screen.supported else "unsupported")
+    )
+    if not screen.supported:
+        raise typer.Exit(1)
+
+
+@qps_app.command("solve")
+def qps_solve(
+    payload: Path = _QPS_PAYLOAD_ARGUMENT,
+    out: Path = _QPS_RESULT_OUT_OPTION,
+    evidence: Path = _QPS_EVIDENCE_OUT_OPTION,
+) -> None:
+    """Solve the exact public-synthetic compiled PDE fixture."""
+
+    try:
+        result = solve_compiled_pde_payload(load_compiled_pde_json(payload))
+    except CompiledPDEAdapterError as exc:
+        typer.echo(
+            _dump_json(
+                {
+                    "status": "unsupported",
+                    "diagnostics": [asdict(item) for item in exc.diagnostics],
+                }
+            )
+        )
+        raise typer.Exit(1) from exc
+    result_payload = result.as_dict()
+    _write_json(out, result_payload)
+    _write_json(evidence, result.evidence)
+    typer.echo(_dump_json(result_payload))
 
 
 @app.command()

@@ -31,7 +31,7 @@ The registry is the evidence index behind `docs/CAPABILITY_MATRIX.md`. A capabil
 
 Only rows with an explicit runner can execute numerical code through `run_registered_benchmark(...)`. Metadata-only rows fail closed if called directly so no consumer mistakes registry coverage for executed evidence.
 
-`BS-CALL-PARITY-V0`, `QPS-VANILLA-CALL-V0`, `PINARES-FD-FIXED-PRICE-PROXY-V0`, `PINARES-QPS-FIXED-PRICE-PROXY-V0`, `PINARES-FD-FAIL-CLOSED-V0`, `FD-GREEKS-VALIDATION-V0`, `AMERICAN-LCP-V0` and `HESTON-BS-LIMIT-V0` execute deterministic runners through `run_registered_benchmark(...)`.
+`BS-CALL-PARITY-V0`, `QPS-VANILLA-CALL-V0`, `VQPW-FD-COMPILED-PDE-BS-CALL-V0`, `PINARES-FD-FIXED-PRICE-PROXY-V0`, `PINARES-QPS-FIXED-PRICE-PROXY-V0`, `PINARES-FD-FAIL-CLOSED-V0`, `FD-GREEKS-VALIDATION-V0`, `AMERICAN-LCP-V0` and `HESTON-BS-LIMIT-V0` execute deterministic runners through `run_registered_benchmark(...)`.
 
 `FD-GREEKS-VALIDATION-V0` writes the Issue #58 Greek derivative validation artifact: PR-fast CI covers 12 Black-Scholes cases across moneyness, maturity and volatility; scheduled broad CI extends the matrix and uploads `fd-greek-derivative-validation-broad.json`.
 
@@ -43,6 +43,7 @@ The static registry fixture currently contains these versioned evidence IDs:
 |---|---|
 | `BS-CALL-PARITY-V0` | executable Black-Scholes analytical parity, Greeks, convergence and no-arbitrage runner |
 | `QPS-VANILLA-CALL-V0` | executable QuantProblemSpec/static-fixture route-parity runner |
+| `VQPW-FD-COMPILED-PDE-BS-CALL-V0` | executable compiled `pde_ir.v0` fixture adapter screening/solve runner for issue #141 |
 | `BOUNDARY-MODEL-AWARE-V0` | typed model-aware boundary/reaction gate |
 | `REACTION-INDEPENDENT-V0` | reaction/discount coefficient independence gate |
 | `RANNACHER-GAMMA-V0` | Rannacher startup and kinked-payoff Gamma evidence |

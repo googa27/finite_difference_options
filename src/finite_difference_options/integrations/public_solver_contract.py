@@ -84,11 +84,13 @@ def released_fd_solver_contract(
         supported_problem_ids=(
             "public-synthetic.black-scholes-call.v0",
             "pinares.fixed_price_option_proxy.v1",
+            "public-synthetic.compiled-pde.black-scholes-call.v0",
         ),
         supported_privacy_classes=("public_synthetic",),
         capability_manifest=manifest_dict,
         entry_points=(
             "finite_difference_options.integrations.public_solver_contract:solve_public_quant_problem_spec",
+            "finite_difference_options.integrations.compiled_pde_adapter:solve_compiled_pde_payload",
             "finite_difference_options.integrations.haircut_backend:create_backend",
         ),
         entry_point_groups=("haircut.solver_backends",),
@@ -96,6 +98,7 @@ def released_fd_solver_contract(
             "googa27/finite_difference_options#55",
             "googa27/finite_difference_options#130",
             "googa27/finite_difference_options#139",
+            "googa27/finite_difference_options#141",
         ),
     )
 

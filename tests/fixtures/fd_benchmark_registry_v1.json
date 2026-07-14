@@ -1,5 +1,5 @@
 {
-  "case_count": 23,
+  "case_count": 24,
   "cases": [
     {
       "benchmark_id": "BS-CALL-PARITY-V0",
@@ -102,6 +102,57 @@
       "status": "validated",
       "time_schedule": "fixture-declared theta controls",
       "title": "QuantProblemSpec vanilla call fixture compatibility",
+      "tolerances": [
+        {
+          "metric": "price_abs",
+          "norm": "absolute price error",
+          "notes": "shared with BS-CALL-PARITY-V0",
+          "threshold": 0.0005
+        }
+      ]
+    },
+    {
+      "benchmark_id": "VQPW-FD-COMPILED-PDE-BS-CALL-V0",
+      "capability_rows": [
+        "Haircut backend adapter / solver contract screening / compiled PDE adapter"
+      ],
+      "family": "route_parity",
+      "fixture_paths": [
+        "tests/fixtures/compiled_pde/black_scholes_call_v0.json"
+      ],
+      "grid_family": "fixture-declared uniform grid via maintained Black-Scholes FD validation route",
+      "instrument": "European call compiled pde_ir.v0 public-synthetic contract",
+      "invariants": [
+        "source_ir_canonical_hash",
+        "compiled_operator_hash",
+        "measure_numeraire_units",
+        "time_orientation",
+        "boundary_semantics",
+        "price_abs_tolerance_ok"
+      ],
+      "issue_refs": [
+        "googa27/finite_difference_options#141"
+      ],
+      "model": "Compiled FPF pde_ir.v0 Black-Scholes / FD adapter",
+      "notes": "Consumes serialized public FPF compiler artifacts without source-tree imports.",
+      "oracle": {
+        "independence": "compiled symbolic contract is serialized separately from the maintained FD solver",
+        "kind": "fixture",
+        "notes": "Numerical tolerance is inherited from BS-CALL-PARITY-V0; this row guards adapter identity.",
+        "source": "financial_problem_formulations pde_ir.v0 public Black-Scholes compiler fixture"
+      },
+      "resource_policy": {
+        "deterministic": "true",
+        "max_s_steps": 120,
+        "max_t_steps": 200,
+        "public_synthetic": "true"
+      },
+      "route_id": "fd.compiled_pde.black_scholes_call_v0",
+      "runner": "compiled_pde_adapter",
+      "state_convention": "spot S, Q measure, USD money-market numeraire, backward PDE time orientation",
+      "status": "validated",
+      "time_schedule": "fixture-declared theta=0.5 Crank-Nicolson validation route",
+      "title": "Compiled pde_ir.v0 Black-Scholes fixture adapter compatibility",
       "tolerances": [
         {
           "metric": "price_abs",

@@ -245,6 +245,7 @@ DEFAULT_FD_CAPABILITY_MANIFEST = FDCapabilityManifest(
         "pinares_fixed_price_proxy": CapabilityStatus.VALIDATED.value,
         "released_public_solver_contract": CapabilityStatus.VALIDATED.value,
         "operator_factorization_cache": CapabilityStatus.VALIDATED.value,
+        "compiled_pde_adapter": CapabilityStatus.VALIDATED.value,
         "one_dimensional_generator_pde": CapabilityStatus.VALIDATED.value,
         "mixed_derivative": CapabilityStatus.EXPERIMENTAL.value,
         "jump_integral": CapabilityStatus.UNSUPPORTED.value,

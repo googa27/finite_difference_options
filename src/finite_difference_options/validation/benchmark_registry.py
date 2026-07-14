@@ -279,6 +279,39 @@ def default_benchmark_registry() -> tuple[BenchmarkCase, ...]:
             ),
         ),
         BenchmarkCase(
+            benchmark_id="VQPW-FD-COMPILED-PDE-BS-CALL-V0",
+            title="Compiled pde_ir.v0 Black-Scholes fixture adapter compatibility",
+            family="route_parity",
+            status="validated",
+            route_id="fd.compiled_pde.black_scholes_call_v0",
+            model="Compiled FPF pde_ir.v0 Black-Scholes / FD adapter",
+            instrument="European call compiled pde_ir.v0 public-synthetic contract",
+            state_convention="spot S, Q measure, USD money-market numeraire, backward PDE time orientation",
+            grid_family="fixture-declared uniform grid via maintained Black-Scholes FD validation route",
+            time_schedule="fixture-declared theta=0.5 Crank-Nicolson validation route",
+            oracle=OracleSpec(
+                kind="fixture",
+                source="financial_problem_formulations pde_ir.v0 public Black-Scholes compiler fixture",
+                independence="compiled symbolic contract is serialized separately from the maintained FD solver",
+                notes="Numerical tolerance is inherited from BS-CALL-PARITY-V0; this row guards adapter identity.",
+            ),
+            tolerances=(TolerancePolicy("price_abs", 5.0e-4, "absolute price error", "shared with BS-CALL-PARITY-V0"),),
+            invariants=(
+                "source_ir_canonical_hash",
+                "compiled_operator_hash",
+                "measure_numeraire_units",
+                "time_orientation",
+                "boundary_semantics",
+                "price_abs_tolerance_ok",
+            ),
+            capability_rows=("Haircut backend adapter / solver contract screening / compiled PDE adapter",),
+            fixture_paths=("tests/fixtures/compiled_pde/black_scholes_call_v0.json",),
+            issue_refs=("googa27/finite_difference_options#141",),
+            resource_policy=dict(deterministic="true", public_synthetic="true", max_s_steps=120, max_t_steps=200),
+            runner="compiled_pde_adapter",
+            notes="Consumes serialized public FPF compiler artifacts without source-tree imports.",
+        ),
+        BenchmarkCase(
             benchmark_id="PINARES-FD-FIXED-PRICE-PROXY-V0",
             title="Pinares fixed-price option proxy FD parity",
             family="analytical_oracle",
@@ -1335,6 +1368,38 @@ def _pinares_fail_closed_result(case: BenchmarkCase) -> BenchmarkRunResult:
     )
 
 
+def _compiled_pde_adapter_result(case: BenchmarkCase) -> BenchmarkRunResult:
+    from finite_difference_options.integrations.compiled_pde_adapter import (
+        packaged_compiled_black_scholes_fixture,
+        solve_compiled_pde_payload,
+    )
+
+    result = solve_compiled_pde_payload(packaged_compiled_black_scholes_fixture())
+    price_abs = abs(result.values["price"] - result.values["oracle_price"])
+    metrics: dict[str, float | bool | int | str] = {
+        "price_abs": price_abs,
+        "source_ir_canonical_hash": result.evidence["source_ir_canonical_hash"],
+        "compiled_hash": result.evidence["compiled_hash"],
+    }
+    invariants = {
+        "source_ir_canonical_hash": result.evidence["source_ir_canonical_hash"]
+        == "sha256:5ab53779a5e322284a6cb18b22302c119f22bc740659aedf1c07823529d68a47",
+        "compiled_operator_hash": result.evidence["compiled_hash"]
+        == "sha256:970088e5dcb16535edfd230bfe992ea7eb68aede901c7b543682b39f1a5ac32e",
+        "measure_numeraire_units": result.evidence["measure"] == "Q" and bool(result.evidence["units"]),
+        "time_orientation": result.evidence["time_orientation"] == "backward",
+        "boundary_semantics": tuple(result.evidence["boundary_conditions"]) == ("asymptotic", "dirichlet"),
+    }
+    invariants.update(_tolerance_invariants(case, metrics))
+    return BenchmarkRunResult(
+        benchmark_id=case.benchmark_id,
+        passed=result.passed and all(invariants.values()),
+        metrics=metrics,
+        evidence={"route_id": case.route_id, **result.evidence, "deterministic": True},
+        invariants=invariants,
+    )
+
+
 def _greek_derivative_validation_result(case: BenchmarkCase) -> BenchmarkRunResult:
     from finite_difference_options.validation.greek_derivative_gates import (
         run_greek_derivative_validation,
@@ -1540,6 +1605,8 @@ def run_registered_benchmark(benchmark_id: str, *, artifact_path: str | Path | N
         result = _pinares_qps_contract_result(case)
     elif case.runner == "pinares_fail_closed":
         result = _pinares_fail_closed_result(case)
+    elif case.runner == "compiled_pde_adapter":
+        result = _compiled_pde_adapter_result(case)
     elif case.runner == "greek_derivative_validation":
         result = _greek_derivative_validation_result(case)
     elif case.runner == "american_lcp":

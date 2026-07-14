@@ -95,7 +95,7 @@ include = ["finite_difference_options*"]
 exclude = ["src*"]
 
 [tool.setuptools.package-data]
-finite_difference_options = ["py.typed"]
+finite_difference_options = ["py.typed", "validation/fixtures/*.json"]
 
 [tool.ruff]
 line-length = 120

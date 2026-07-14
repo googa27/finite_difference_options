@@ -110,9 +110,9 @@ Tests cover heat and advection–diffusion–reaction manufactured solutions, Bl
 
 A single endpoint price comparison is insufficient.
 
-### FR-FD-012 — Haircut backend plugin
+### FR-FD-012 — Haircut backend plugin and compiled PDE adapter
 
-After package, consolidation and correctness blockers pass, publish exactly one optional canonical `haircut.solver_backends` entry point. The adapter returns Haircut's public `BackendIdentity` and `BackendCapabilityManifest` shapes, preserves conventions, rejects unsupported requests before operator work, fails closed on contract-major mismatch, returns complete diagnostics, uses canonical public FD APIs, and imports only Haircut's public solver protocol seam rather than domain/application, PDP or delivery modules. Owner: #59/#140. Current wheel entry point maps `finite_difference_options` to `finite_difference_options.integrations.haircut_backend:create_backend`; the legacy `haircut_engine.solver_backends` group is not advertised by FD.
+After package, consolidation and correctness blockers pass, publish exactly one optional canonical `haircut.solver_backends` entry point. The adapter returns Haircut's public `BackendIdentity` and `BackendCapabilityManifest` shapes, preserves conventions, rejects unsupported requests before operator work, fails closed on contract-major mismatch, returns complete diagnostics, uses canonical public FD APIs, and imports only Haircut's public solver protocol seam rather than domain/application, PDP or delivery modules. Owner: #59/#140. Current wheel entry point maps `finite_difference_options` to `finite_difference_options.integrations.haircut_backend:create_backend`; the legacy `haircut_engine.solver_backends` group is not advertised by FD. Issue #141 adds a separate compiled `pde_ir.v0` fixture adapter/CLI that consumes serialized public FPF compiler artifacts only, preserves source/compiled hashes, measure, numeraire, units, time orientation and boundary semantics, and solves only the exact public-synthetic 1D European Black-Scholes route through maintained FD infrastructure.
 
 ### FR-FD-013 — Canonical implementation
 
