@@ -29,15 +29,20 @@ from finite_difference_options.validation.black_scholes_parity import (
     black_scholes_call_greeks,
     black_scholes_call_oracle,
 )
-from finite_difference_options.validation.fd_evidence_integrity import (
+from finite_difference_options.validation.fd_evidence.integrity import (
     HASH_KEYS as _HASH_KEYS,
     canonicalize as _canonicalize,
     hashes_for_bundle as _hashes_for_bundle,
 )
-from finite_difference_options.validation.fd_perturbations import perturbation_evidence
+from finite_difference_options.validation.fd_evidence.manufactured import (
+    manufactured_source,
+    manufactured_u,
+)
+from finite_difference_options.validation.fd_evidence.perturbations import perturbation_evidence
 
 FD_BS_VERIFICATION_BENCHMARK_ID = "fd-bs-001"
 FD_BS_VERIFICATION_VERSIONED_ID = "FD-BS-001-V0"
+FD_BS_VERIFICATION_SCHEMA_VERSION = "finite-difference-options.fd-verification-evidence/v0"
 _SPATIAL_LEVELS = ((40, 120), (80, 120), (120, 120))
 _TEMPORAL_LEVELS = ((160, 40), (160, 80), (160, 160))
 _TEMPORAL_REFERENCE_T_STEPS = 640
@@ -46,7 +51,7 @@ _PRICE_TOL = 5.0e-4
 _DELTA_TOL = 1.0e-3
 _GAMMA_TOL = 8.0e-3
 _ALGEBRAIC_RESIDUAL_TOL = 1.0e-8
-_PDE_CONSISTENCY_TOL = 1.0e-5
+_PDE_CONSISTENCY_H2_COEFFICIENT_TOL = 3.0e-2
 _PAYOFF_TOL = 1.0e-12
 _BOUNDARY_TOL = 1.0e-10
 _TEMPORAL_ORDER_TOL = 1.8
@@ -98,7 +103,7 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
             "delta_abs": _DELTA_TOL,
             "gamma_abs": _GAMMA_TOL,
             "algebraic_residual_linf": _ALGEBRAIC_RESIDUAL_TOL,
-            "pde_consistency_linf": _PDE_CONSISTENCY_TOL,
+            "pde_consistency_h2_coefficient": _PDE_CONSISTENCY_H2_COEFFICIENT_TOL,
             "payoff_linf": _PAYOFF_TOL,
             "boundary_linf": _BOUNDARY_TOL,
         },
@@ -113,7 +118,6 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
     }
     config = {
         "backend_id": DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
-        "code_version": installed_distribution_version(),
         "source_ir_canonical_hash": EXPECTED_SOURCE_IR_HASH,
         "compiled_hash": EXPECTED_COMPILED_HASH,
         "spatial_levels": _SPATIAL_LEVELS,
@@ -122,6 +126,10 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         "full_levels": _FULL_LEVELS,
         "theta": float(numerics["theta"]),
         "operator": "dV/dtau = 0.5*sigma^2*S^2*V_SS + (r-q)*S*V_S - r*V",
+    }
+    provenance = {
+        "distribution": "finite-difference-options",
+        "code_version": installed_distribution_version(),
     }
     convention = {
         "measure": route["measure"],
@@ -133,20 +141,21 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         "boundary_schedule_source": "compiled_route_explicit_schedule",
     }
     bundle = {
-        "schema_version": "finite-difference-options.fd-verification-evidence/v0",
+        "schema_version": FD_BS_VERIFICATION_SCHEMA_VERSION,
         "benchmark_id": FD_BS_VERIFICATION_BENCHMARK_ID,
         "request": request,
         "config": config,
+        "provenance": provenance,
         "convention": convention,
         "results": results,
     }
     status = "passed" if _evaluate_gates(results) else "failed"
-    bundle["evidence"] = {"status": status}
-    bundle["evidence"] = {
-        "status": status,
-        "hashes": _hashes_for_bundle(bundle),
-        "validation_rule": "status, hashes, and numerical truth are recomputed by validate_fd_bs_verification_bundle",
-    }
+    evidence: dict[str, Any] = {"status": status}
+    bundle["evidence"] = evidence
+    evidence["hashes"] = _hashes_for_bundle(bundle)
+    evidence["validation_rule"] = (
+        "status, hashes, and numerical truth are recomputed by validate_fd_bs_verification_bundle"
+    )
     return bundle
 
 
@@ -166,6 +175,19 @@ def validate_fd_bs_verification_bundle(bundle: Mapping[str, Any]) -> None:
 
     failures: list[str] = []
     supplied = copy.deepcopy(dict(bundle))
+    if supplied.get("schema_version") != FD_BS_VERIFICATION_SCHEMA_VERSION:
+        failures.append("schema_version does not match FD verification contract")
+    if supplied.get("benchmark_id") != FD_BS_VERIFICATION_BENCHMARK_ID:
+        failures.append("benchmark_id does not match FD verification contract")
+    provenance = supplied.get("provenance")
+    if not isinstance(provenance, Mapping):
+        failures.append("provenance must be an object")
+    elif (
+        provenance.get("distribution") != "finite-difference-options"
+        or not isinstance(provenance.get("code_version"), str)
+        or not provenance.get("code_version")
+    ):
+        failures.append("provenance distribution/code_version is invalid")
     hashes = cast(Mapping[str, Any], cast(Mapping[str, Any], supplied.get("evidence", {})).get("hashes", {}))
     recomputed_hashes = _hashes_for_bundle(supplied)
     for key in _HASH_KEYS:
@@ -351,8 +373,8 @@ def _manufactured_residual_table(*, rate: float, q: float, sigma: float) -> dict
     for s_steps in (41, 81, 161):
         grid = np.linspace(0.0, 3.0, s_steps)
         matrix = _black_scholes_matrix(grid, risk_free_rate=rate, dividend_yield=q, volatility=sigma)
-        exact = _manufactured_u(grid, tau, alpha)
-        residual = alpha * exact - matrix @ exact - _manufactured_source(grid, tau, alpha, rate, q, sigma)
+        exact = manufactured_u(grid, tau, alpha)
+        residual = alpha * exact - matrix @ exact - manufactured_source(grid, tau, alpha, rate, q, sigma)
         interior = residual[1:-1]
         rows.append(
             {
@@ -375,19 +397,6 @@ def _manufactured_residual_table(*, rate: float, q: float, sigma: float) -> dict
         "rows": rows,
         "min_observed_pde_consistency_order": _min_order(rows, key="observed_pde_consistency_order"),
     }
-
-
-def _manufactured_u(grid: np.ndarray, tau: float, alpha: float) -> np.ndarray:
-    return np.exp(alpha * tau) * (1.0 + 0.2 * grid + 0.05 * grid**3)
-
-
-def _manufactured_source(grid: np.ndarray, tau: float, alpha: float, rate: float, q: float, sigma: float) -> np.ndarray:
-    u = _manufactured_u(grid, tau, alpha)
-    e = np.exp(alpha * tau)
-    u_s = e * (0.2 + 0.15 * grid**2)
-    u_ss = e * (0.3 * grid)
-    l_cont = 0.5 * sigma * sigma * grid * grid * u_ss + (rate - q) * grid * u_s - rate * u
-    return alpha * u - l_cont
 
 
 def _evaluate_gates(results: Mapping[str, Any]) -> bool:
@@ -418,7 +427,8 @@ def _evaluate_gates(results: Mapping[str, Any]) -> bool:
         manufactured_order is not None
         and float(manufactured_order) >= _MANUFACTURED_ORDER_TOL
         and len(manufactured_rows) >= 3
-        and float(manufactured_rows[-1]["pde_consistency_linf"]) <= _PDE_CONSISTENCY_TOL
+        and float(manufactured_rows[-1]["pde_consistency_linf"])
+        <= _PDE_CONSISTENCY_H2_COEFFICIENT_TOL * float(manufactured_rows[-1]["h"]) ** 2
     )
     return oracle and residuals and no_arb and temporal_ok and manufactured_ok and _perturbations_fail(results)
 
@@ -468,6 +478,7 @@ def _min_order(rows: Sequence[Mapping[str, Any]], key: str = "observed_price_ord
 
 __all__ = [
     "FD_BS_VERIFICATION_BENCHMARK_ID",
+    "FD_BS_VERIFICATION_SCHEMA_VERSION",
     "FD_BS_VERIFICATION_VERSIONED_ID",
     "FDVerificationError",
     "run_fd_bs_verification_benchmark",

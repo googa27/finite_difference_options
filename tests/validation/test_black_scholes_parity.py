@@ -29,6 +29,7 @@ def test_fd_bs_001_evidence_has_oracle_greek_residual_and_hash_gates() -> None:
     assert set(bundle["evidence"]["hashes"]) == {
         "request_hash",
         "config_hash",
+        "provenance_hash",
         "convention_hash",
         "result_hash",
         "status_hash",
@@ -42,7 +43,9 @@ def test_fd_bs_001_evidence_has_oracle_greek_residual_and_hash_gates() -> None:
     assert finest["payoff_linf"] <= tolerances["payoff_linf"]
     assert finest["algebraic_residual_linf"] <= tolerances["algebraic_residual_linf"]
     manufactured = bundle["results"]["manufactured_solution"]
-    assert manufactured["rows"][-1]["pde_consistency_linf"] <= tolerances["pde_consistency_linf"]
+    assert manufactured["rows"][-1]["pde_consistency_linf"] <= (
+        tolerances["pde_consistency_h2_coefficient"] * manufactured["rows"][-1]["h"] ** 2
+    )
     assert finest["boundary_linf"] <= tolerances["boundary_linf"]
     assert len(bundle["results"]["spatial_refinement"]["rows"]) == 3
     assert len(bundle["results"]["temporal_refinement"]["rows"]) == 3
@@ -93,6 +96,28 @@ def test_fd_bs_001_validation_rejects_zero_residual_false_perturbation_pass() ->
 
     with pytest.raises(FDVerificationError, match="numerical gates failed|results do not match"):
         validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_schema_and_versioned_provenance_contract() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+
+    mislabeled = copy.deepcopy(bundle)
+    mislabeled["schema_version"] = "wrong-schema"
+    mislabeled["benchmark_id"] = "wrong-benchmark"
+    mislabeled["evidence"]["hashes"] = _hashes_for_bundle(mislabeled)
+    with pytest.raises(FDVerificationError, match="schema_version|benchmark_id"):
+        validate_fd_bs_verification_bundle(mislabeled)
+
+    old_version = copy.deepcopy(bundle)
+    old_version["provenance"]["code_version"] = "0.0.1"
+    old_version["evidence"]["hashes"] = _hashes_for_bundle(old_version)
+    validate_fd_bs_verification_bundle(old_version)
+
+    wrong_distribution = copy.deepcopy(bundle)
+    wrong_distribution["provenance"]["distribution"] = "different-package"
+    wrong_distribution["evidence"]["hashes"] = _hashes_for_bundle(wrong_distribution)
+    with pytest.raises(FDVerificationError, match="provenance"):
+        validate_fd_bs_verification_bundle(wrong_distribution)
 
 
 def test_fd_options_validation_run_benchmark_writes_artifact(tmp_path: Path) -> None:

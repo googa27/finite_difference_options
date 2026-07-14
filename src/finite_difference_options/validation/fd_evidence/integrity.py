@@ -10,6 +10,7 @@ from typing import Any, cast
 HASH_KEYS = (
     "request_hash",
     "config_hash",
+    "provenance_hash",
     "convention_hash",
     "result_hash",
     "status_hash",
@@ -18,13 +19,14 @@ HASH_KEYS = (
 
 
 def hashes_for_bundle(bundle: Mapping[str, Any]) -> dict[str, str]:
-    """Return hashes binding request, config, conventions, results, and status."""
+    """Return hashes binding request, config, provenance, conventions, results, and status."""
 
     evidence = cast(Mapping[str, Any], bundle.get("evidence", {}))
     status = evidence.get("status")
     return {
         "request_hash": hash_payload(bundle.get("request")),
         "config_hash": hash_payload(bundle.get("config")),
+        "provenance_hash": hash_payload(bundle.get("provenance")),
         "convention_hash": hash_payload(bundle.get("convention")),
         "result_hash": hash_payload(bundle.get("results")),
         "status_hash": hash_payload(status),
@@ -34,6 +36,7 @@ def hashes_for_bundle(bundle: Mapping[str, Any]) -> dict[str, str]:
                 "benchmark_id": bundle.get("benchmark_id"),
                 "request": bundle.get("request"),
                 "config": bundle.get("config"),
+                "provenance": bundle.get("provenance"),
                 "convention": bundle.get("convention"),
                 "results": bundle.get("results"),
                 "status": status,

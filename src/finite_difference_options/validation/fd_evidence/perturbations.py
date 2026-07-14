@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 from collections.abc import Mapping
 from typing import Any, cast
 
@@ -10,10 +9,10 @@ import numpy as np
 
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _black_scholes_matrix,
-    _run_compiled_black_scholes_route,
     _solve_compiled_black_scholes_grid,
     _upper_call_boundary,
 )
+from .manufactured import manufactured_source, manufactured_u
 
 PERTURBATION_RESIDUAL_THRESHOLD = 1.0e-3
 PERTURBATION_BOUNDARY_THRESHOLD = 1.0e-3
@@ -69,32 +68,17 @@ def _source_shift_residual(*, rate: float, q: float, sigma: float, source_shift:
     tau = 0.37
     grid = np.linspace(0.0, 3.0, 161)
     matrix = _black_scholes_matrix(grid, risk_free_rate=rate, dividend_yield=q, volatility=sigma)
-    exact = _manufactured_u(grid, tau, alpha)
-    source = _manufactured_source(grid, tau, alpha, rate, q, sigma) + source_shift
+    exact = manufactured_u(grid, tau, alpha)
+    source = manufactured_source(grid, tau, alpha, rate, q, sigma) + source_shift
     residual = alpha * exact - matrix @ exact - source
     return float(np.max(np.abs(residual[1:-1])))
 
 
-def _manufactured_u(grid: np.ndarray, tau: float, alpha: float) -> np.ndarray:
-    return np.exp(alpha * tau) * (1.0 + 0.2 * grid + 0.05 * grid**3)
-
-
-def _manufactured_source(grid: np.ndarray, tau: float, alpha: float, rate: float, q: float, sigma: float) -> np.ndarray:
-    u = _manufactured_u(grid, tau, alpha)
-    e = np.exp(alpha * tau)
-    u_s = e * (0.2 + 0.15 * grid**2)
-    u_ss = e * (0.3 * grid)
-    return alpha * u - (0.5 * sigma * sigma * grid * grid * u_ss + (rate - q) * grid * u_s - rate * u)
-
-
 def _wrong_operator_residual(route: Mapping[str, Any], *, sign: float = 1.0, reaction_sign: float = -1.0) -> float:
     numerics = cast(Mapping[str, Any], route["numerics"])
-    wrong = copy.deepcopy(dict(route))
-    wrong["numerics"] = dict(numerics) | {"grid_levels": ((80, 120),)}
-    row = cast(Mapping[str, Any], _run_compiled_black_scholes_route(wrong)["convergence"][-1])
     domain = cast(Mapping[str, Any], numerics["domain"])
-    s_grid = np.linspace(float(domain["s_min"]), float(domain["s_max"]), int(row["s_steps"]))
-    t_grid = np.linspace(float(domain["t_min"]), float(domain["t_max"]), int(row["t_steps"]))
+    s_grid = np.linspace(float(domain["s_min"]), float(domain["s_max"]), 80)
+    t_grid = np.linspace(float(domain["t_min"]), float(domain["t_max"]), 120)
     values, _schedule, _operator = _solve_compiled_black_scholes_grid(
         spot_grid=s_grid,
         time_grid=t_grid,
