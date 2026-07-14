@@ -118,7 +118,7 @@
       ],
       "family": "route_parity",
       "fixture_paths": [
-        "tests/fixtures/compiled_pde/black_scholes_call_v0.json"
+        "src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json"
       ],
       "grid_family": "fixture-declared uniform grid via maintained Black-Scholes FD validation route",
       "instrument": "European call compiled pde_ir.v0 public-synthetic contract",

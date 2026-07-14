@@ -105,8 +105,8 @@ Only exact checked-in public-synthetic QuantProblemSpec fixtures execute. Mutate
 ### Compiled PDE fixture adapter
 
 ```bash
-uv run fd-options qps screen tests/fixtures/compiled_pde/black_scholes_call_v0.json --json
-uv run fd-options qps solve tests/fixtures/compiled_pde/black_scholes_call_v0.json \
+uv run fd-options qps screen src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json --json
+uv run fd-options qps solve src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json \
   --out /tmp/vqpw-fd-result.json \
   --evidence /tmp/vqpw-fd-evidence.json
 ```

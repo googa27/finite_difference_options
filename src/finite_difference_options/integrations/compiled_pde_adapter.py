@@ -10,15 +10,23 @@ solver object is allocated.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from importlib import resources
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any, Literal, cast
 
+
 from finite_difference_options.contracts import DEFAULT_FD_CAPABILITY_MANIFEST
-from finite_difference_options.integrations.public_fixture_identity import matches_exact_public_fixture
+from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
+    _run_compiled_black_scholes_route,
+)
+from finite_difference_options.integrations.public_fixture_identity import (
+    matches_exact_public_fixture,
+)
 
 CompiledPDEStatus = Literal["supported", "unsupported"]
 CompiledPDESolveStatus = Literal["passed", "failed"]
@@ -36,6 +44,18 @@ EXPECTED_FORMULATION_ID = "black_scholes_call_pde_v0"
 EXPECTED_BOUNDARY_KINDS = ("asymptotic", "dirichlet")
 EXPECTED_OUTPUTS = ("delta", "gamma", "value")
 _PACKAGED_FIXTURE = "compiled_pde_black_scholes_call_v0.json"
+_COMPILED_ROUTE_NUMERICS = {
+    "spot": 1.0,
+    "strike": 1.0,
+    "risk_free_rate": 0.05,
+    "dividend_yield": 0.0,
+    "volatility": 0.2,
+    "maturity": 1.0,
+    "domain": {"s_min": 0.0, "s_max": 3.0, "t_min": 0.0, "t_max": 1.0},
+    "grid_levels": ((40, 40), (80, 120), (120, 200)),
+    "theta": 0.5,
+    "tolerance": 5.0e-4,
+}
 
 
 @dataclass(frozen=True)
@@ -102,11 +122,23 @@ def load_compiled_pde_json(path: str | Path) -> dict[str, Any]:
             payload = json.load(handle, parse_constant=_reject_non_finite_json)
     except (OSError, ValueError) as exc:
         raise CompiledPDEAdapterError(
-            (_diag("compiled_pde.json_invalid", "compiled PDE input is not strict JSON", "payload"),)
+            (
+                _diag(
+                    "compiled_pde.json_invalid",
+                    "compiled PDE input is not strict JSON",
+                    "payload",
+                ),
+            )
         ) from exc
     if type(payload) is not dict:
         raise CompiledPDEAdapterError(
-            (_diag("compiled_pde.payload_type", "compiled PDE input must be a JSON object", "payload"),)
+            (
+                _diag(
+                    "compiled_pde.payload_type",
+                    "compiled PDE input must be a JSON object",
+                    "payload",
+                ),
+            )
         )
     return cast(dict[str, Any], payload)
 
@@ -114,24 +146,40 @@ def load_compiled_pde_json(path: str | Path) -> dict[str, Any]:
 def packaged_compiled_black_scholes_fixture() -> dict[str, Any]:
     """Return the packaged exact public-synthetic compiled Black--Scholes fixture."""
 
-    text = (
-        resources.files("finite_difference_options.validation.fixtures")
-        .joinpath(_PACKAGED_FIXTURE)
-        .read_text(encoding="utf-8")
-    )
+    text = _packaged_compiled_black_scholes_fixture_resource().read_text(encoding="utf-8")
     payload = json.loads(text, parse_constant=_reject_non_finite_json)
     if type(payload) is not dict:  # pragma: no cover - package-data corruption guard
         raise CompiledPDEAdapterError(
-            (_diag("compiled_pde.payload_type", "packaged fixture is not a JSON object", "payload"),)
+            (
+                _diag(
+                    "compiled_pde.payload_type",
+                    "packaged fixture is not a JSON object",
+                    "payload",
+                ),
+            )
         )
     return cast(dict[str, Any], payload)
 
 
-def screen_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDEScreeningResult:
+def _packaged_compiled_black_scholes_fixture_resource() -> Traversable:
+    return resources.files("finite_difference_options.validation.fixtures").joinpath(_PACKAGED_FIXTURE)
+
+
+@contextmanager
+def packaged_compiled_black_scholes_fixture_path() -> Iterator[Path]:
+    """Yield a filesystem path for the packaged compiled PDE fixture."""
+
+    with resources.as_file(_packaged_compiled_black_scholes_fixture_resource()) as path:
+        yield path
+
+
+def screen_compiled_pde_payload(
+    payload: Mapping[str, Any],
+) -> CompiledPDEScreeningResult:
     """Validate and map a compiled PDE fixture into the native FD route envelope."""
 
     diagnostics = _validate(payload)
-    route = _route(payload) if type(payload) is dict else {}
+    route = _route(payload) if not diagnostics else {}
     return CompiledPDEScreeningResult(
         status="unsupported" if diagnostics else "supported",
         supported=not diagnostics,
@@ -147,31 +195,36 @@ def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveRe
     if diagnostics:
         raise CompiledPDEAdapterError(diagnostics)
 
-    from finite_difference_options.validation.black_scholes_parity import run_public_black_scholes_parity_fixture
-
     route = _route(payload)
-    report = run_public_black_scholes_parity_fixture()
+    report = _run_compiled_black_scholes_route(route)
     values = {
-        "price": report.price,
-        "oracle_price": report.oracle_price,
-        "delta": report.delta,
-        "reference_delta": report.reference_delta,
-        "gamma": report.gamma,
-        "reference_gamma": report.reference_gamma,
+        "price": report["price"],
+        "oracle_price": report["oracle_price"],
+        "delta": report["delta"],
+        "reference_delta": report["reference_delta"],
+        "gamma": report["gamma"],
+        "reference_gamma": report["reference_gamma"],
     }
     diagnostics_payload = {
-        "errors": report.errors,
-        "no_arbitrage": report.no_arbitrage,
-        "convergence": report.convergence_table(),
-        "resource_controls": report.evidence.resource_controls,
+        "errors": report["errors"],
+        "no_arbitrage": report["no_arbitrage"],
+        "convergence": report["convergence"],
+        "resource_controls": report["resource_controls"],
+        "operator": report["operator"],
+        "time_schedule": report["time_schedule"],
         "fallbacks": (),
         "unsupported_route_diagnostics": (),
     }
     evidence = {
-        **report.evidence.as_dict(),
         "adapter_schema_version": FIXTURE_SCHEMA_VERSION,
         "source_schema_version": SOURCE_PDE_IR_SCHEMA_VERSION,
         "compiled_schema_version": COMPILED_OPERATOR_SCHEMA_VERSION,
+        "route_id": "fd.compiled_pde.black_scholes_call_v0",
+        "backend_id": DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
+        "code_version": "local-checkout",
+        "config_hash": report["config_hash"],
+        "fixture_id": EXPECTED_PROBLEM_ID,
+        "seed": None,
         "source_ir_canonical_hash": route["source_ir_canonical_hash"],
         "compiled_hash": route["compiled_hash"],
         "problem_id": EXPECTED_PROBLEM_ID,
@@ -182,13 +235,18 @@ def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveRe
         "time_orientation": route["time_orientation"],
         "units": route["units"],
         "boundary_conditions": route["boundary_conditions"],
+        "boundary_schedule_applied": report["boundary_schedule_applied"],
+        "boundary_assumptions": report["boundary_assumptions"],
+        "valuation_date": None,
+        "maturity_date": None,
         "privacy_class": "public_synthetic",
-        "status": "passed" if report.converged else "failed",
+        "resource_controls": report["resource_controls"],
+        "status": "passed" if report["converged"] else "failed",
     }
     return CompiledPDESolveResult(
         schema_version="finite-difference-options.compiled-pde-solve-result/v0",
         backend_id=DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
-        status="passed" if report.converged else "failed",
+        status="passed" if report["converged"] else "failed",
         problem_id=EXPECTED_PROBLEM_ID,
         values=values,
         diagnostics=diagnostics_payload,
@@ -200,9 +258,21 @@ def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveRe
 def _validate(payload: Mapping[str, Any]) -> tuple[CompiledPDEDiagnostic, ...]:
     diagnostics: list[CompiledPDEDiagnostic] = []
     if type(payload) is not dict:
-        return (_diag("compiled_pde.payload_type", "payload must be an exact JSON object", "payload"),)
+        return (
+            _diag(
+                "compiled_pde.payload_type",
+                "payload must be an exact JSON object",
+                "payload",
+            ),
+        )
     if not _is_json_value(payload):
-        return (_diag("compiled_pde.json_type", "payload must contain only finite built-in JSON values", "payload"),)
+        return (
+            _diag(
+                "compiled_pde.json_type",
+                "payload must contain only finite built-in JSON values",
+                "payload",
+            ),
+        )
 
     root = cast(dict[str, Any], payload)
     _check_allowed_keys(
@@ -227,14 +297,38 @@ def _validate(payload: Mapping[str, Any]) -> tuple[CompiledPDEDiagnostic, ...]:
         "compiled_pde.schema_unsupported",
     )
     _expect(
-        diagnostics, root.get("privacy_class"), "public_synthetic", "privacy_class", "compiled_pde.privacy_unsupported"
+        diagnostics,
+        root.get("privacy_class"),
+        "public_synthetic",
+        "privacy_class",
+        "compiled_pde.privacy_unsupported",
     )
-    _expect(diagnostics, root.get("problem_id"), EXPECTED_PROBLEM_ID, "problem_id", "compiled_pde.problem_unsupported")
+    _expect(
+        diagnostics,
+        root.get("problem_id"),
+        EXPECTED_PROBLEM_ID,
+        "problem_id",
+        "compiled_pde.problem_unsupported",
+    )
 
-    source = _dict_at(diagnostics, root, "source_pde_ir")
-    compiled_result = _dict_at(diagnostics, root, "compiled_operator_result")
-    solver = _dict_at(diagnostics, root, "solver_plan")
-    compiled = _dict_at(diagnostics, compiled_result, "compiled_operator") if compiled_result else {}
+    source = _dict_at(diagnostics, root, "source_pde_ir", "payload.source_pde_ir")
+    compiled_result = _dict_at(
+        diagnostics,
+        root,
+        "compiled_operator_result",
+        "payload.compiled_operator_result",
+    )
+    solver = _dict_at(diagnostics, root, "solver_plan", "payload.solver_plan")
+    compiled = (
+        _dict_at(
+            diagnostics,
+            compiled_result,
+            "compiled_operator",
+            "payload.compiled_operator_result.compiled_operator",
+        )
+        if compiled_result
+        else {}
+    )
 
     _validate_source_ir(diagnostics, source)
     _validate_compiled_operator(diagnostics, compiled_result, compiled, source)
@@ -295,7 +389,13 @@ def _validate_source_ir(diagnostics: list[CompiledPDEDiagnostic], source: Mappin
         "source_pde_ir.privacy_class",
         "compiled_pde.privacy_unsupported",
     )
-    _expect(diagnostics, source.get("measure"), "Q", "source_pde_ir.measure", "compiled_pde.measure_unsupported")
+    _expect(
+        diagnostics,
+        source.get("measure"),
+        "Q",
+        "source_pde_ir.measure",
+        "compiled_pde.measure_unsupported",
+    )
     _expect(
         diagnostics,
         source.get("time_orientation"),
@@ -318,7 +418,8 @@ def _validate_source_ir(diagnostics: list[CompiledPDEDiagnostic], source: Mappin
         "source_pde_ir.canonical_hash",
         "compiled_pde.source_hash_unsupported",
     )
-    if len(_list(source.get("state_variables"))) != 1:
+    state_variables = _list_at(diagnostics, source, "state_variables", "source_pde_ir.state_variables")
+    if state_variables is not None and len(state_variables) != 1:
         diagnostics.append(
             _diag(
                 "compiled_pde.dimension_unsupported",
@@ -326,8 +427,17 @@ def _validate_source_ir(diagnostics: list[CompiledPDEDiagnostic], source: Mappin
                 "source_pde_ir.state_variables",
             )
         )
-    boundary_kinds = tuple(sorted(str(item.get("kind")) for item in _list_of_dicts(source.get("boundary_conditions"))))
-    if boundary_kinds != EXPECTED_BOUNDARY_KINDS:
+    boundary_items = _list_of_dicts_at(
+        diagnostics,
+        source,
+        "boundary_conditions",
+        "source_pde_ir.boundary_conditions",
+    )
+    if boundary_items is not None:
+        boundary_kinds = tuple(sorted(str(item.get("kind")) for item in boundary_items))
+    else:
+        boundary_kinds = ()
+    if boundary_items is not None and boundary_kinds != EXPECTED_BOUNDARY_KINDS:
         diagnostics.append(
             _diag(
                 "compiled_pde.boundary_unsupported",
@@ -346,7 +456,11 @@ def _validate_compiled_operator(
     source: Mapping[str, Any],
 ) -> None:
     _expect(
-        diagnostics, result.get("accepted"), True, "compiled_operator_result.accepted", "compiled_pde.compiler_refusal"
+        diagnostics,
+        result.get("accepted"),
+        True,
+        "compiled_operator_result.accepted",
+        "compiled_pde.compiler_refusal",
     )
     _expect(
         diagnostics,
@@ -409,9 +523,19 @@ def _validate_solver_plan(diagnostics: list[CompiledPDEDiagnostic], solver: Mapp
         "solver_plan.exercise_style",
         "compiled_pde.exercise_unsupported",
     )
-    _expect(diagnostics, solver.get("grid_type"), "uniform", "solver_plan.grid_type", "compiled_pde.grid_unsupported")
-    outputs = tuple(sorted(str(item) for item in _list(solver.get("requested_outputs"))))
-    if outputs != EXPECTED_OUTPUTS:
+    _expect(
+        diagnostics,
+        solver.get("grid_type"),
+        "uniform",
+        "solver_plan.grid_type",
+        "compiled_pde.grid_unsupported",
+    )
+    requested_outputs = _list_at(diagnostics, solver, "requested_outputs", "solver_plan.requested_outputs")
+    if requested_outputs is not None:
+        outputs = tuple(sorted(str(item) for item in requested_outputs))
+    else:
+        outputs = ()
+    if requested_outputs is not None and outputs != EXPECTED_OUTPUTS:
         diagnostics.append(
             _diag(
                 "compiled_pde.output_unsupported",
@@ -431,6 +555,9 @@ def _route(payload: Mapping[str, Any]) -> dict[str, Any]:
     )
     boundaries = _list_of_dicts(source.get("boundary_conditions"))
     terminal = cast(Mapping[str, Any], source.get("terminal_condition", {}))
+    numerics = dict(_COMPILED_ROUTE_NUMERICS)
+    numerics["domain"] = dict(cast(dict[str, float], _COMPILED_ROUTE_NUMERICS["domain"]))
+    numerics["grid_levels"] = tuple(cast(tuple[tuple[int, int], ...], _COMPILED_ROUTE_NUMERICS["grid_levels"]))
     return {
         "backend_id": DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
         "dimension": len(_list(source.get("state_variables"))),
@@ -450,6 +577,7 @@ def _route(payload: Mapping[str, Any]) -> dict[str, Any]:
             "state": _state_units(source),
             "boundary": [item.get("unit") for item in boundaries],
         },
+        "numerics": numerics,
         "compiler_evidence": compiled.get("compiler_evidence"),
     }
 
@@ -467,7 +595,13 @@ def _compiled_hash(compiled: Mapping[str, Any]) -> str:
 
 
 def _sha256_ref(value: object) -> str:
-    encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
     return f"sha256:{sha256(encoded.encode('utf-8')).hexdigest()}"
 
 
@@ -475,31 +609,120 @@ def _state_units(source: Mapping[str, Any]) -> list[Any]:
     return [item.get("unit") for item in _list_of_dicts(source.get("state_variables"))]
 
 
-def _dict_at(diagnostics: list[CompiledPDEDiagnostic], mapping: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+def _dict_at(
+    diagnostics: list[CompiledPDEDiagnostic],
+    mapping: Mapping[str, Any],
+    key: str,
+    path: str | None = None,
+) -> Mapping[str, Any]:
+    diagnostic_path = path or key
     value = mapping.get(key)
     if type(value) is dict:
         return cast(Mapping[str, Any], value)
-    diagnostics.append(_diag("compiled_pde.object_missing", f"{key} must be a JSON object", key))
+    if key in mapping:
+        diagnostics.append(
+            _diag(
+                "compiled_pde.object_type",
+                f"{diagnostic_path} must be a JSON object",
+                diagnostic_path,
+                "object",
+                _json_type_name(value),
+            )
+        )
+        return {}
+    diagnostics.append(
+        _diag(
+            "compiled_pde.object_missing",
+            f"{diagnostic_path} must be a JSON object",
+            diagnostic_path,
+            "object",
+            "missing",
+        )
+    )
     return {}
 
 
+def _list_at(
+    diagnostics: list[CompiledPDEDiagnostic],
+    mapping: Mapping[str, Any],
+    key: str,
+    path: str,
+) -> list[Any] | None:
+    value = mapping.get(key)
+    if type(value) is list:
+        return cast(list[Any], value)
+    diagnostics.append(
+        _diag(
+            "compiled_pde.list_type",
+            f"{path} must be a JSON array",
+            path,
+            "array",
+            _json_type_name(value) if key in mapping else "missing",
+        )
+    )
+    return None
+
+
+def _list_of_dicts_at(
+    diagnostics: list[CompiledPDEDiagnostic],
+    mapping: Mapping[str, Any],
+    key: str,
+    path: str,
+) -> list[dict[str, Any]] | None:
+    values = _list_at(diagnostics, mapping, key, path)
+    if values is None:
+        return None
+    items: list[dict[str, Any]] = []
+    for index, item in enumerate(values):
+        if type(item) is dict:
+            items.append(cast(dict[str, Any], item))
+        else:
+            diagnostics.append(
+                _diag(
+                    "compiled_pde.object_type",
+                    f"{path}[{index}] must be a JSON object",
+                    f"{path}[{index}]",
+                    "object",
+                    _json_type_name(item),
+                )
+            )
+    return items
+
+
 def _check_allowed_keys(
-    diagnostics: list[CompiledPDEDiagnostic], mapping: Mapping[str, Any], allowed: set[str], path: str
+    diagnostics: list[CompiledPDEDiagnostic],
+    mapping: Mapping[str, Any],
+    allowed: set[str],
+    path: str,
 ) -> None:
     for key in mapping:
         if key not in allowed:
             diagnostics.append(
-                _diag("compiled_pde.unknown_field", "unknown fields are rejected before solve", f"{path}.{key}")
+                _diag(
+                    "compiled_pde.unknown_field",
+                    "unknown fields are rejected before solve",
+                    f"{path}.{key}",
+                )
             )
 
 
-def _expect(diagnostics: list[CompiledPDEDiagnostic], observed: object, expected: object, path: str, code: str) -> None:
+def _expect(
+    diagnostics: list[CompiledPDEDiagnostic],
+    observed: object,
+    expected: object,
+    path: str,
+    code: str,
+) -> None:
     if observed != expected or type(observed) is not type(expected):
         diagnostics.append(_diag(code, f"unsupported value at {path}", path, str(expected), str(observed)))
 
 
 def _diag(
-    code: str, message: str, path: str, expected: str | None = None, observed: str | None = None
+    code: str,
+    message: str,
+    path: str,
+    expected: str | None = None,
+    observed: str | None = None,
 ) -> CompiledPDEDiagnostic:
     return CompiledPDEDiagnostic(code=code, message=message, path=path, expected=expected, observed=observed)
 
@@ -512,9 +735,31 @@ def _list_of_dicts(value: object) -> list[dict[str, Any]]:
     return [cast(dict[str, Any], item) for item in _list(value) if type(item) is dict]
 
 
+def _json_type_name(value: object) -> str:
+    if type(value) is dict:
+        return "object"
+    if type(value) is list:
+        return "array"
+    if type(value) is str:
+        return "string"
+    if type(value) is bool:
+        return "boolean"
+    if type(value) in {int, float}:
+        return "number"
+    if value is None:
+        return "null"
+    return type(value).__name__
+
+
 def _is_json_value(value: object) -> bool:
     try:
-        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
+        json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
     except (TypeError, ValueError):
         return False
     return type(value) in {dict, list, str, int, float, bool, type(None)} or value is None
@@ -531,6 +776,7 @@ __all__ = [
     "CompiledPDESolveResult",
     "load_compiled_pde_json",
     "packaged_compiled_black_scholes_fixture",
+    "packaged_compiled_black_scholes_fixture_path",
     "screen_compiled_pde_payload",
     "solve_compiled_pde_payload",
 ]
