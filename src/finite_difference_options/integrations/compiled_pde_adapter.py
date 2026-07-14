@@ -17,7 +17,7 @@ from finite_difference_options.contracts import DEFAULT_FD_CAPABILITY_MANIFEST
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _run_compiled_black_scholes_route,
 )
-from finite_difference_options.integrations.haircut_protocol import _distribution_version
+from finite_difference_options.integrations.haircut_protocol import installed_distribution_version
 from finite_difference_options.integrations.public_fixture_identity import (
     matches_exact_public_fixture,
 )
@@ -215,7 +215,7 @@ def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveRe
         "compiled_schema_version": COMPILED_OPERATOR_SCHEMA_VERSION,
         "route_id": "fd.compiled_pde.black_scholes_call_v0",
         "backend_id": DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
-        "code_version": _distribution_version(),
+        "code_version": installed_distribution_version(),
         "config_hash": report["config_hash"],
         "fixture_id": EXPECTED_PROBLEM_ID,
         "seed": None,
