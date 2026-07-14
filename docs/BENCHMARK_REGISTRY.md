@@ -35,6 +35,8 @@ Only rows with an explicit runner can execute numerical code through `run_regist
 
 `FD-GREEKS-VALIDATION-V0` writes the Issue #58 Greek derivative validation artifact: PR-fast CI covers 12 Black-Scholes cases across moneyness, maturity and volatility; scheduled broad CI extends the matrix and uploads `fd-greek-derivative-validation-broad.json`.
 
+The issue #142 CLI runner `fd-options validation run-benchmark fd-bs-001 --out <path>` is intentionally artifact-oriented rather than a registry-row alias: it recomputes the exact compiled Black-Scholes native FD route, analytical price/Delta/Gamma, spatial three-level table, temporal convergence against a high-time-step reference, manufactured PDE consistency residual/order evidence with an h²-scaled cap kept distinct from time-step algebraic residuals, no-arbitrage checks, explicit boundary schedule, independent sign/source/reaction/boundary perturbations with thresholds, and request/config/provenance/convention/result/status/evidence hashes. `validate_fd_bs_verification_bundle(...)` recomputes hashes, status, and numerical truth after hash recomputation; stored `passed` booleans and rehashed false rows are not trusted.
+
 ## Registry rows
 
 The static registry fixture currently contains these versioned evidence IDs:

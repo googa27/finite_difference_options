@@ -158,7 +158,8 @@
       "ui_and_artifacts": "Consume FPF contracts; avoid PDP/UI runtime dependencies; emit SolverRunEvidence/ModelOutput bundles."
     },
     "source_registry_plan": [
-      "typed solver requests and public-synthetic oracle/convergence fixtures"
+      "typed solver requests and public-synthetic oracle/convergence fixtures",
+      "fd-bs-001 verification artifacts with recomputed hashes and numerical truth"
     ],
     "flow": "source registry -> typed acquisition -> immutable Bronze -> canonical Silver -> curated Gold/features -> formulation/model -> governed output -> read-only UI/API/notebook",
     "storage_and_replay": "Immutable raw/content-addressed inputs; canonical typed products; idempotent replay by source identity and effective/vintage time where applicable.",

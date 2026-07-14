@@ -1,0 +1,135 @@
+"""Issue #142 Black-Scholes verification evidence tests."""
+
+from __future__ import annotations
+
+import copy
+import json
+from pathlib import Path
+
+import pytest
+from typer.testing import CliRunner
+
+from finite_difference_options.cli.main import app
+from finite_difference_options.validation.fd_verification import (
+    FD_BS_VERIFICATION_BENCHMARK_ID,
+    FDVerificationError,
+    _hashes_for_bundle,
+    run_fd_bs_verification_benchmark,
+    validate_fd_bs_verification_bundle,
+)
+
+
+def test_fd_bs_001_evidence_has_oracle_greek_residual_and_hash_gates() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+
+    assert bundle["benchmark_id"] == FD_BS_VERIFICATION_BENCHMARK_ID
+    assert bundle["evidence"]["status"] == "passed"
+    assert bundle["config"]["source_ir_canonical_hash"].startswith("sha256:")
+    assert bundle["config"]["compiled_hash"].startswith("sha256:")
+    assert set(bundle["evidence"]["hashes"]) == {
+        "request_hash",
+        "config_hash",
+        "provenance_hash",
+        "convention_hash",
+        "result_hash",
+        "status_hash",
+        "evidence_hash",
+    }
+    finest = bundle["results"]["full_refinement"]["rows"][-1]
+    tolerances = bundle["results"]["tolerances"]
+    assert finest["price_abs"] <= tolerances["price_abs"]
+    assert finest["delta_abs"] <= tolerances["delta_abs"]
+    assert finest["gamma_abs"] <= tolerances["gamma_abs"]
+    assert finest["payoff_linf"] <= tolerances["payoff_linf"]
+    assert finest["algebraic_residual_linf"] <= tolerances["algebraic_residual_linf"]
+    manufactured = bundle["results"]["manufactured_solution"]
+    assert manufactured["rows"][-1]["pde_consistency_linf"] <= (
+        tolerances["pde_consistency_h2_coefficient"] * manufactured["rows"][-1]["h"] ** 2
+    )
+    assert finest["boundary_linf"] <= tolerances["boundary_linf"]
+    assert len(bundle["results"]["spatial_refinement"]["rows"]) == 3
+    assert len(bundle["results"]["temporal_refinement"]["rows"]) == 3
+    assert bundle["results"]["temporal_refinement"]["reference"]["t_steps"] == 640
+    assert bundle["results"]["temporal_refinement"]["min_observed_temporal_price_order"] > 1.8
+    assert bundle["results"]["manufactured_solution"]["min_observed_pde_consistency_order"] > 1.9
+    validate_fd_bs_verification_bundle(bundle)
+
+
+def test_fd_bs_001_validation_recomputes_truth_and_rejects_tampering() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+    tampered = copy.deepcopy(bundle)
+    tampered["results"]["full_refinement"]["rows"][-1]["price"] = 0.0
+
+    with pytest.raises(FDVerificationError, match="hash mismatch|results do not match"):
+        validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_validation_rejects_rehashed_false_numerical_rows() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+    tampered = copy.deepcopy(bundle)
+    finest = tampered["results"]["full_refinement"]["rows"][-1]
+    finest["price"] = finest["oracle_price"]
+    finest["price_abs"] = 0.0
+    tampered["evidence"]["hashes"] = _hashes_for_bundle(tampered)
+
+    with pytest.raises(FDVerificationError, match="results do not match recomputed numerical truth"):
+        validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_validation_rejects_rehashed_status_tampering() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+    tampered = copy.deepcopy(bundle)
+    tampered["evidence"]["status"] = "failed"
+    tampered["evidence"]["hashes"] = _hashes_for_bundle(tampered)
+
+    with pytest.raises(FDVerificationError, match="evidence status does not match recomputed gates"):
+        validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_validation_rejects_zero_residual_false_perturbation_pass() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+    tampered = copy.deepcopy(bundle)
+    case = tampered["results"]["perturbations"]["cases"]["operator_sign_flip"]
+    case["residual_linf"] = 0.0
+    case["passes"] = False
+    tampered["evidence"]["hashes"] = _hashes_for_bundle(tampered)
+
+    with pytest.raises(FDVerificationError, match="numerical gates failed|results do not match"):
+        validate_fd_bs_verification_bundle(tampered)
+
+
+def test_fd_bs_001_schema_and_versioned_provenance_contract() -> None:
+    bundle = run_fd_bs_verification_benchmark()
+
+    mislabeled = copy.deepcopy(bundle)
+    mislabeled["schema_version"] = "wrong-schema"
+    mislabeled["benchmark_id"] = "wrong-benchmark"
+    mislabeled["evidence"]["hashes"] = _hashes_for_bundle(mislabeled)
+    with pytest.raises(FDVerificationError, match="schema_version|benchmark_id"):
+        validate_fd_bs_verification_bundle(mislabeled)
+
+    old_version = copy.deepcopy(bundle)
+    old_version["provenance"]["code_version"] = "0.0.1"
+    old_version["evidence"]["hashes"] = _hashes_for_bundle(old_version)
+    validate_fd_bs_verification_bundle(old_version)
+
+    wrong_distribution = copy.deepcopy(bundle)
+    wrong_distribution["provenance"]["distribution"] = "different-package"
+    wrong_distribution["evidence"]["hashes"] = _hashes_for_bundle(wrong_distribution)
+    with pytest.raises(FDVerificationError, match="provenance"):
+        validate_fd_bs_verification_bundle(wrong_distribution)
+
+
+def test_fd_options_validation_run_benchmark_writes_artifact(tmp_path: Path) -> None:
+    out = tmp_path / "fd-verification.json"
+    result = CliRunner().invoke(
+        app,
+        ["validation", "run-benchmark", "fd-bs-001", "--out", str(out)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output)["status"] == "passed"
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["benchmark_id"] == "fd-bs-001"
+    assert payload["evidence"]["status"] == "passed"
+    validate_fd_bs_verification_bundle(payload)
