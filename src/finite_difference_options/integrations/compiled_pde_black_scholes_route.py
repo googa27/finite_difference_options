@@ -176,7 +176,7 @@ def _solve_compiled_black_scholes_grid(
     dividend_yield: float,
     volatility: float,
     theta: float,
-) -> tuple[np.ndarray, tuple[dict[str, float | str], ...], dict[str, Any]]:
+) -> tuple[np.ndarray, tuple[dict[str, float | int | str], ...], dict[str, Any]]:
     _validate_route_grid(spot_grid, time_grid)
     operator = _black_scholes_matrix(
         spot_grid,
@@ -195,7 +195,7 @@ def _solve_compiled_black_scholes_grid(
         dividend_yield=dividend_yield,
         tau=0.0,
     )
-    schedule = [
+    schedule: list[dict[str, float | int | str]] = [
         {
             "step_index": 0,
             "tau": float(time_grid[0]),

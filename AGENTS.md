@@ -160,6 +160,7 @@ The Haircut adapter must:
 - return solution, Greeks and complete diagnostics;
 - work from a clean installed wheel;
 - consume compiled `pde_ir.v0` artifacts only through serialized public-synthetic fixtures/contracts, preserving source/compiled hashes, units, measure, numeraire, domain/time and boundary semantics;
+- keep `fd-options validation run-benchmark fd-bs-001 --out <path>` evidence independently recomputable: hashes and numerical truth must be recalculated by validation code, not trusted from stored booleans;
 - import only Haircut's public solver protocol seam and no Haircut domain/application, PDP or delivery modules.
 
 Advertise only capabilities backed by repository-local tests and shared parity evidence.
@@ -227,6 +228,8 @@ python -m pip check
 pre-commit run --all-files
 ruff check . --select E9,F63,F7,F82
 mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py
+uv run fd-options validation run-benchmark fd-bs-001 --out /tmp/vqpw-fd-verification.json
+python -m json.tool /tmp/vqpw-fd-verification.json >/dev/null
 python scripts/check_architecture_contract.py
 pytest -q tests/architecture tests/test_packaging_contract.py --no-cov
 pytest -q

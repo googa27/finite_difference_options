@@ -25,16 +25,23 @@ from finite_difference_options.integrations.compiled_pde_adapter import (
     screen_compiled_pde_payload,
     solve_compiled_pde_payload,
 )
+from finite_difference_options.validation.fd_verification import (
+    FD_BS_VERIFICATION_BENCHMARK_ID,
+    write_fd_bs_verification_json,
+)
 from finite_difference_options.plotting.config_manager import PlottingConfigManager
 
 app = typer.Typer(help="Command-line tools for option pricing.")
 qps_app = typer.Typer(
     help="Screen and solve public-synthetic QuantProblemSpec/compiled PDE fixtures."
 )
+validation_app = typer.Typer(help="Run deterministic FD validation benchmarks.")
 app.add_typer(qps_app, name="qps")
+app.add_typer(validation_app, name="validation")
 _QPS_PAYLOAD_ARGUMENT = typer.Argument(..., exists=True, dir_okay=False, readable=True)
 _QPS_RESULT_OUT_OPTION = typer.Option(..., "--out", help="Destination for deterministic result JSON.")
 _QPS_EVIDENCE_OUT_OPTION = typer.Option(..., "--evidence", help="Destination for deterministic evidence JSON.")
+_VALIDATION_OUT_OPTION = typer.Option(..., "--out", help="Destination for deterministic benchmark JSON.")
 
 
 def _dump_json(payload: object) -> str:
@@ -97,6 +104,28 @@ def qps_solve(
     _write_json(out, result_payload)
     _write_json(evidence, result.evidence)
     typer.echo(_dump_json(result_payload))
+
+
+@validation_app.command("run-benchmark")
+def validation_run_benchmark(
+    benchmark_id: str = typer.Argument(..., help="Benchmark id, e.g. fd-bs-001."),
+    out: Path = _VALIDATION_OUT_OPTION,
+) -> None:
+    """Run a deterministic validation benchmark and write machine-readable evidence."""
+
+    if benchmark_id != FD_BS_VERIFICATION_BENCHMARK_ID:
+        typer.echo(
+            _dump_json(
+                {
+                    "status": "unsupported",
+                    "benchmark_id": benchmark_id,
+                    "supported_benchmark_ids": [FD_BS_VERIFICATION_BENCHMARK_ID],
+                }
+            )
+        )
+        raise typer.Exit(1)
+    bundle = write_fd_bs_verification_json(out)
+    typer.echo(_dump_json({"status": bundle["evidence"]["status"], "benchmark_id": benchmark_id, "out": str(out)}))
 
 
 @app.command()
