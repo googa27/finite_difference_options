@@ -1,11 +1,4 @@
-"""Fail-closed adapter for public-synthetic compiled ``pde_ir.v0`` fixtures.
-
-The adapter consumes serialized FPF compiler artifacts only.  It deliberately does
-not import ``financial_problem_formulations`` and it executes only the exact
-public-synthetic 1D European Black--Scholes route evidenced by repository
-fixtures.  Unsupported or mutated inputs return diagnostics before any FD grid or
-solver object is allocated.
-"""
+"""Fail-closed adapter for exact public-synthetic compiled ``pde_ir.v0`` fixtures."""
 
 from __future__ import annotations
 
@@ -24,6 +17,7 @@ from finite_difference_options.contracts import DEFAULT_FD_CAPABILITY_MANIFEST
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _run_compiled_black_scholes_route,
 )
+from finite_difference_options.integrations.haircut_protocol import _distribution_version
 from finite_difference_options.integrations.public_fixture_identity import (
     matches_exact_public_fixture,
 )
@@ -54,7 +48,7 @@ _COMPILED_ROUTE_NUMERICS = {
     "domain": {"s_min": 0.0, "s_max": 3.0, "t_min": 0.0, "t_max": 1.0},
     "grid_levels": ((40, 40), (80, 120), (120, 200)),
     "theta": 0.5,
-    "tolerance": 5.0e-4,
+    "tolerances": {"price": 5.0e-4, "delta": 1.0e-3, "gamma": 8.0e-3},
 }
 
 
@@ -221,7 +215,7 @@ def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveRe
         "compiled_schema_version": COMPILED_OPERATOR_SCHEMA_VERSION,
         "route_id": "fd.compiled_pde.black_scholes_call_v0",
         "backend_id": DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
-        "code_version": "local-checkout",
+        "code_version": _distribution_version(),
         "config_hash": report["config_hash"],
         "fixture_id": EXPECTED_PROBLEM_ID,
         "seed": None,

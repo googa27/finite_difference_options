@@ -25,7 +25,10 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
     sigma = float(numerics["volatility"])
     maturity = float(numerics["maturity"])
     theta = float(numerics["theta"])
-    tolerance = float(numerics["tolerance"])
+    tolerances = cast(Mapping[str, Any], numerics["tolerances"])
+    price_tolerance = float(tolerances["price"])
+    delta_tolerance = float(tolerances["delta"])
+    gamma_tolerance = float(tolerances["gamma"])
     domain = cast(Mapping[str, Any], numerics["domain"])
     s_min = float(domain["s_min"])
     s_max = float(domain["s_max"])
@@ -33,8 +36,22 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
     t_max = float(domain["t_max"])
     grid_levels = tuple((int(s), int(t)) for s, t in cast(Sequence[Sequence[int]], numerics["grid_levels"]))
 
-    oracle_price = black_scholes_call_oracle(spot, strike, rate, sigma, maturity)
-    reference_greeks = black_scholes_call_greeks(spot, strike, rate, sigma, maturity)
+    oracle_price = black_scholes_call_oracle(
+        spot,
+        strike,
+        rate,
+        sigma,
+        maturity,
+        dividend_yield=dividend_yield,
+    )
+    reference_greeks = black_scholes_call_greeks(
+        spot,
+        strike,
+        rate,
+        sigma,
+        maturity,
+        dividend_yield=dividend_yield,
+    )
 
     observations: list[dict[str, float | int]] = []
     final_values: np.ndarray | None = None
@@ -42,6 +59,9 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
     final_t_grid: np.ndarray | None = None
     final_boundary_schedule: tuple[dict[str, float | str], ...] = ()
     final_operator_diagnostics: dict[str, Any] = {}
+
+    if not grid_levels:
+        raise ValueError("compiled Black-Scholes route requires at least one grid level")
 
     for s_steps, t_steps in grid_levels:
         s_grid = np.linspace(s_min, s_max, s_steps, dtype=np.float64)
@@ -72,7 +92,8 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
             final_boundary_schedule = boundary_schedule
             final_operator_diagnostics = operator_diagnostics
 
-    assert final_values is not None and final_s_grid is not None and final_t_grid is not None
+    if final_values is None or final_s_grid is None or final_t_grid is None:
+        raise ValueError("compiled Black-Scholes route did not produce a final grid")
     delta_slice = np.gradient(final_values[-1], final_s_grid, edge_order=2)
     gamma_slice = np.gradient(delta_slice, final_s_grid, edge_order=2)
     fd_price = float(np.interp(spot, final_s_grid, final_values[-1]))
@@ -96,31 +117,42 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
         "reference_delta": reference_greeks["delta"],
         "reference_gamma": reference_greeks["gamma"],
         "convergence": tuple(observations),
-        "converged": price_abs <= tolerance,
+        "converged": (
+            price_abs <= price_tolerance
+            and delta_abs <= delta_tolerance
+            and gamma_abs <= gamma_tolerance
+        ),
         "errors": {
             "price_abs": price_abs,
+            "price_tolerance": price_tolerance,
             "price_rel": float(price_abs / max(1.0e-12, abs(oracle_price))),
             "delta_abs": delta_abs,
+            "delta_tolerance": delta_tolerance,
             "delta_rel": float(
                 delta_abs / max(1.0e-12, abs(reference_greeks["delta"])),
             ),
             "gamma_abs": gamma_abs,
+            "gamma_tolerance": gamma_tolerance,
             "gamma_rel": float(
                 gamma_abs / max(1.0e-12, abs(reference_greeks["gamma"])),
             ),
+            "price_tolerance_ok": price_abs <= price_tolerance,
+            "delta_tolerance_ok": delta_abs <= delta_tolerance,
+            "gamma_tolerance_ok": gamma_abs <= gamma_tolerance,
             "max_abs_price_error": float(max(row["abs_error"] for row in observations)),
         },
         "no_arbitrage": _compiled_no_arbitrage(spot, strike, fd_price, fd_delta, fd_gamma),
         "boundary_schedule_applied": {
             "source": "compiled_route_explicit_schedule",
             "lower_expression": "V(0,tau)=0",
-            "upper_expression": "V(Smax,tau)=Smax-K*exp(-r*tau)",
+            "upper_expression": "V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)",
             "tau_grid_count": int(len(final_t_grid)),
             "applied": final_boundary_schedule,
         },
         "boundary_assumptions": (
             "lower boundary: explicit compiled PDE Dirichlet V(0,tau)=0",
-            "upper boundary: explicit compiled PDE time-dependent far-field V(Smax,tau)=Smax-K*exp(-r*tau)",
+            "upper boundary: explicit compiled PDE time-dependent far-field "
+            "V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)",
             "uniform physical-price grid on the compiled route domain",
             "theta time stepping with per-step boundary-row rebuild",
         ),

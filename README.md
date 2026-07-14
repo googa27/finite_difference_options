@@ -111,7 +111,7 @@ uv run fd-options qps solve src/finite_difference_options/validation/fixtures/co
   --evidence /tmp/vqpw-fd-evidence.json
 ```
 
-The compiled PDE adapter consumes serialized public-synthetic FPF `pde_ir.v0` compiler output only. It preserves source IR and compiled-operator hashes, units, measure, numeraire, time orientation and boundary semantics, then executes the exact 1D European Black-Scholes route through the maintained FD validation solver. Private/mutated fixtures and unsupported boundary, dimension, exercise or output requests fail closed before discretization.
+The compiled PDE adapter consumes serialized public-synthetic FPF `pde_ir.v0` compiler output only. It is a separate adapter (`solve_compiled_pde_payload`), not part of the generic `solve_public_quant_problem_spec` QuantProblemSpec dispatcher. It preserves source IR and compiled-operator hashes, units, measure, numeraire, time orientation and boundary semantics, then executes the exact 1D European Black-Scholes route through the maintained FD validation solver. Private/mutated fixtures and unsupported boundary, dimension, exercise or output requests fail closed before discretization.
 
 ### Heston stochastic-volatility smoke example
 

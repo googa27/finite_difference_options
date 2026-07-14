@@ -71,7 +71,12 @@ class PublicFDSolverResult:
 def released_fd_solver_contract(
     manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST,
 ) -> ReleasedFDSolverContract:
-    """Return the released public FD backend contract metadata."""
+    """Return the released public QuantProblemSpec solver-contract metadata.
+
+    Compiled PDE fixtures are served by the separate
+    ``compiled_pde_adapter:solve_compiled_pde_payload`` entry point and are not
+    advertised as generic QuantProblemSpec payloads for this dispatcher.
+    """
 
     manifest_dict = asdict(manifest)
     manifest_dict["status"] = manifest.status.value
@@ -84,7 +89,6 @@ def released_fd_solver_contract(
         supported_problem_ids=(
             "public-synthetic.black-scholes-call.v0",
             "pinares.fixed_price_option_proxy.v1",
-            "public-synthetic.compiled-pde.black-scholes-call.v0",
         ),
         supported_privacy_classes=("public_synthetic",),
         capability_manifest=manifest_dict,
@@ -167,7 +171,8 @@ def solve_public_quant_problem_spec(
             "reference_gamma": report.reference_gamma,
         }
 
-    assert problem_id is not None
+    if problem_id is None:
+        raise ValueError("public solver contract requires a problem_id after route screening")
     diagnostics = {
         "errors": report.errors,
         "no_arbitrage": report.no_arbitrage,

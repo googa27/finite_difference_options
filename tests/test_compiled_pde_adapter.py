@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from copy import deepcopy
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -20,14 +23,25 @@ from finite_difference_options.integrations.compiled_pde_adapter import (
     screen_compiled_pde_payload,
     solve_compiled_pde_payload,
 )
+from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
+    _run_compiled_black_scholes_route,
+)
 from finite_difference_options.validation.benchmark_registry import (
     run_registered_benchmark,
 )
+from finite_difference_options.validation.black_scholes_parity import black_scholes_call_oracle
 
 
 def _fixture() -> dict[str, Any]:
     with packaged_compiled_black_scholes_fixture_path() as fixture_path:
         return load_compiled_pde_json(fixture_path)
+
+
+def _installed_package_version() -> str:
+    try:
+        return metadata.version("finite-difference-options")
+    except metadata.PackageNotFoundError:
+        return "0.1.0"
 
 
 def test_packaged_fixture_path_loads_same_payload() -> None:
@@ -66,6 +80,10 @@ def test_compiled_pde_fixture_screens_and_solves_preserving_identity() -> None:
         "scale": "absolute",
     }
     assert result.diagnostics["fallbacks"] == ()
+    assert result.diagnostics["errors"]["price_tolerance_ok"] is True
+    assert result.diagnostics["errors"]["delta_tolerance_ok"] is True
+    assert result.diagnostics["errors"]["gamma_tolerance_ok"] is True
+    assert result.evidence["code_version"] == _installed_package_version()
     schedule = result.evidence["boundary_schedule_applied"]
     assert schedule["source"] == "compiled_route_explicit_schedule"
     assert schedule["tau_grid_count"] == 200
@@ -79,6 +97,64 @@ def test_compiled_pde_fixture_screens_and_solves_preserving_identity() -> None:
     }
     assert schedule["applied"][-1]["upper"] == pytest.approx(3.0 - 1.0 * 2.718281828459045**-0.05)
     assert result.diagnostics["resource_controls"]["boundary_rebuilt_each_time_step"] == "true"
+
+
+def test_compiled_pde_oracle_and_greeks_consume_operator_dividend_yield() -> None:
+    route = screen_compiled_pde_payload(_fixture()).route
+    numerics = route["numerics"]
+    numerics["dividend_yield"] = 0.03
+
+    report = _run_compiled_black_scholes_route(route)
+
+    q_oracle = black_scholes_call_oracle(1.0, 1.0, 0.05, 0.2, 1.0, dividend_yield=0.03)
+    zero_q_oracle = black_scholes_call_oracle(1.0, 1.0, 0.05, 0.2, 1.0, dividend_yield=0.0)
+    assert report["oracle_price"] == pytest.approx(q_oracle)
+    assert report["oracle_price"] != pytest.approx(zero_q_oracle)
+    assert report["converged"] is True
+    assert report["errors"]["price_tolerance_ok"] is True
+    assert report["errors"]["delta_tolerance_ok"] is True
+    assert report["errors"]["gamma_tolerance_ok"] is True
+
+
+def test_compiled_pde_converged_requires_price_delta_and_gamma_tolerances() -> None:
+    route = screen_compiled_pde_payload(_fixture()).route
+    numerics = route["numerics"]
+    numerics["tolerances"] = {"price": 1.0, "delta": 1.0, "gamma": 1.0e-12}
+
+    report = _run_compiled_black_scholes_route(route)
+
+    assert report["errors"]["price_tolerance_ok"] is True
+    assert report["errors"]["delta_tolerance_ok"] is True
+    assert report["errors"]["gamma_tolerance_ok"] is False
+    assert report["converged"] is False
+
+
+def test_compiled_pde_optional_grid_error_survives_python_optimized_mode() -> None:
+    script = """
+from finite_difference_options.integrations.compiled_pde_adapter import (
+    packaged_compiled_black_scholes_fixture,
+    screen_compiled_pde_payload,
+)
+from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
+    _run_compiled_black_scholes_route,
+)
+
+route = screen_compiled_pde_payload(packaged_compiled_black_scholes_fixture()).route
+route['numerics']['grid_levels'] = ()
+try:
+    _run_compiled_black_scholes_route(route)
+except ValueError as exc:
+    print(type(exc).__name__ + ': ' + str(exc))
+else:
+    raise SystemExit('expected ValueError')
+"""
+    completed = subprocess.run(
+        [sys.executable, "-O", "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "ValueError: compiled Black-Scholes route requires at least one grid level" in completed.stdout
 
 
 def test_compiled_pde_route_does_not_invoke_legacy_fixture_or_mu_boundary_fallback(
