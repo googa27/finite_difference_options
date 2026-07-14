@@ -231,23 +231,23 @@ class BlackScholesParityReport:
         }
 
 
-def black_scholes_call_oracle(spot: float, strike: float, rate: float, sigma: float, maturity: float) -> float:
+def black_scholes_call_oracle(
+    spot: float, strike: float, rate: float, sigma: float, maturity: float, dividend_yield: float = 0.0  # noqa: E501
+) -> float:
     """Analytical Black--Scholes call price used as the public oracle."""
-
-    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
+    d1 = (log(spot / strike) + (rate - dividend_yield + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
     d2 = d1 - sigma * sqrt(maturity)
-    return float(spot * norm.cdf(d1) - strike * exp(-rate * maturity) * norm.cdf(d2))
+    return float(spot * exp(-dividend_yield * maturity) * norm.cdf(d1) - strike * exp(-rate * maturity) * norm.cdf(d2))
 
 
 def black_scholes_call_greeks(
-    spot: float, strike: float, rate: float, sigma: float, maturity: float
+    spot: float, strike: float, rate: float, sigma: float, maturity: float, dividend_yield: float = 0.0  # noqa: E501
 ) -> dict[str, float]:
     """Analytical Black--Scholes call delta and gamma used for benchmark deltas."""
-
-    d1 = (log(spot / strike) + (rate + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
+    d1 = (log(spot / strike) + (rate - dividend_yield + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
     return {
-        "delta": float(norm.cdf(d1)),
-        "gamma": float(norm.pdf(d1) / (spot * sigma * sqrt(maturity))),
+        "delta": float(exp(-dividend_yield * maturity) * norm.cdf(d1)),
+        "gamma": float(exp(-dividend_yield * maturity) * norm.pdf(d1) / (spot * sigma * sqrt(maturity))),
     }
 
 

@@ -21,9 +21,7 @@ DIST = "finite-difference-options"
 
 def _python_files(root: Path) -> list[Path]:
     return sorted(
-        path
-        for path in root.rglob("*.py")
-        if "__pycache__" not in path.parts and "egg-info" not in path.parts
+        path for path in root.rglob("*.py") if "__pycache__" not in path.parts and "egg-info" not in path.parts
     )
 
 
@@ -46,14 +44,9 @@ def _requires_dist() -> list[str]:
     return metadata.metadata(DIST).get_all("Requires-Dist") or []
 
 
-def _has_extra_dependency(
-    requires_dist: list[str], extra: str, dependency: str
-) -> bool:
+def _has_extra_dependency(requires_dist: list[str], extra: str, dependency: str) -> bool:
     marker = f'extra == "{extra}"'
-    return any(
-        req.lower().startswith(dependency.lower()) and marker in req
-        for req in requires_dist
-    )
+    return any(req.lower().startswith(dependency.lower()) and marker in req for req in requires_dist)
 
 
 def test_distribution_metadata_declares_supported_runtime_contract() -> None:
@@ -83,14 +76,8 @@ def test_distribution_metadata_declares_supported_runtime_contract() -> None:
 def test_core_metadata_keeps_application_stacks_optional() -> None:
     requires_dist = _requires_dist()
     unconditional = [req for req in requires_dist if "extra ==" not in req]
-    assert not any(
-        req.lower().startswith(("fastapi", "uvicorn", "typer", "streamlit"))
-        for req in unconditional
-    )
-    assert not any(
-        req.lower().startswith(("matplotlib", "plotly", "seaborn"))
-        for req in unconditional
-    )
+    assert not any(req.lower().startswith(("fastapi", "uvicorn", "typer", "streamlit")) for req in unconditional)
+    assert not any(req.lower().startswith(("matplotlib", "plotly", "seaborn")) for req in unconditional)
 
     for extra, dependency in [
         ("api", "fastapi"),
@@ -126,8 +113,7 @@ def test_public_distribution_import_surface_is_real_package_namespace() -> None:
 def test_entry_points_advertise_cli_and_haircut_backend() -> None:
     console_scripts = metadata.entry_points(group="console_scripts")
     assert any(
-        ep.name == "fd-options" and ep.value == "finite_difference_options.cli.main:app"
-        for ep in console_scripts
+        ep.name == "fd-options" and ep.value == "finite_difference_options.cli.main:app" for ep in console_scripts
     )
 
     solver_backends = metadata.entry_points(group="haircut.solver_backends")
@@ -153,20 +139,14 @@ def test_python_sources_do_not_mutate_sys_path_for_checkout_only_imports() -> No
             forbidden_path_mutations = ("sys.path." + "append", "sys.path." + "insert")
             if any(token in text for token in forbidden_path_mutations):
                 violations.append(str(path.relative_to(ROOT)))
-    assert not violations, "Checkout-only sys.path mutation remains: " + repr(
-        violations
-    )
+    assert not violations, "Checkout-only sys.path mutation remains: " + repr(violations)
 
 
 def test_sources_and_tests_do_not_import_historical_src_package() -> None:
     violations: list[str] = []
     for root in [ROOT / "tests", ROOT / "src" / PACKAGE, ROOT / "scripts"]:
         for path in _python_files(root):
-            historical = sorted(
-                name
-                for name in _imports(path)
-                if name == "src" or name.startswith("src.")
-            )
+            historical = sorted(name for name in _imports(path) if name == "src" or name.startswith("src."))
             if historical:
                 violations.append(f"{path.relative_to(ROOT)}: {historical}")
     assert not violations, "Historical src imports remain: " + repr(violations)
@@ -190,16 +170,8 @@ def test_wheel_contains_only_real_distribution_package(tmp_path: Path) -> None:
 
     assert "finite_difference_options/__init__.py" in names
     assert "finite_difference_options/py.typed" in names
-    assert any(
-        name.startswith("finite_difference_options/contracts/") for name in names
-    )
-    assert any(
-        name.startswith("finite_difference_options/integrations/") for name in names
-    )
-    assert not any(
-        name == "src/__init__.py" or name.startswith("src/") for name in names
-    )
-    assert not any(
-        name.startswith(("tests/", ".agent_workspace/", ".gemini_project/"))
-        for name in names
-    )
+    assert any(name.startswith("finite_difference_options/contracts/") for name in names)
+    assert any(name.startswith("finite_difference_options/integrations/") for name in names)
+    assert "finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json" in names
+    assert not any(name == "src/__init__.py" or name.startswith("src/") for name in names)
+    assert not any(name.startswith(("tests/", ".agent_workspace/", ".gemini_project/")) for name in names)

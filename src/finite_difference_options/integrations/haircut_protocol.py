@@ -60,7 +60,7 @@ def build_haircut_contracts(
 
     seam = _load_public_solver_seam()
     _ensure_contract_major_compatible(seam, manifest.contract_version, expected_contract_version)
-    distribution_version = _distribution_version()
+    distribution_version = installed_distribution_version()
     identity = seam.BackendIdentity(
         distribution_name=_DISTRIBUTION_NAME,
         distribution_version=distribution_version,
@@ -138,7 +138,9 @@ def _ensure_contract_major_compatible(seam: _HaircutPublicSolverSeam, provider: 
         )
 
 
-def _distribution_version() -> str:
+def installed_distribution_version() -> str:
+    """Return the installed package version, with a source-checkout fallback."""
+
     try:
         return metadata.version(_DISTRIBUTION_NAME)
     except metadata.PackageNotFoundError:

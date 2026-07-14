@@ -71,7 +71,12 @@ class PublicFDSolverResult:
 def released_fd_solver_contract(
     manifest: FDCapabilityManifest = DEFAULT_FD_CAPABILITY_MANIFEST,
 ) -> ReleasedFDSolverContract:
-    """Return the released public FD backend contract metadata."""
+    """Return the released public QuantProblemSpec solver-contract metadata.
+
+    Compiled PDE fixtures are served by the separate
+    ``compiled_pde_adapter:solve_compiled_pde_payload`` entry point and are not
+    advertised as generic QuantProblemSpec payloads for this dispatcher.
+    """
 
     manifest_dict = asdict(manifest)
     manifest_dict["status"] = manifest.status.value
@@ -89,6 +94,7 @@ def released_fd_solver_contract(
         capability_manifest=manifest_dict,
         entry_points=(
             "finite_difference_options.integrations.public_solver_contract:solve_public_quant_problem_spec",
+            "finite_difference_options.integrations.compiled_pde_adapter:solve_compiled_pde_payload",
             "finite_difference_options.integrations.haircut_backend:create_backend",
         ),
         entry_point_groups=("haircut.solver_backends",),
@@ -96,6 +102,7 @@ def released_fd_solver_contract(
             "googa27/finite_difference_options#55",
             "googa27/finite_difference_options#130",
             "googa27/finite_difference_options#139",
+            "googa27/finite_difference_options#141",
         ),
     )
 
@@ -164,7 +171,8 @@ def solve_public_quant_problem_spec(
             "reference_gamma": report.reference_gamma,
         }
 
-    assert problem_id is not None
+    if problem_id is None:
+        raise ValueError("public solver contract requires a problem_id after route screening")
     diagnostics = {
         "errors": report.errors,
         "no_arbitrage": report.no_arbitrage,

@@ -102,6 +102,17 @@ print(result.problem_id, result.values["price"], cache.info().as_dict())
 
 Only exact checked-in public-synthetic QuantProblemSpec fixtures execute. Mutated, private, ROFR or full-family-contract payloads fail closed before numerical work.
 
+### Compiled PDE fixture adapter
+
+```bash
+uv run fd-options qps screen src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json --json
+uv run fd-options qps solve src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json \
+  --out /tmp/vqpw-fd-result.json \
+  --evidence /tmp/vqpw-fd-evidence.json
+```
+
+The compiled PDE adapter consumes serialized public-synthetic FPF `pde_ir.v0` compiler output only. It is a separate adapter (`solve_compiled_pde_payload`), not part of the generic `solve_public_quant_problem_spec` QuantProblemSpec dispatcher. It preserves source IR and compiled-operator hashes, units, measure, numeraire, time orientation and boundary semantics, then executes the exact 1D European Black-Scholes route through the maintained FD validation solver. Private/mutated fixtures and unsupported boundary, dimension, exercise or output requests fail closed before discretization.
+
 ### Heston stochastic-volatility smoke example
 
 This example is an experimental shape/finite-value smoke path for a vanilla equity call under Heston state `(log_spot, variance)`. It is not a basket option and is not advertised as a production Heston benchmark; semi-analytical Fourier oracle tests cover the Heston reference-price and Black-Scholes-limit evidence.

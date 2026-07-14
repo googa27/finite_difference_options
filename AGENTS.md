@@ -159,6 +159,7 @@ The Haircut adapter must:
 - use only validated canonical numerical policies;
 - return solution, Greeks and complete diagnostics;
 - work from a clean installed wheel;
+- consume compiled `pde_ir.v0` artifacts only through serialized public-synthetic fixtures/contracts, preserving source/compiled hashes, units, measure, numeraire, domain/time and boundary semantics;
 - import only Haircut's public solver protocol seam and no Haircut domain/application, PDP or delivery modules.
 
 Advertise only capabilities backed by repository-local tests and shared parity evidence.
