@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: 'Find bounded trusted candidate issues and label allowlist'
         id: 'find_issues'
-        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
+        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea' # v7.0.1
         with:
           github-token: '${{ github.token }}'
           script: |-
@@ -150,7 +150,9 @@ jobs:
       issues: 'write'
     steps:
       - name: 'Checkout validation code only after analysis'
-        uses: 'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5' # v4
+        uses: 'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5' # v4.3.1
+        with:
+          persist-credentials: false
 
       - name: 'Validate advisory batch output against trusted schema'
         id: 'validate'
@@ -183,7 +185,7 @@ jobs:
           steps.validate.outputs.valid == 'true'
         env:
           TRIAGE_LABEL_EXISTS: '${{ needs.analyze-issues.outputs.triage_label_exists }}'
-        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea'
+        uses: 'actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea' # v7.0.1
         with:
           github-token: '${{ github.token }}'
           script: |-

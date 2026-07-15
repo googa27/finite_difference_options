@@ -73,10 +73,13 @@ jobs:
         id: 'generate_token'
         if: |-
           ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # ratchet:actions/create-github-app-token@v2
+        uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # v2.0.6
         with:
           app-id: '${{ vars.APP_ID }}'
           private-key: '${{ secrets.APP_PRIVATE_KEY }}'
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
 
       - name: 'Get context from event'
         id: 'get_context'
@@ -126,21 +129,28 @@ jobs:
       - name: 'Checkout PR branch'
         if: |-
           ${{  steps.get_context.outputs.is_pr == 'true' }}
-        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # v4.2.2
         with:
           token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
           repository: '${{ github.repository }}'
           ref: 'refs/pull/${{ steps.get_context.outputs.issue_number }}/head'
           fetch-depth: 0
+          persist-credentials: false
 
       - name: 'Checkout main branch'
         if: |-
           ${{  steps.get_context.outputs.is_pr == 'false' }}
-        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # v4.2.2
         with:
           token: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
           repository: '${{ github.repository }}'
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: 'Configure authenticated Git access'
+        env:
+          GH_TOKEN: '${{ steps.generate_token.outputs.token || secrets.GITHUB_TOKEN }}'
+        run: gh auth setup-git
 
       - name: 'Acknowledge request'
         env:
