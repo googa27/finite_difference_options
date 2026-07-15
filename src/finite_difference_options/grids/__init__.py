@@ -8,6 +8,8 @@ legacy imports while implementations live in cohesive modules.
 
 from __future__ import annotations
 
+from typing import Any, Mapping, Sequence
+
 from finite_difference_options.grids.axis import Array as Array
 from finite_difference_options.grids.axis import AxisGrid, as_axis_grid
 from finite_difference_options.grids.factories import (
