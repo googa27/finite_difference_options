@@ -286,6 +286,52 @@
           "source": "https://github.com/suzuki-shunsuke/pinact",
           "finding": "Pinact resolves action tags to immutable full-length commit SHAs and verifies pinned references."
         }
+      ],
+      "write_permission_exceptions": [
+        {
+          "path": ".github/workflows/gemini-cli.yml",
+          "scopes": [
+            "contents",
+            "id-token",
+            "issues",
+            "pull-requests"
+          ],
+          "reason": "Trusted-collaborator Gemini workflow may commit fixes and comment on issues or pull requests.",
+          "owner": "googa27",
+          "review_by": "2027-07-15"
+        },
+        {
+          "path": ".github/workflows/gemini-issue-automated-triage.yml",
+          "scopes": [
+            "id-token",
+            "issues"
+          ],
+          "reason": "Gemini triage requires OIDC inference and issue-label mutation in separate jobs.",
+          "owner": "googa27",
+          "review_by": "2027-07-15"
+        },
+        {
+          "path": ".github/workflows/gemini-issue-scheduled-triage.yml",
+          "scopes": [
+            "id-token",
+            "issues"
+          ],
+          "reason": "Scheduled Gemini triage requires OIDC inference and issue-label mutation in separate jobs.",
+          "owner": "googa27",
+          "review_by": "2027-07-15"
+        },
+        {
+          "path": ".github/workflows/gemini-pr-review.yml",
+          "scopes": [
+            "id-token",
+            "issues",
+            "pull-requests",
+            "statuses"
+          ],
+          "reason": "Gemini review requires OIDC inference plus review comments and status publication.",
+          "owner": "googa27",
+          "review_by": "2027-07-15"
+        }
       ]
     }
   },
