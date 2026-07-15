@@ -28,9 +28,7 @@ def load_checker() -> ModuleType:
     return load_module("ai_hierarchy_policy", SCRIPT)
 
 
-def write_workflow(
-    root: Path, *, pinned: bool = True, persistent: bool = False
-) -> None:
+def write_workflow(root: Path, *, pinned: bool = True, persistent: bool = False) -> None:
     workflow = root / ".github" / "workflows" / "ci.yml"
     workflow.parent.mkdir(parents=True, exist_ok=True)
     ref = "34e114876b0b11c390a56381ad16ebd13914f8d5" if pinned else "v4"
@@ -64,9 +62,7 @@ def main() -> int:
         checker.ROOT = root
         facade = root / "src" / "example" / "compat"
         facade.mkdir(parents=True)
-        (facade / "__init__.py").write_text(
-            "from elsewhere import Public as Public\n", encoding="utf-8"
-        )
+        (facade / "__init__.py").write_text("from elsewhere import Public as Public\n", encoding="utf-8")
         assert checker.marker_only_package(facade)
 
         write_workflow(root)
@@ -95,15 +91,11 @@ def main() -> int:
         )
         errors = []
         checker.validate_workflows(checker.ROOT, errors, {})
-        credential_errors = [
-            error for error in errors if "credentials persist" in error
-        ]
+        credential_errors = [error for error in errors if "credentials persist" in error]
         assert len(credential_errors) == 1, credential_errors
 
         workflow.write_text(
-            workflow.read_text(encoding="utf-8").replace(
-                "permissions:\n  contents: read", "permissions: write-all"
-            ),
+            workflow.read_text(encoding="utf-8").replace("permissions:\n  contents: read", "permissions: write-all"),
             encoding="utf-8",
         )
         errors = []
@@ -112,16 +104,52 @@ def main() -> int:
 
         write_workflow(root)
         workflow.write_text(
-            workflow.read_text(encoding="utf-8").replace(
-                "contents: read", "contents: write"
-            ),
+            workflow.read_text(encoding="utf-8").replace("contents: read", "contents: write"),
             encoding="utf-8",
         )
         errors = []
-        checker.validate_workflows(
-            checker.ROOT, errors, {".github/workflows/ci.yml": {"contents"}}
-        )
+        checker.validate_workflows(checker.ROOT, errors, {".github/workflows/ci.yml": {"contents"}})
         assert not errors, errors
+
+        workflow.write_text(
+            "name: CI\non: [push]\npermissions: &danger\n  contents: write\n"
+            "jobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n"
+            '      - "uses": actions/setup-python@v5\n',
+            encoding="utf-8",
+        )
+        errors = []
+        checker.validate_workflows(checker.ROOT, errors, {})
+        assert any("not SHA-pinned" in error for error in errors), errors
+        assert any("exact write_permission_exceptions" in error for error in errors), errors
+
+        workflow.write_text(
+            "name: CI\non: [push]\npermissions: {contents: read}\n"
+            "jobs: {test: {runs-on: ubuntu-latest, steps: "
+            "[{uses: actions/setup-python@v5}]}}\n",
+            encoding="utf-8",
+        )
+        errors = []
+        checker.validate_workflows(checker.ROOT, errors, {})
+        assert any("not SHA-pinned" in error for error in errors), errors
+
+        workflow.write_text(
+            "name: CI\non: [push]\npermissions: {contents: read}\njobs:\n"
+            "  test:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5\n"
+            "        env:\n          persist-credentials: false\n",
+            encoding="utf-8",
+        )
+        errors = []
+        checker.validate_workflows(checker.ROOT, errors, {})
+        assert any("credentials persist" in error for error in errors), errors
+
+        side_effect_init = root / "side_effect_init.py"
+        side_effect_init.write_text(
+            "from package import run\nRESULT = run()\nfor item in range(3):\n    RESULT += item\n",
+            encoding="utf-8",
+        )
+        findings = checker.init_implementation(side_effect_init)
+        assert "assignment-call" in findings and "For" in findings, findings
 
     print("AI/hierarchy policy self-tests passed")
     return 0

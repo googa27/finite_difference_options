@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib
 
-import pytest
-
 from finite_difference_options.pricing import (
     GridParameters,
     PricingEngine,
@@ -38,8 +36,7 @@ def test_create_default_pricing_engine_returns_engine() -> None:
     assert isinstance(engine, PricingEngine)
 
 
-def test_empty_pricing_boundary_conditions_marker_package_is_not_public_api() -> None:
-    """Boundary-condition API lives at finite_difference_options.boundary_conditions."""
+def test_historical_pricing_boundary_conditions_package_remains_importable() -> None:
+    """Preserve the historical marker path while the API lives at the canonical path."""
     assert importlib.import_module("finite_difference_options.boundary_conditions")
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("finite_difference_options.pricing.boundary_conditions")
+    assert importlib.import_module("finite_difference_options.pricing.boundary_conditions")

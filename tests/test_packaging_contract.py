@@ -102,6 +102,7 @@ def test_public_distribution_import_surface_is_real_package_namespace() -> None:
         "finite_difference_options.integrations.haircut_backend",
         "finite_difference_options.validation.black_scholes_parity",
         "finite_difference_options.pricing",
+        "finite_difference_options.pricing.boundary_conditions",
         "finite_difference_options.solvers",
     ]:
         importlib.import_module(module_name)
@@ -172,7 +173,7 @@ def test_wheel_contains_only_real_distribution_package(tmp_path: Path) -> None:
     assert "finite_difference_options/py.typed" in names
     assert any(name.startswith("finite_difference_options/contracts/") for name in names)
     assert any(name.startswith("finite_difference_options/integrations/") for name in names)
-    assert not any(name.startswith("finite_difference_options/pricing/boundary_conditions/") for name in names)
+    assert "finite_difference_options/pricing/boundary_conditions/__init__.py" in names
     assert "finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json" in names
     assert not any(name == "src/__init__.py" or name.startswith("src/") for name in names)
     assert not any(name.startswith(("tests/", ".agent_workspace/", ".gemini_project/")) for name in names)

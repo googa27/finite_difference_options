@@ -443,6 +443,21 @@
       "risk": "Large context increases change blast radius, review cost, and AI/human navigation burden.",
       "accepted_ceiling": 641,
       "refactoring_trigger": "The file may not grow; the next behavioral change must extract a cohesive responsibility behind compatibility tests or reduce the accepted ceiling."
+    },
+    {
+      "rule": "empty_runtime_directory",
+      "path": "src/finite_difference_options/pricing/boundary_conditions",
+      "reason": "Preserve the historically importable finite_difference_options.pricing.boundary_conditions package path while concrete boundary-condition implementations remain elsewhere.",
+      "risk": "An empty compatibility package can be mistaken for an implementation extension point.",
+      "owner": "googa27",
+      "accepted_ceiling": 0,
+      "refactoring_trigger": "Remove only in a documented major-version migration after deprecation telemetry shows no consumers.",
+      "structural_role": "compatibility_facade",
+      "review_by": "2027-07-15",
+      "evidence": [
+        "tests/test_packaging_contract.py",
+        "tests/test_pricing_engine_imports.py"
+      ]
     }
   ]
 }
