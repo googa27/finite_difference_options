@@ -1,6 +1,10 @@
 """Tests covering the finite difference pricing engine import surface."""
 
+from __future__ import annotations
 
+import importlib
+
+import pytest
 
 from finite_difference_options.pricing import (
     GridParameters,
@@ -32,3 +36,10 @@ def test_create_default_pricing_engine_returns_engine() -> None:
     """Factory helper should yield a configured pricing engine instance."""
     engine = create_default_pricing_engine()
     assert isinstance(engine, PricingEngine)
+
+
+def test_empty_pricing_boundary_conditions_marker_package_is_not_public_api() -> None:
+    """Boundary-condition API lives at finite_difference_options.boundary_conditions."""
+    assert importlib.import_module("finite_difference_options.boundary_conditions")
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("finite_difference_options.pricing.boundary_conditions")
