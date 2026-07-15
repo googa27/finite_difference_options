@@ -347,6 +347,7 @@ Repository posture: Consume FPF contracts; avoid PDP/UI runtime dependencies; em
 - Tests: `python -m pytest -q`
 - Lint/format: `ruff check . && ruff format --check .`
 - Portfolio architecture: `python scripts/check_portfolio_architecture.py`
+- AI/hierarchy policy: `python3 scripts/check_ai_hierarchy_policy.py`
 
 If a command is declared unavailable, the activation trigger and replacement command belong in `docs/ARCHITECTURE.yaml`; do not fabricate successful output.
 <!-- PORTFOLIO-CONSTITUTION:END -->

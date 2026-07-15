@@ -82,7 +82,8 @@
           "source": "https://doi.org/10.1145/1368088.1368161",
           "finding": "Dependency-graph properties predict defects, supporting import/coupling hotspot review over cosmetic balancing."
         }
-      ]
+      ],
+      "checker": "python3 scripts/check_ai_hierarchy_policy.py"
     }
   },
   "limits": {
@@ -256,7 +257,8 @@
           "source": "https://doi.org/10.1109/ICSE48619.2023.00085",
           "finding": "LLM-assisted test generation can improve coverage when combined with search; generated assertions still require an independent validated oracle."
         }
-      ]
+      ],
+      "checker": "python3 scripts/check_ai_hierarchy_policy.py"
     }
   },
   "exceptions": [
