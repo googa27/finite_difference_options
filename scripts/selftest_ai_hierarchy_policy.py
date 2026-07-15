@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-tests for the additive AI, hierarchy, and workflow governance gate."""
+"""Self-check the additive AI, hierarchy, and workflow governance gate."""
 
 from __future__ import annotations
 
@@ -10,20 +10,27 @@ from pathlib import Path
 from types import ModuleType
 
 SCRIPT = Path(__file__).with_name("check_ai_hierarchy_policy.py")
+WORKFLOW_SCRIPT = Path(__file__).with_name("workflow_policy_checks.py")
 
 
-def load_checker() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("check_ai_hierarchy_policy", SCRIPT)
+def load_module(name: str, path: Path) -> ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        raise RuntimeError("unable to load governance checker")
-    sys.path.insert(0, str(SCRIPT.parent))
+        raise RuntimeError(f"cannot load {path}")
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
-def write_workflow(root: Path, *, pinned: bool = True, persistent: bool = False) -> None:
+def load_checker() -> ModuleType:
+    load_module("workflow_policy_checks", WORKFLOW_SCRIPT)
+    return load_module("ai_hierarchy_policy", SCRIPT)
+
+
+def write_workflow(
+    root: Path, *, pinned: bool = True, persistent: bool = False
+) -> None:
     workflow = root / ".github" / "workflows" / "ci.yml"
     workflow.parent.mkdir(parents=True, exist_ok=True)
     ref = "34e114876b0b11c390a56381ad16ebd13914f8d5" if pinned else "v4"
@@ -57,7 +64,9 @@ def main() -> int:
         checker.ROOT = root
         facade = root / "src" / "example" / "compat"
         facade.mkdir(parents=True)
-        (facade / "__init__.py").write_text("from elsewhere import Public as Public\n", encoding="utf-8")
+        (facade / "__init__.py").write_text(
+            "from elsewhere import Public as Public\n", encoding="utf-8"
+        )
         assert checker.marker_only_package(facade)
 
         write_workflow(root)
@@ -86,11 +95,15 @@ def main() -> int:
         )
         errors = []
         checker.validate_workflows(checker.ROOT, errors, {})
-        credential_errors = [error for error in errors if "credentials persist" in error]
+        credential_errors = [
+            error for error in errors if "credentials persist" in error
+        ]
         assert len(credential_errors) == 1, credential_errors
 
         workflow.write_text(
-            workflow.read_text(encoding="utf-8").replace("permissions:\n  contents: read", "permissions: write-all"),
+            workflow.read_text(encoding="utf-8").replace(
+                "permissions:\n  contents: read", "permissions: write-all"
+            ),
             encoding="utf-8",
         )
         errors = []
@@ -99,11 +112,15 @@ def main() -> int:
 
         write_workflow(root)
         workflow.write_text(
-            workflow.read_text(encoding="utf-8").replace("contents: read", "contents: write"),
+            workflow.read_text(encoding="utf-8").replace(
+                "contents: read", "contents: write"
+            ),
             encoding="utf-8",
         )
         errors = []
-        checker.validate_workflows(checker.ROOT, errors, {".github/workflows/ci.yml": {"contents"}})
+        checker.validate_workflows(
+            checker.ROOT, errors, {".github/workflows/ci.yml": {"contents"}}
+        )
         assert not errors, errors
 
     print("AI/hierarchy policy self-tests passed")
