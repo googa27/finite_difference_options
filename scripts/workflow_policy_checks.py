@@ -90,7 +90,12 @@ def validate_workflow_policy(contract: dict[str, Any], errors: list[str]) -> dic
 
 def _workflow_document(path: Path, errors: list[str]) -> dict[str, Any] | None:
     try:
-        document = yaml.safe_load(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        errors.append(f"{path}: cannot read workflow: {exc}")
+        return None
+    try:
+        document = yaml.safe_load(text)
     except yaml.YAMLError as exc:
         errors.append(f"{path}: invalid workflow YAML: {exc}")
         return None
@@ -163,8 +168,74 @@ def _uses_entries(
                 errors.append(f"{label}: job {job_name!r} step {index} uses must be a string")
 
 
-def _validate_action_reference(uses: str, step: dict[str, Any] | None, label: str, errors: list[str]) -> None:
+def _local_action_file(root: Path, uses: str) -> Path | None:
+    candidate = (root / uses).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        return None
+    for name in ("action.yml", "action.yaml"):
+        path = candidate / name
+        if path.is_file():
+            return path
+    return None
+
+
+def _validate_local_action(
+    root: Path,
+    uses: str,
+    label: str,
+    errors: list[str],
+    visited: set[Path],
+) -> None:
+    action_path = _local_action_file(root, uses)
+    if action_path is None:
+        errors.append(f"{label}: local action metadata is missing or escapes root: {uses}")
+        return
+    action_path = action_path.resolve()
+    if action_path in visited:
+        return
+    visited.add(action_path)
+    document = _workflow_document(action_path, errors)
+    if document is None:
+        return
+    runs = document.get("runs")
+    if not isinstance(runs, dict) or runs.get("using") != "composite":
+        return
+    steps = runs.get("steps")
+    if not isinstance(steps, list):
+        errors.append(f"{action_path}: composite runs.steps must be a list")
+        return
+    for index, step in enumerate(steps):
+        if not isinstance(step, dict):
+            errors.append(f"{action_path}: composite step {index} must be a mapping")
+            continue
+        nested = step.get("uses")
+        if nested is None:
+            continue
+        if not isinstance(nested, str):
+            errors.append(f"{action_path}: composite step {index} uses must be a string")
+            continue
+        _validate_action_reference(
+            root,
+            nested,
+            step,
+            f"{action_path}: composite step {index}",
+            errors,
+            visited,
+        )
+
+
+def _validate_action_reference(
+    root: Path,
+    uses: str,
+    step: dict[str, Any] | None,
+    label: str,
+    errors: list[str],
+    visited: set[Path],
+) -> None:
     if uses.startswith("./"):
+        _validate_local_action(root, uses, label, errors, visited)
         return
     if uses.startswith("docker://"):
         if not DIGEST_PATTERN.fullmatch(uses.rsplit("@", 1)[-1]):
@@ -174,7 +245,10 @@ def _validate_action_reference(uses: str, step: dict[str, Any] | None, label: st
     if not separator or not FULL_SHA_PATTERN.fullmatch(reference):
         errors.append(f"{label}: action is not SHA-pinned: {uses}")
         return
-    if action != "actions/checkout" or step is None:
+    if action != "actions/checkout":
+        return
+    if step is None:
+        errors.append(f"{label}: actions/checkout is invalid as a job-level reusable workflow")
         return
     inputs = step.get("with")
     persisted = inputs.get("persist-credentials") if isinstance(inputs, dict) else None
@@ -202,7 +276,11 @@ def validate_workflows(
             errors.append(f"{rel}: missing explicit top-level permissions")
             top_scopes: set[str] = set()
         else:
-            top_scopes = _permission_write_scopes(document["permissions"], f"{rel}: top-level", errors)
+            top_scopes = _permission_write_scopes(document.get("permissions"), f"{rel}: top-level permissions", errors)
+            if top_scopes:
+                errors.append(
+                    f"{rel}: top-level write scopes are forbidden; move writes to the exact mutating job: {sorted(top_scopes)}"
+                )
         write_scopes = set(top_scopes)
         jobs = document.get("jobs")
         if isinstance(jobs, dict):
@@ -211,8 +289,9 @@ def validate_workflows(
                     write_scopes.update(
                         _permission_write_scopes(raw_job["permissions"], f"{rel}: job {job_name!r}", errors)
                     )
+        visited_local_actions: set[Path] = set()
         for uses, step in _uses_entries(document, rel, errors):
-            _validate_action_reference(uses, step, rel, errors)
+            _validate_action_reference(root, uses, step, rel, errors, visited_local_actions)
 
         if "*" in write_scopes:
             errors.append(f"{rel}: forbidden broad write permissions")

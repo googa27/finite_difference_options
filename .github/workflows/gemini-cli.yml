@@ -21,13 +21,15 @@ defaults:
     shell: 'bash'
 
 permissions:
-  contents: 'write'
-  id-token: 'write'
-  pull-requests: 'write'
-  issues: 'write'
+  contents: 'read'
 
 jobs:
   gemini-cli:
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+      pull-requests: 'write'
+      issues: 'write'
     # This condition seeks to ensure the action is only run when it is triggered by a trusted user.
     # For private repos, users who have access to the repo are considered trusted.
     # For public repos, users who members, owners, or collaborators are considered trusted.
