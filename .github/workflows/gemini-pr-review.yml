@@ -32,13 +32,15 @@ defaults:
 
 permissions:
   contents: 'read'
-  id-token: 'write'
-  issues: 'write'
-  pull-requests: 'write'
-  statuses: 'write'
 
 jobs:
   review-pr:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+      issues: 'write'
+      pull-requests: 'write'
+      statuses: 'write'
     # This condition seeks to ensure the action is only run when it is triggered by a trusted user.
     # For private repos, users who have access to the repo are considered trusted.
     # For public repos, users who members, owners, or collaborators are considered trusted.
@@ -77,16 +79,22 @@ jobs:
     runs-on: 'ubuntu-latest'
     steps:
       - name: 'Checkout PR code'
-        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # ratchet:actions/checkout@v4
+        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: 'Generate GitHub App Token'
         id: 'generate_token'
         if: |-
           ${{ vars.APP_ID }}
-        uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # ratchet:actions/create-github-app-token@v2
+        uses: 'actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e' # v2.0.6
         with:
           app-id: '${{ vars.APP_ID }}'
           private-key: '${{ secrets.APP_PRIVATE_KEY }}'
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+          permission-statuses: write
 
       - name: 'Get PR details (pull_request & workflow_dispatch)'
         id: 'get_pr'

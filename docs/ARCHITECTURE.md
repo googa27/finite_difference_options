@@ -123,7 +123,7 @@ tests/
   performance/
 ```
 
-This is now a real PEP 621 src-layout package. The directory named `src/` is only the setuptools package root; public code imports `finite_difference_options.*`, never `src.*`. Boundaries are justified by dependency direction, semantic ownership, optional installation or independent testing.
+This is now a real PEP 621 src-layout package. The directory named `src/` is only the setuptools package root; public code imports `finite_difference_options.*`, never `src.*`. Boundaries are justified by dependency direction, semantic ownership, optional installation or independent testing. The canonical boundary-condition API is `finite_difference_options.boundary_conditions`; `finite_difference_options.pricing` must not carry marker-only compatibility subpackages.
 
 The machine-readable architecture contract is `docs/architecture_contract.toml`. It is the CI-enforced source of truth for the `src/finite_difference_options` package boundary allowlist, root-module policy, optional profile topology, and topology-count ratchet; update it with `tests/architecture`, `tests/test_packaging_contract.py`, and `scripts/check_architecture_contract.py` in every hierarchy-changing PR.
 ## 6. Dependency direction

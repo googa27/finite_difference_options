@@ -1,1 +1,1 @@
-"""Boundary conditions package."""
+"""Boundary-condition compatibility package."""

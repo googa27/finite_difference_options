@@ -1,7 +1,11 @@
 """Tests covering the finite difference pricing engine import surface."""
 
+from __future__ import annotations
 
+import importlib
+from typing import Any, Mapping, Sequence, get_type_hints
 
+from finite_difference_options.grids import AxisGrid
 from finite_difference_options.pricing import (
     GridParameters,
     PricingEngine,
@@ -32,3 +36,16 @@ def test_create_default_pricing_engine_returns_engine() -> None:
     """Factory helper should yield a configured pricing engine instance."""
     engine = create_default_pricing_engine()
     assert isinstance(engine, PricingEngine)
+
+
+def test_historical_pricing_boundary_conditions_package_remains_importable() -> None:
+    """Preserve the historical marker path while the API lives at the canonical path."""
+    assert importlib.import_module("finite_difference_options.boundary_conditions")
+    assert importlib.import_module("finite_difference_options.pricing.boundary_conditions")
+
+
+def test_axis_grid_public_type_hints_remain_resolvable() -> None:
+    """Public class metadata remains introspectable after the package split."""
+    hints = get_type_hints(AxisGrid)
+    assert hints["coordinates"] == Sequence[float]
+    assert hints["metadata"] == Mapping[str, Any]
