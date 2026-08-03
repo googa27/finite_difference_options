@@ -1,23 +1,23 @@
 {
   "convergence": [
     {
-      "abs_error": 0.0015034724143622447,
+      "abs_error": 0.0015034724143620226,
       "oracle_price": 0.10450583572185568,
-      "price": 0.10300236330749343,
+      "price": 0.10300236330749366,
       "s_steps": 40,
       "t_steps": 40
     },
     {
-      "abs_error": 0.00024191966108828844,
+      "abs_error": 0.0002419196610881219,
       "oracle_price": 0.10450583572185568,
-      "price": 0.10474775538294397,
+      "price": 0.1047477553829438,
       "s_steps": 80,
       "t_steps": 120
     },
     {
-      "abs_error": 0.0001092933164004023,
+      "abs_error": 0.00010929331640029127,
       "oracle_price": 0.10450583572185568,
-      "price": 0.10461512903825608,
+      "price": 0.10461512903825597,
       "s_steps": 120,
       "t_steps": 200
     }
@@ -144,6 +144,7 @@
         }
       ]
     },
+    "privacy_class": "public_synthetic",
     "problem_hash": "publicsyntheticbscall001",
     "problem_id": "public-synthetic.black-scholes-call.v0",
     "result_bundle": {
@@ -221,11 +222,11 @@
     "errors": {
       "delta_abs": 0.0008618817908638832,
       "delta_rel": 0.0013533924431445145,
-      "gamma_abs": 0.005006001870237364,
-      "gamma_rel": 0.0026681575749344876,
-      "max_abs_price_error": 0.0015034724143622447,
-      "price_abs": 0.0001092933164004023,
-      "price_rel": 0.0010458106539742774
+      "gamma_abs": 0.0050060018702065,
+      "gamma_rel": 0.002668157574918037,
+      "max_abs_price_error": 0.0015034724143620226,
+      "price_abs": 0.00010929331640029127,
+      "price_rel": 0.001045810653973215
     },
     "grid": {
       "maturity_time_index": 0,
@@ -252,9 +253,9 @@
       "gamma_non_negative_ok": true,
       "monotone_call_parity_hint": "call value must be monotone increasing in spot (single-point check)",
       "upper_bound_ok": true,
-      "upper_gap": 0.8953848709617439,
+      "upper_gap": 0.895384870961744,
       "value_bound_ok": true,
-      "value_minus_intrinsic": 0.10461512903825608
+      "value_minus_intrinsic": 0.10461512903825597
     },
     "reference": {
       "delta": 0.6368306511756191,
@@ -263,8 +264,8 @@
     },
     "solution": {
       "delta": 0.6359687693847552,
-      "gamma": 1.8711957327144522,
-      "price": 0.10461512903825608,
+      "gamma": 1.871195732714483,
+      "price": 0.10461512903825597,
       "spot": 1.0
     },
     "time_axis": {

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import get_args
 
 import numpy as np
 
+from finite_difference_options.boundary_conditions.builder import BoundaryKind
 from finite_difference_options.processes.affine import (
     create_black_scholes_process,
     create_standard_heston,
@@ -19,6 +21,7 @@ from finite_difference_options.pricing import (
 ROOT = Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
 CAPABILITY_MATRIX = ROOT / "docs" / "CAPABILITY_MATRIX.md"
+THEORY = ROOT / "docs" / "THEORY.md"
 
 
 def test_readme_has_live_links_and_no_placeholder_badges() -> None:
@@ -53,6 +56,17 @@ def test_capability_matrix_is_authoritative_and_cites_evidence_ids() -> None:
     assert "explicit spot semantics" in text
     assert "pre-solve node budgets" in text
     assert "unsupported" in text
+
+
+def test_theory_boundary_docs_do_not_claim_native_robin_support() -> None:
+    text = THEORY.read_text(encoding="utf-8")
+    boundary_section = text.split("## Boundary algebra", maxsplit=1)[1].split(
+        "## ADI and multidimensional routes", maxsplit=1
+    )[0]
+
+    assert "robin" not in {kind.lower() for kind in get_args(BoundaryKind)}
+    assert "Robin conditions are part of the general mathematical boundary form" in boundary_section
+    assert "not a native typed public boundary kind" in boundary_section
 
 
 def test_readme_fastapi_section_documents_guarded_request_contract() -> None:

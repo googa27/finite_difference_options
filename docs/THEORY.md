@@ -53,7 +53,7 @@ Important named cases are explicit Euler (theta equal to zero), backward Euler (
 
 ## Boundary algebra
 
-Boundary conditions are typed records over identified boundary sets. Supported documented classes include Dirichlet, Neumann, Robin and route-specific asymptotic schedules. Boundary rows are owned by boundary algebra, not by accidental stencil truncation. Corners, transformed coordinates and time-dependent boundary values require explicit validation.
+Boundary conditions are typed records over identified boundary sets. The public native boundary builder currently supports Dirichlet facets, selected Neumann/second-derivative/degenerate/extrapolated typed records where exposed by route-specific resolvers, and route-specific asymptotic schedules. Robin conditions are part of the general mathematical boundary form, but they are not a native typed public boundary kind or builder capability in this release; a route requiring Robin data must fail closed or provide its own explicitly validated adapter rather than relying on an advertised core Robin implementation. Boundary rows are owned by boundary algebra, not by accidental stencil truncation. Corners, transformed coordinates and time-dependent boundary values require explicit validation.
 
 ## ADI and multidimensional routes
 

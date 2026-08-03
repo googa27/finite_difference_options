@@ -679,9 +679,9 @@ class PDESolver(ABC):
 class FiniteDifferenceSolver(PDESolver):
     """Finite difference PDE solver using a supplied time-stepper.
 
-    The implementation assumes a single spatial axis and fixed time-step size in
-    ``time_grid``.  ``last_step_schedule`` records any realised substep schedule
-    exposed by the configured stepper.
+    The implementation assumes a single spatial axis and advances over each
+    finite interval declared by ``time_grid``.  ``last_step_schedule`` records
+    any realised substep schedule exposed by the configured stepper.
     """
 
     time_stepper: TimeStepper
@@ -708,8 +708,6 @@ class FiniteDifferenceSolver(PDESolver):
         if not np.all(np.isfinite(time_nodes)) or np.any(time_nodes[1:] <= time_nodes[:-1]) or overflowing_span:
             raise ValueError("time_grid must be finite and strictly increasing")
         time_steps = np.diff(time_nodes)
-        uniform_dt = float(time_steps[0])
-        use_uniform_dt = bool(np.allclose(time_steps, uniform_dt, rtol=1.0e-12, atol=1.0e-15))
         n_time_steps = len(time_nodes)
         n_spatial_points = len(initial_conditions)
 
@@ -717,7 +715,7 @@ class FiniteDifferenceSolver(PDESolver):
         values[0] = initial_conditions
 
         for i, dt in enumerate(time_steps):
-            step_dt = uniform_dt if use_uniform_dt else float(dt)
+            step_dt = float(dt)
             values[i + 1] = self.time_stepper.step(values[i], generator, boundary_conditions, step_dt)
 
         self.last_step_schedule = tuple(getattr(self.time_stepper, "schedule", ()))
