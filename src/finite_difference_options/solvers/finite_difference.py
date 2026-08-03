@@ -703,12 +703,13 @@ class FiniteDifferenceSolver(PDESolver):
         time_nodes = np.asarray(time_grid, dtype=np.float64)
         if time_nodes.ndim != 1 or len(time_nodes) < 2:
             raise ValueError("time_grid must be one-dimensional with at least two nodes")
-        time_steps = np.diff(time_nodes)
-        if not np.all(np.isfinite(time_nodes)) or np.any(time_steps <= 0.0):
+        max_dt = np.finfo(np.float64).max
+        overflowing_span = time_nodes[0] < 0.0 < time_nodes[-1] and time_nodes[-1] > max_dt + time_nodes[0]
+        if not np.all(np.isfinite(time_nodes)) or np.any(time_nodes[1:] <= time_nodes[:-1]) or overflowing_span:
             raise ValueError("time_grid must be finite and strictly increasing")
+        time_steps = np.diff(time_nodes)
         uniform_dt = float(time_steps[0])
         use_uniform_dt = bool(np.allclose(time_steps, uniform_dt, rtol=1.0e-12, atol=1.0e-15))
-
         n_time_steps = len(time_nodes)
         n_spatial_points = len(initial_conditions)
 
@@ -720,7 +721,6 @@ class FiniteDifferenceSolver(PDESolver):
             values[i + 1] = self.time_stepper.step(values[i], generator, boundary_conditions, step_dt)
 
         self.last_step_schedule = tuple(getattr(self.time_stepper, "schedule", ()))
-
         return values
 
 

@@ -21,7 +21,7 @@ IGNORED_DIRS = {
 }
 PATTERNS = {
     "rut_like_identifier": re.compile(r"\b\d{1,2}\.\d{3}\.\d{3}-[0-9Kk]\b|\b\d{7,8}-[0-9Kk]\b"),
-    "github_token": re.compile(r"ghp_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}"),
+    "github_token": re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b"),
     "openai_style_token": re.compile(r"\b(?:sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{20,})\b"),
     "private_data_path": re.compile(r"data/private/"),
 }

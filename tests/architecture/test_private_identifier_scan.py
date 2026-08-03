@@ -58,6 +58,22 @@ def test_scan_detects_legacy_openai_keys_and_github_tokens(tmp_path: Path) -> No
     assert scan_private_identifiers.ScanHit("github_token", "credentials.txt") in hits
 
 
+def test_scan_detects_all_github_token_prefixes_without_printing_values(capsys, tmp_path: Path) -> None:
+    tokens_by_path = {
+        f"github_{prefix.rstrip('_')}.env": prefix + ("D" * 24)
+        for prefix in ("ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_")
+    }
+    for filename, token in tokens_by_path.items():
+        (tmp_path / filename).write_text(token + "\n", encoding="utf-8")
+
+    assert scan_private_identifiers.main([str(tmp_path)]) == 1
+    output = capsys.readouterr().out
+
+    for filename, token in tokens_by_path.items():
+        assert f"github_token: {filename}" in output
+        assert token not in output
+
+
 def test_scan_skips_binary_dotenv_files(tmp_path: Path) -> None:
     binary_dotenv = tmp_path / ".env.production"
     binary_dotenv.write_bytes(b"\x00OPENAI_API_KEY=" + _openai_prefixed_token().encode("ascii"))

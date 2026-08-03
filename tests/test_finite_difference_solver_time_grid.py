@@ -49,10 +49,12 @@ def test_finite_difference_solver_uses_each_nonuniform_time_interval() -> None:
         np.array([0.0], dtype=np.float64),
         np.array([0.0, 0.2, 0.2], dtype=np.float64),
         np.array([0.0, np.nan, 1.0], dtype=np.float64),
+        np.array([-1.0e308, 1.0e308], dtype=np.float64),
     ),
 )
 def test_finite_difference_solver_rejects_invalid_time_grid(time_grid: NDArray[np.float64]) -> None:
-    solver = FiniteDifferenceSolver(time_stepper=RecordingStepper())
+    stepper = RecordingStepper()
+    solver = FiniteDifferenceSolver(time_stepper=stepper)
 
     with pytest.raises(ValueError, match="time_grid"):
         solver.solve(
@@ -61,3 +63,4 @@ def test_finite_difference_solver_rejects_invalid_time_grid(time_grid: NDArray[n
             initial_conditions=np.array([1.0, 2.0], dtype=np.float64),
             time_grid=time_grid,
         )
+    assert stepper.dts == []
