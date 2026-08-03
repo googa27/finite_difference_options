@@ -122,10 +122,7 @@ class RannacherCrankNicolson(TimeStepper):
     def schedule_summary(self) -> str:
         """Return a concise human-readable schedule summary."""
 
-        return (
-            f"{self.implicit_euler_half_steps} BE half-steps, "
-            f"then theta={self.theta_after_startup}"
-        )
+        return f"{self.implicit_euler_half_steps} BE half-steps, then theta={self.theta_after_startup}"
 
     def step(
         self,
@@ -162,11 +159,7 @@ class RannacherCrankNicolson(TimeStepper):
                 substep_index=0,
                 theta=self.theta_after_startup,
                 dt_fraction=1.0,
-                label=(
-                    "crank_nicolson"
-                    if self.theta_after_startup == 0.5
-                    else "theta_step"
-                ),
+                label=("crank_nicolson" if self.theta_after_startup == 0.5 else "theta_step"),
             )
             self._schedule.append(record)
             value = ThetaMethod(theta=self.theta_after_startup).step(
@@ -707,17 +700,24 @@ class FiniteDifferenceSolver(PDESolver):
         if hasattr(self.time_stepper, "reset"):
             self.time_stepper.reset()  # type: ignore[attr-defined]
 
-        dt = time_grid[1] - time_grid[0]
-        n_time_steps = len(time_grid)
+        time_nodes = np.asarray(time_grid, dtype=np.float64)
+        if time_nodes.ndim != 1 or len(time_nodes) < 2:
+            raise ValueError("time_grid must be one-dimensional with at least two nodes")
+        time_steps = np.diff(time_nodes)
+        if not np.all(np.isfinite(time_nodes)) or np.any(time_steps <= 0.0):
+            raise ValueError("time_grid must be finite and strictly increasing")
+        uniform_dt = float(time_steps[0])
+        use_uniform_dt = bool(np.allclose(time_steps, uniform_dt, rtol=1.0e-12, atol=1.0e-15))
+
+        n_time_steps = len(time_nodes)
         n_spatial_points = len(initial_conditions)
 
         values = np.empty((n_time_steps, n_spatial_points))
         values[0] = initial_conditions
 
-        for i in range(n_time_steps - 1):
-            values[i + 1] = self.time_stepper.step(
-                values[i], generator, boundary_conditions, dt
-            )
+        for i, dt in enumerate(time_steps):
+            step_dt = uniform_dt if use_uniform_dt else float(dt)
+            values[i + 1] = self.time_stepper.step(values[i], generator, boundary_conditions, step_dt)
 
         self.last_step_schedule = tuple(getattr(self.time_stepper, "schedule", ()))
 
