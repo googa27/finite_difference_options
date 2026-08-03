@@ -35,7 +35,7 @@ The Pinares figure is not private project data and is not a real-estate legal/ta
 | Heston ADI vanilla route and multidimensional ADI | experimental | smoke/oracle/operator-split evidence only; no production calibration claim |
 | Basket payoff over non-tradable factors, jumps, HJB/control and regulatory reports | unsupported/scaffold | fail-closed diagnostics before numerical work |
 
-See [docs/BENCHMARK_REGISTRY.md](docs/BENCHMARK_REGISTRY.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/PRD.md](docs/PRD.md) for the complete evidence and architectural contract.
+See [docs/BENCHMARK_REGISTRY.md](docs/BENCHMARK_REGISTRY.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/THEORY.md](docs/THEORY.md), [docs/PUBLIC_API.md](docs/PUBLIC_API.md) and [docs/PRD.md](docs/PRD.md) for the complete evidence, API surface and architectural contract.
 
 ## Installation
 
@@ -183,6 +183,8 @@ python3.12 -m compileall -q src tests scripts
 ruff check . --select E9,F63,F7,F82
 mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py
 python3.12 scripts/check_architecture_contract.py
+python3.12 scripts/check_ai_hierarchy_policy.py
+python3.12 scripts/scan_private_identifiers.py
 python3.12 scripts/check_markdown_links.py
 uv run --with matplotlib==3.10.3 --with pillow==11.3.0 python scripts/generate_readme_validation_visuals.py
 pytest -q tests/architecture tests/test_packaging_contract.py --no-cov
@@ -195,6 +197,8 @@ pytest -q tests/test_fd_black_scholes_parity_fixture.py tests/test_pinares_fd_pr
 pyproject.toml                    PEP 621 package metadata and extras
 src/finite_difference_options/    installable FD package namespace
 docs/CAPABILITY_MATRIX.md         authoritative maturity/evidence matrix
+docs/PUBLIC_API.md                synchronized import-surface contract
+docs/THEORY.md                    canonical FD equation, grid, boundary and solver theory
 docs/BENCHMARK_REGISTRY.md        evidence registry and validation policy
 docs/images/                      generated README validation visuals
 tests/fixtures/                   public-synthetic deterministic fixtures

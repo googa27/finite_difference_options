@@ -279,7 +279,8 @@ def validate_workflows(
             top_scopes = _permission_write_scopes(document.get("permissions"), f"{rel}: top-level permissions", errors)
             if top_scopes:
                 errors.append(
-                    f"{rel}: top-level write scopes are forbidden; move writes to the exact mutating job: {sorted(top_scopes)}"
+                    f"{rel}: top-level write scopes are forbidden; move writes to the exact "
+                    f"mutating job: {sorted(top_scopes)}"
                 )
         write_scopes = set(top_scopes)
         jobs = document.get("jobs")
