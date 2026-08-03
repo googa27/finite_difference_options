@@ -122,10 +122,7 @@ class RannacherCrankNicolson(TimeStepper):
     def schedule_summary(self) -> str:
         """Return a concise human-readable schedule summary."""
 
-        return (
-            f"{self.implicit_euler_half_steps} BE half-steps, "
-            f"then theta={self.theta_after_startup}"
-        )
+        return f"{self.implicit_euler_half_steps} BE half-steps, then theta={self.theta_after_startup}"
 
     def step(
         self,
@@ -162,11 +159,7 @@ class RannacherCrankNicolson(TimeStepper):
                 substep_index=0,
                 theta=self.theta_after_startup,
                 dt_fraction=1.0,
-                label=(
-                    "crank_nicolson"
-                    if self.theta_after_startup == 0.5
-                    else "theta_step"
-                ),
+                label=("crank_nicolson" if self.theta_after_startup == 0.5 else "theta_step"),
             )
             self._schedule.append(record)
             value = ThetaMethod(theta=self.theta_after_startup).step(
@@ -686,9 +679,9 @@ class PDESolver(ABC):
 class FiniteDifferenceSolver(PDESolver):
     """Finite difference PDE solver using a supplied time-stepper.
 
-    The implementation assumes a single spatial axis and fixed time-step size in
-    ``time_grid``.  ``last_step_schedule`` records any realised substep schedule
-    exposed by the configured stepper.
+    The implementation assumes a single spatial axis and advances over each
+    finite interval declared by ``time_grid``.  ``last_step_schedule`` records
+    any realised substep schedule exposed by the configured stepper.
     """
 
     time_stepper: TimeStepper
@@ -707,20 +700,25 @@ class FiniteDifferenceSolver(PDESolver):
         if hasattr(self.time_stepper, "reset"):
             self.time_stepper.reset()  # type: ignore[attr-defined]
 
-        dt = time_grid[1] - time_grid[0]
-        n_time_steps = len(time_grid)
+        time_nodes = np.asarray(time_grid, dtype=np.float64)
+        if time_nodes.ndim != 1 or len(time_nodes) < 2:
+            raise ValueError("time_grid must be one-dimensional with at least two nodes")
+        max_dt = np.finfo(np.float64).max
+        overflowing_span = time_nodes[0] < 0.0 < time_nodes[-1] and time_nodes[-1] > max_dt + time_nodes[0]
+        if not np.all(np.isfinite(time_nodes)) or np.any(time_nodes[1:] <= time_nodes[:-1]) or overflowing_span:
+            raise ValueError("time_grid must be finite and strictly increasing")
+        time_steps = np.diff(time_nodes)
+        n_time_steps = len(time_nodes)
         n_spatial_points = len(initial_conditions)
 
         values = np.empty((n_time_steps, n_spatial_points))
         values[0] = initial_conditions
 
-        for i in range(n_time_steps - 1):
-            values[i + 1] = self.time_stepper.step(
-                values[i], generator, boundary_conditions, dt
-            )
+        for i, dt in enumerate(time_steps):
+            step_dt = float(dt)
+            values[i + 1] = self.time_stepper.step(values[i], generator, boundary_conditions, step_dt)
 
         self.last_step_schedule = tuple(getattr(self.time_stepper, "schedule", ()))
-
         return values
 
 

@@ -48,20 +48,20 @@
   ],
   "parity_metrics": {
     "converged": true,
-    "delta_abs": 8.842159257821391e-05,
-    "gamma_abs": 1.7468969201214594e-06,
+    "delta_abs": 8.842159257921312e-05,
+    "gamma_abs": 1.7468969201149542e-06,
     "no_arbitrage": {
       "delta_lower_bound_ok": true,
       "delta_upper_bound_ok": true,
       "gamma_non_negative_ok": true,
       "survival_scale_ok": true,
       "upper_bound_ok": true,
-      "upper_gap_uf": 5587.899061209176,
+      "upper_gap_uf": 5587.899061209177,
       "value_bound_ok": true,
-      "value_minus_intrinsic_uf": 232.10093879082405
+      "value_minus_intrinsic_uf": 232.10093879082305
     },
-    "price_abs_uf": 0.3014449648889274,
-    "price_rel": 0.0013004556649950714
+    "price_abs_uf": 0.30144496488793493,
+    "price_rel": 0.00130045566499079
   },
   "performance_sidecar": {
     "max_grid": {
