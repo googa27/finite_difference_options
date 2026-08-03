@@ -76,7 +76,7 @@ def read_decodable_text(path: Path) -> str | None:
 
 def candidate_text_files(root: Path) -> Iterable[Path]:
     for path in root.rglob("*"):
-        if not path.is_file() or is_ignored(path, root):
+        if path.is_symlink() or not path.is_file() or is_ignored(path, root):
             continue
         if is_dotenv_path(path) or path.suffix in TEXT_EXTS:
             yield path

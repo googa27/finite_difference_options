@@ -81,6 +81,36 @@ def test_scan_skips_binary_dotenv_files(tmp_path: Path) -> None:
     assert scan_private_identifiers.scan_root(tmp_path) == []
 
 
+def test_scan_skips_external_symlinks_without_disclosing_target_value(capsys, tmp_path: Path) -> None:
+    token = _openai_prefixed_token()
+    external_target = tmp_path.parent / f"{tmp_path.name}-external-secret.txt"
+    external_target.write_text("OPENAI_API_KEY=" + token + "\n", encoding="utf-8")
+    symlink = tmp_path / "external-secret-link.txt"
+    symlink.symlink_to(external_target)
+
+    assert scan_private_identifiers.main([str(tmp_path)]) == 0
+    output = capsys.readouterr().out
+    assert "external-secret-link.txt" not in output
+    assert str(external_target) not in output
+    assert token not in output
+
+
+def test_scan_skips_internal_symlinks_without_disclosing_target_value(capsys, tmp_path: Path) -> None:
+    token = _openai_prefixed_token("svcacct")
+    ignored_dir = tmp_path / ".pytest_cache"
+    ignored_dir.mkdir()
+    internal_target = ignored_dir / "cached-secret.txt"
+    internal_target.write_text("OPENAI_API_KEY=" + token + "\n", encoding="utf-8")
+    symlink = tmp_path / "internal-secret-link.txt"
+    symlink.symlink_to(internal_target)
+
+    assert scan_private_identifiers.main([str(tmp_path)]) == 0
+    output = capsys.readouterr().out
+    assert "internal-secret-link.txt" not in output
+    assert str(internal_target) not in output
+    assert token not in output
+
+
 def test_dotenv_templates_are_explicit_and_still_scanned_for_real_secrets(tmp_path: Path) -> None:
     assert scan_private_identifiers.SAFE_DOTENV_TEMPLATES == {
         ".env.example",
