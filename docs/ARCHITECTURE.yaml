@@ -19,6 +19,25 @@
     "public_api_paths": [
       "src/finite_difference_options"
     ],
+    "public_contracts": {
+      "public_api_manifest": {
+        "document": "docs/PUBLIC_API.md",
+        "source": "Runtime package facades with __all__ discovered from pyproject.toml [tool.setuptools.packages.find].",
+        "fitness_gate": "tests/architecture/test_public_docs_contract.py"
+      },
+      "theory_contract": {
+        "document": "docs/THEORY.md",
+        "source": "Canonical finite-difference PDE, grid, boundary, stepping, ADI, obstacle, Greek, and evidence conventions.",
+        "fitness_gate": "tests/architecture/test_public_docs_contract.py"
+      },
+      "time_grid": {
+        "solver": "finite_difference_options.solvers.FiniteDifferenceSolver.solve",
+        "monotonicity": "finite_strictly_increasing_1d_nodes",
+        "nonuniform_intervals": "each_interval_used_as_step_dt",
+        "invalid_grid_failure": "ValueError before stepping",
+        "fitness_gate": "tests/test_finite_difference_solver_time_grid.py"
+      }
+    },
     "extension_points": [
       "typed public APIs",
       "deterministic CLI/contracts",
@@ -258,7 +277,9 @@
     "required_documents": [
       "AGENTS.md",
       "docs/ARCHITECTURE.yaml",
-      "docs/ARCHITECTURE.md"
+      "docs/ARCHITECTURE.md",
+      "docs/PUBLIC_API.md",
+      "docs/THEORY.md"
     ],
     "exception_policy": "exact scope, reason, owner, risk, accepted ceiling, and refactoring trigger; no-growth ratchet",
     "ai_assisted_development": {

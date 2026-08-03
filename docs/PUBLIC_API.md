@@ -26,7 +26,7 @@ Do not import through `src.*`, repository-relative paths, or private modules. AP
 
 ## Runtime export manifest
 
-The following lists are synchronized by `tests/architecture/test_public_docs_contract.py` against the package `__all__` values.
+The following lists are synchronized by `tests/architecture/test_public_docs_contract.py` against every package facade with `__all__` discovered from the machine-readable setuptools package contract in `pyproject.toml`.
 
 ### `finite_difference_options`
 
@@ -62,6 +62,20 @@ Package-root convenience exports are intentionally empty.
 - `validate_formula_bundle`
 <!-- public-api:finite_difference_options.contracts:end -->
 
+### `finite_difference_options.exceptions`
+
+<!-- public-api:finite_difference_options.exceptions:start -->
+- `FiniteDifferenceError`
+- `ValidationError`
+- `GridError`
+- `ModelError`
+- `InstrumentError`
+- `PricingError`
+- `BoundaryConditionError`
+- `TimeSteppingError`
+- `ConvergenceError`
+<!-- public-api:finite_difference_options.exceptions:end -->
+
 ### `finite_difference_options.greeks`
 
 <!-- public-api:finite_difference_options.greeks:start -->
@@ -87,6 +101,16 @@ Package-root convenience exports are intentionally empty.
 - `variance_boundary_axis`
 <!-- public-api:finite_difference_options.grids:end -->
 
+### `finite_difference_options.instruments`
+
+<!-- public-api:finite_difference_options.instruments:start -->
+- `Instrument`
+- `EuropeanOption`
+- `EuropeanCall`
+- `EuropeanPut`
+- `SpatialOperator`
+<!-- public-api:finite_difference_options.instruments:end -->
+
 ### `finite_difference_options.integrations`
 
 <!-- public-api:finite_difference_options.integrations:start -->
@@ -109,6 +133,42 @@ Package-root convenience exports are intentionally empty.
 - `solve_compiled_pde_payload`
 - `solve_public_quant_problem_spec`
 <!-- public-api:finite_difference_options.integrations:end -->
+
+### `finite_difference_options.models`
+
+<!-- public-api:finite_difference_options.models:start -->
+- `Market`
+- `StochasticProcess`
+- `AffineProcess`
+- `NonAffineProcess`
+- `GeometricBrownianMotion`
+- `OrnsteinUhlenbeck`
+- `CoxIngersollRoss`
+- `HestonModel`
+- `ConstantElasticityVariance`
+- `SABRModel`
+- `create_gbm`
+- `create_ou`
+- `create_cir`
+- `create_heston`
+- `create_cev`
+- `create_sabr`
+<!-- public-api:finite_difference_options.models:end -->
+
+### `finite_difference_options.plotting`
+
+<!-- public-api:finite_difference_options.plotting:start -->
+- `PlotOptions`
+- `Plotter`
+- `BasePlotter`
+- `MatplotlibSeabornPlotter`
+- `get_plotter`
+- `PlotlyPlotter`
+- `map_matplotlib_to_plotly`
+- `DEFAULT_SEQUENTIAL`
+- `DEFAULT_DIVERGING`
+- `symmetric_bounds`
+<!-- public-api:finite_difference_options.plotting:end -->
 
 ### `finite_difference_options.pricing`
 
@@ -149,6 +209,54 @@ Package-root convenience exports are intentionally empty.
 - `CallableBondPDEModel`
 <!-- public-api:finite_difference_options.pricing:end -->
 
+### `finite_difference_options.pricing.engines`
+
+<!-- public-api:finite_difference_options.pricing.engines:start -->
+- `GridParameters`
+- `PDEModel`
+- `PricingEngine`
+- `PricingResult`
+- `UnifiedPricingEngine`
+- `create_default_pricing_engine`
+- `create_linear_grid`
+- `create_log_grid`
+- `create_unified_pricing_engine`
+- `BlackScholesPDE`
+- `BondCashFlow`
+- `CallScheduleEntry`
+- `CallableBondExerciseRecord`
+- `CallableBondPDEModel`
+<!-- public-api:finite_difference_options.pricing.engines:end -->
+
+### `finite_difference_options.pricing.instruments`
+
+<!-- public-api:finite_difference_options.pricing.instruments:start -->
+- `UnifiedInstrument`
+- `SpreadOption`
+- `StandardBasketOption`
+- `UnifiedEuropeanOption`
+- `UnifiedBasketOption`
+- `create_spread_call`
+- `create_spread_put`
+- `create_standard_basket_call`
+- `create_standard_basket_put`
+- `create_unified_european_call`
+- `create_unified_european_put`
+- `create_unified_basket_call`
+- `create_unified_basket_put`
+- `PayoffCalculator`
+- `EuropeanPayoffCalculator`
+- `BasketPayoffCalculator`
+- `PayoffCalculatorFactory`
+<!-- public-api:finite_difference_options.pricing.instruments:end -->
+
+### `finite_difference_options.pricing.workflows`
+
+<!-- public-api:finite_difference_options.pricing.workflows:start -->
+- `GridResult`
+- `OptionPricer`
+<!-- public-api:finite_difference_options.pricing.workflows:end -->
+
 ### `finite_difference_options.processes`
 
 <!-- public-api:finite_difference_options.processes:start -->
@@ -180,6 +288,20 @@ Package-root convenience exports are intentionally empty.
 - `create_cev_process`
 - `create_sabr_model`
 <!-- public-api:finite_difference_options.processes:end -->
+
+### `finite_difference_options.risk`
+
+<!-- public-api:finite_difference_options.risk:start -->
+- `Trade`
+- `RiskFactor`
+- `Exposure`
+- `NotImplementedForStandard`
+- `RegulatoryStandard`
+- `exposures_to_crif`
+- `calculate_cuso`
+- `calculate_basel`
+- `calculate_frtb`
+<!-- public-api:finite_difference_options.risk:end -->
 
 ### `finite_difference_options.solvers`
 
@@ -262,4 +384,4 @@ Package-root convenience exports are intentionally empty.
 
 ## Compatibility notes
 
-The `pricing` and `instruments` surfaces include legacy compatibility names. They remain public while tests cover them, but new integrations should prefer typed contracts, explicit problem payloads, and the capability manifest. A public symbol does not imply every model/product combination is mature; maturity is governed by benchmark and capability docs.
+The `pricing`, `instruments`, `exceptions`, `models`, and `risk` surfaces include legacy compatibility names. They remain public while tests cover them, but new integrations should prefer typed contracts, explicit problem payloads, and the capability manifest. A public symbol does not imply every model/product combination is mature; maturity is governed by benchmark and capability docs.
