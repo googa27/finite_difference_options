@@ -77,9 +77,7 @@ class ConstantElasticityVariance(NonAffineProcess, BaseModel):
         else:
             return self.mu * state[:, 0:1]
 
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         r"""Compute CEV covariance :math:`\sigma^2 S_t^{2\beta}`.
 
         Returns
@@ -142,9 +140,7 @@ class SABRModel(NonAffineProcess, BaseModel):
                 coordinate="forward",
                 asset_id="forward",
             ),
-            ProcessFactorMetadata(
-                name="volatility", role=FactorRole.VOLATILITY, coordinate="volatility"
-            ),
+            ProcessFactorMetadata(name="volatility", role=FactorRole.VOLATILITY, coordinate="volatility"),
         )
 
     def drift(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -161,9 +157,7 @@ class SABRModel(NonAffineProcess, BaseModel):
             batch_size = state.shape[0]
             return np.zeros((batch_size, 2))
 
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute SABR diffusion matrix for each state point."""
         self.validate_state(state)
 
@@ -196,9 +190,7 @@ class SABRModel(NonAffineProcess, BaseModel):
 
 
 # Convenience functions
-def create_cev_process(
-    mu: float, sigma: float, beta: float
-) -> ConstantElasticityVariance:
+def create_cev_process(mu: float, sigma: float, beta: float) -> ConstantElasticityVariance:
     """Create a single-factor CEV process instance."""
     return ConstantElasticityVariance(mu=mu, sigma=sigma, beta=beta)
 

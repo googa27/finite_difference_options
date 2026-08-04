@@ -42,9 +42,7 @@ def _assert_base_success_contract(body: dict[str, Any], route: str) -> None:
     assert metadata["convergence"]["status"] == "not_assessed"
 
 
-def _assert_error_envelope(
-    body: dict[str, Any], *, code: str, route: str, status: int
-) -> None:
+def _assert_error_envelope(body: dict[str, Any], *, code: str, route: str, status: int) -> None:
     assert body["schema_version"] == API_SCHEMA_VERSION
     assert isinstance(body["request_id"], str) and body["request_id"]
     assert isinstance(body["run_id"], str) and body["run_id"].startswith("fd-run-")
@@ -55,14 +53,10 @@ def _assert_error_envelope(
     assert body["metadata"]["route"] == route
 
 
-def test_successful_price_greeks_and_pde_routes_share_versioned_metadata_contract() -> (
-    None
-):
+def test_successful_price_greeks_and_pde_routes_share_versioned_metadata_contract() -> None:
     client = TestClient(app)
 
-    price = client.post(
-        "/price", json=_payload(), headers={"X-Request-ID": "req-schema-97"}
-    )
+    price = client.post("/price", json=_payload(), headers={"X-Request-ID": "req-schema-97"})
     greeks = client.post("/greeks", json=_payload())
     pde = client.post("/pde_solution", json=_payload(include_full_grid=True))
 
@@ -172,9 +166,7 @@ def test_openapi_schema_contains_reviewed_v1_response_error_components() -> None
 
     for name in ("PriceResponse", "GreeksResponse", "FullPDEResponse"):
         properties = components[name]["properties"]
-        assert {"schema_version", "request_id", "run_id", "metadata"}.issubset(
-            properties
-        )
+        assert {"schema_version", "request_id", "run_id", "metadata"}.issubset(properties)
 
     error_properties = components["ErrorResponse"]["properties"]
     assert {
@@ -192,9 +184,7 @@ def test_openapi_schema_contains_reviewed_v1_response_error_components() -> None
         "/pde_solution": "FullPDEResponse",
     }
     for path, model_name in success_refs.items():
-        response_schema = schema["paths"][path]["post"]["responses"]["200"]["content"][
-            "application/json"
-        ]["schema"]
+        response_schema = schema["paths"][path]["post"]["responses"]["200"]["content"]["application/json"]["schema"]
         assert response_schema["$ref"].endswith(f"/{model_name}")
 
     for path in [
@@ -209,11 +199,11 @@ def test_openapi_schema_contains_reviewed_v1_response_error_components() -> None
         operation = schema["paths"][path]["post"]
         for status in ["401", "403", "422", "429", "503"]:
             assert status in operation["responses"]
-            assert operation["responses"][status]["content"]["application/json"][
-                "schema"
-            ]["$ref"].endswith("/ErrorResponse")
+            assert operation["responses"][status]["content"]["application/json"]["schema"]["$ref"].endswith(
+                "/ErrorResponse"
+            )
 
     for path in ["/reports/crif", "/reports/cuso", "/reports/basel", "/reports/frtb"]:
-        assert schema["paths"][path]["post"]["responses"]["501"]["content"][
-            "application/json"
-        ]["schema"]["$ref"].endswith("/ErrorResponse")
+        assert schema["paths"][path]["post"]["responses"]["501"]["content"]["application/json"]["schema"][
+            "$ref"
+        ].endswith("/ErrorResponse")

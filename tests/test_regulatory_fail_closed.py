@@ -20,9 +20,7 @@ from finite_difference_options.risk.reporting_strategies import ReportFactory
 def _sample_exposures() -> list[Exposure]:
     return [
         Exposure(
-            trade=Trade(
-                trade_id="T-1", product_type="IRS", notional=1_000_000.0, currency="USD"
-            ),
+            trade=Trade(trade_id="T-1", product_type="IRS", notional=1_000_000.0, currency="USD"),
             risk_factor=RiskFactor(name="USD-SOFR-5Y", value=0.042),
             amount=12_345.67,
         )
@@ -53,9 +51,7 @@ def _sample_payload() -> list[dict]:
         ("frtb", calculate_frtb),
     ],
 )
-def test_regulatory_converters_raise_typed_not_implemented_instead_of_placeholder_results(
-    name, function
-) -> None:
+def test_regulatory_converters_raise_typed_not_implemented_instead_of_placeholder_results(name, function) -> None:
     with pytest.raises(NotImplementedForStandard) as exc_info:
         function(_sample_exposures())
 

@@ -139,6 +139,27 @@
         ]
       },
       {
+        "capability": "Python source formatting and linting",
+        "selected": [
+          "Ruff 0.15.21"
+        ],
+        "alternatives": [
+          "Black",
+          "unbounded Ruff version ranges",
+          "dual formatter ownership"
+        ],
+        "evidence": "pyproject.toml, uv.lock, requirements-dev.txt, requirements-dev.lock.txt, .pre-commit-config.yaml, and https://docs.astral.sh/ruff/formatter/",
+        "adapter_boundary": "Development, pre-commit, and blocking CI only; no runtime dependency.",
+        "custom_code_reason": "No custom formatter; an exact version is required because formatter output and Markdown code-fence scope can change between Ruff releases.",
+        "maintenance_evidence": "https://github.com/astral-sh/ruff/releases/tag/0.15.21",
+        "api_stability_evidence": "https://docs.astral.sh/ruff/formatter/",
+        "license_evidence": "https://github.com/astral-sh/ruff/blob/0.15.21/LICENSE",
+        "upgrade_policy": "Upgrade in a dedicated formatting-baseline change with AST-equivalence evidence, architecture ratchet verification, and a synchronized CI/pre-commit pin.",
+        "oracle_or_reference_tests": [
+          "tests/architecture/test_ci_policy_contracts.py"
+        ]
+      },
+      {
         "capability": "portfolio architecture bootstrap",
         "selected": [
           "Python standard library JSON parser",

@@ -148,8 +148,11 @@ def _plot_pinares(path: Path) -> dict[str, Any]:
     ax_error.semilogy(s_steps, errors, color=MAGENTA, marker="o", linewidth=2.4)
     ax_error.axhline(report.case.price_abs_tolerance_uf, color=GREEN, linestyle="--", linewidth=2.0)
     ax_error.fill_between(
-        s_steps, report.case.price_abs_tolerance_uf, max(errors.max(), report.case.price_abs_tolerance_uf) * 1.25,
-        color=ORANGE, alpha=0.08
+        s_steps,
+        report.case.price_abs_tolerance_uf,
+        max(errors.max(), report.case.price_abs_tolerance_uf) * 1.25,
+        color=ORANGE,
+        alpha=0.08,
     )
     ax_error.set_xlabel("spot grid nodes")
     ax_error.set_ylabel("absolute price error (UF)")

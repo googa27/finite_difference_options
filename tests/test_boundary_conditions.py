@@ -45,16 +45,12 @@ def test_call_boundary_conditions_include_strike_rate_carry_and_maturity() -> No
         dividend_yield=0.02,
     )
 
-    expected_upper = grid[-1] * math.exp(-0.02 * 1.5) - option.strike * math.exp(
-        -0.05 * 1.5
-    )
+    expected_upper = grid[-1] * math.exp(-0.02 * 1.5) - option.strike * math.exp(-0.05 * 1.5)
     rhs = _rhs_values(bc)
     assert_allclose(rhs[0], 0.0)
     assert_allclose(rhs[-1], expected_upper)
     assert resolution.specs[0].kind == "dirichlet"
-    assert (
-        resolution.specs[1].expression == "V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)"
-    )
+    assert resolution.specs[1].expression == "V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)"
     assert resolution.discount_source == "explicit"
 
 

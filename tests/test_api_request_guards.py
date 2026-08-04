@@ -32,9 +32,7 @@ def _payload(**overrides: object) -> dict[str, object]:
 
 
 def _expected_greeks_at_spot(payload: dict[str, object]) -> tuple[float, float, float]:
-    model = GeometricBrownianMotion(
-        mu=float(payload["rate"]), sigma=float(payload["sigma"])
-    )
+    model = GeometricBrownianMotion(mu=float(payload["rate"]), sigma=float(payload["sigma"]))
     option = EuropeanCall(
         strike=float(payload["strike"]),
         maturity=float(payload["maturity"]),
@@ -54,9 +52,7 @@ def _expected_greeks_at_spot(payload: dict[str, object]) -> tuple[float, float, 
     )
 
 
-def test_price_endpoint_rejects_unknown_option_type_instead_of_defaulting_to_put() -> (
-    None
-):
+def test_price_endpoint_rejects_unknown_option_type_instead_of_defaulting_to_put() -> None:
     client = TestClient(app)
 
     response = client.post("/price", json=_payload(option_type="Digital"))
@@ -65,9 +61,7 @@ def test_price_endpoint_rejects_unknown_option_type_instead_of_defaulting_to_put
     assert "option_type" in str(response.json()["detail"])
 
 
-def test_price_endpoint_returns_scalar_at_explicit_spot_without_full_grid_by_default() -> (
-    None
-):
+def test_price_endpoint_returns_scalar_at_explicit_spot_without_full_grid_by_default() -> None:
     client = TestClient(app)
 
     response = client.post("/price", json=_payload())
@@ -95,9 +89,7 @@ def test_greeks_endpoint_samples_explicit_spot_not_strike() -> None:
     assert body["gamma"] == pytest.approx(expected_gamma, abs=1e-12)
     assert body["theta"] == pytest.approx(expected_theta, abs=1e-12)
 
-    strike_delta, _, _ = _expected_greeks_at_spot(
-        {**payload, "spot": payload["strike"]}
-    )
+    strike_delta, _, _ = _expected_greeks_at_spot({**payload, "spot": payload["strike"]})
     assert abs(body["delta"] - strike_delta) > 1e-3
 
 
@@ -106,9 +98,7 @@ def test_request_budget_rejects_oversized_grids_before_solver_allocation() -> No
         OptionRequest(**_payload(s_steps=1001, t_steps=101))
 
 
-@pytest.mark.parametrize(
-    "field", ["spot", "strike", "maturity", "rate", "sigma", "s_max"]
-)
+@pytest.mark.parametrize("field", ["spot", "strike", "maturity", "rate", "sigma", "s_max"])
 @pytest.mark.parametrize("bad_value", [math.inf, math.nan])
 def test_request_rejects_nonfinite_numeric_fields(field: str, bad_value: float) -> None:
     kwargs = _payload(**{field: bad_value})
@@ -129,9 +119,7 @@ def test_pde_solution_full_grid_requires_explicit_opt_in() -> None:
 def test_pde_solution_full_grid_is_bounded_when_explicitly_requested() -> None:
     client = TestClient(app)
 
-    response = client.post(
-        "/pde_solution", json=_payload(include_full_grid=True, s_steps=21, t_steps=21)
-    )
+    response = client.post("/pde_solution", json=_payload(include_full_grid=True, s_steps=21, t_steps=21))
 
     assert response.status_code == 200
     body = response.json()

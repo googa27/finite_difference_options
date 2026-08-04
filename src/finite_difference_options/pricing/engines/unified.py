@@ -104,9 +104,7 @@ class UnifiedPricingEngine:
         time_grid = self._normalise_time_grid(time_grid, instrument.maturity)
 
         if len(grids) != self.process.dimension.value:
-            raise ValidationError(
-                f"Expected {self.process.dimension.value} grids, got {len(grids)}"
-            )
+            raise ValidationError(f"Expected {self.process.dimension.value} grids, got {len(grids)}")
 
         self._validate_factor_compatibility(instrument)
 
@@ -144,9 +142,7 @@ class UnifiedPricingEngine:
             raise ValidationError(
                 f"Payoff shape {payoff.shape} is incompatible with required factor grid shape {payoff_shape}"
             )
-        reshaped = payoff.reshape(
-            payoff_shape + (1,) * (len(full_shape) - payoff_grid_count)
-        )
+        reshaped = payoff.reshape(payoff_shape + (1,) * (len(full_shape) - payoff_grid_count))
         return np.broadcast_to(reshaped, full_shape).copy()
 
     def _payoff_grids_for_instrument(
@@ -171,9 +167,7 @@ class UnifiedPricingEngine:
         return tuple(transformed)
 
     @staticmethod
-    def _payoff_grid_count(
-        instrument: UnifiedInstrument, process_grid_count: int
-    ) -> int:
+    def _payoff_grid_count(instrument: UnifiedInstrument, process_grid_count: int) -> int:
         """Return the number of process grids consumed by the payoff."""
 
         required_roles_getter = getattr(instrument, "required_factor_roles", None)
@@ -204,9 +198,7 @@ class UnifiedPricingEngine:
             else tuple(None for _ in required_roles)
         )
         if len(required_asset_ids) != len(required_roles):
-            raise ValidationError(
-                "required_asset_ids must align with required_factor_roles"
-            )
+            raise ValidationError("required_asset_ids must align with required_factor_roles")
         paired_requirements = zip(required_roles, required_asset_ids, strict=True)
         for index, (required_role, expected_asset_id) in enumerate(paired_requirements):
             actual = factors[index]
@@ -293,9 +285,7 @@ def create_unified_pricing_engine(process: StochasticProcess) -> UnifiedPricingE
     return UnifiedPricingEngine(process=process)
 
 
-def create_log_grid(
-    s_min: float, s_max: float, n_points: int, center: Optional[float] = None
-) -> NDArray[np.float64]:
+def create_log_grid(s_min: float, s_max: float, n_points: int, center: Optional[float] = None) -> NDArray[np.float64]:
     """Create a logarithmically spaced positive grid.
 
     Parameters
@@ -332,9 +322,7 @@ def create_log_grid(
 
         center_idx = n_points // 2
         left = np.exp(np.linspace(np.log(s_min), np.log(center), center_idx + 1))
-        right = np.exp(
-            np.linspace(np.log(center), np.log(s_max), n_points - center_idx)
-        )
+        right = np.exp(np.linspace(np.log(center), np.log(s_max), n_points - center_idx))
         grid = np.concatenate([left[:-1], right])
 
     grid[0] = s_min
@@ -342,9 +330,7 @@ def create_log_grid(
     return grid
 
 
-def create_linear_grid(
-    x_min: float, x_max: float, n_points: int
-) -> NDArray[np.float64]:
+def create_linear_grid(x_min: float, x_max: float, n_points: int) -> NDArray[np.float64]:
     """Create a linearly spaced grid.
 
     Parameters

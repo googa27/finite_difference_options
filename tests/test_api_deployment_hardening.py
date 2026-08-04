@@ -147,9 +147,7 @@ def test_authentication_configuration_fails_closed_without_a_key(
     monkeypatch.setattr(
         api_main,
         "DEFAULT_API_SECURITY_POLICY",
-        DeploymentSecurityPolicy(
-            auth_required=True, api_key=None, rate_limit_requests=0
-        ),
+        DeploymentSecurityPolicy(auth_required=True, api_key=None, rate_limit_requests=0),
     )
 
     response = TestClient(app).post("/price", json=_payload())
@@ -175,12 +173,8 @@ def test_authentication_rejects_missing_and_bad_credentials_then_allows_bearer(
     client = TestClient(app)
 
     missing = client.post("/price", json=_payload())
-    bad = client.post(
-        "/price", json=_payload(), headers={"Authorization": "Bearer wrong"}
-    )
-    good = client.post(
-        "/price", json=_payload(), headers={"Authorization": "Bearer test-secret"}
-    )
+    bad = client.post("/price", json=_payload(), headers={"Authorization": "Bearer wrong"})
+    good = client.post("/price", json=_payload(), headers={"Authorization": "Bearer test-secret"})
 
     assert missing.status_code == 401
     _assert_error(missing.json(), code="auth_required", route="/price", status=401)
@@ -268,6 +262,4 @@ def test_black_box_lifecycle_failures_use_stable_error_envelopes() -> None:
         status=422,
     )
     assert unsupported.status_code == 501
-    _assert_error(
-        unsupported.json(), code="unsupported_route", route="/reports/crif", status=501
-    )
+    _assert_error(unsupported.json(), code="unsupported_route", route="/reports/crif", status=501)

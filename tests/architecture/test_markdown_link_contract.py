@@ -20,9 +20,7 @@ def test_markdown_link_checker_accepts_existing_relative_targets_with_titles(
     checker = _load_checker()
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "target.md").write_text("# Target\n", encoding="utf-8")
-    (tmp_path / "docs" / "target(with-parens).md").write_text(
-        "# Target with parens\n", encoding="utf-8"
-    )
+    (tmp_path / "docs" / "target(with-parens).md").write_text("# Target with parens\n", encoding="utf-8")
     (tmp_path / "docs" / "index.md").write_text(
         "[plain](target.md)\n"
         '[titled](target.md "Target doc")\n'
@@ -38,13 +36,9 @@ def test_markdown_link_checker_accepts_existing_relative_targets_with_titles(
 def test_markdown_link_checker_reports_missing_relative_targets(tmp_path) -> None:
     checker = _load_checker()
     (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "index.md").write_text(
-        "[missing](absent.md)\n", encoding="utf-8"
-    )
+    (tmp_path / "docs" / "index.md").write_text("[missing](absent.md)\n", encoding="utf-8")
 
-    assert checker.validate_links(tmp_path) == [
-        "docs/index.md:1: missing relative link target: absent.md"
-    ]
+    assert checker.validate_links(tmp_path) == ["docs/index.md:1: missing relative link target: absent.md"]
 
 
 def test_markdown_link_checker_validates_outer_target_for_linked_images(
@@ -67,9 +61,7 @@ def test_markdown_link_checker_resolves_root_relative_repo_links(tmp_path) -> No
     checker = _load_checker()
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "CI_POLICY.md").write_text("# CI Policy\n", encoding="utf-8")
-    (tmp_path / "docs" / "index.md").write_text(
-        "[policy](/docs/CI_POLICY.md)\n", encoding="utf-8"
-    )
+    (tmp_path / "docs" / "index.md").write_text("[policy](/docs/CI_POLICY.md)\n", encoding="utf-8")
 
     assert checker.validate_links(tmp_path) == []
 

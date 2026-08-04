@@ -36,9 +36,7 @@ def _payload(**overrides: object) -> dict[str, Any]:
 
 
 def _expected_samples(payload: dict[str, object]) -> dict[str, float]:
-    model = GeometricBrownianMotion(
-        mu=float(payload["rate"]), sigma=float(payload["sigma"])
-    )
+    model = GeometricBrownianMotion(mu=float(payload["rate"]), sigma=float(payload["sigma"]))
     instrument_cls = EuropeanCall if payload["option_type"] == "Call" else EuropeanPut
     instrument = instrument_cls(
         strike=float(payload["strike"]),
@@ -94,9 +92,7 @@ def test_price_and_greeks_sample_the_same_requested_spot_for_calls_and_puts(
 
 
 def test_sampling_metadata_documents_linear_interpolation_location() -> None:
-    response = TestClient(app).post(
-        "/price", json=_payload(spot=137.5, s_max=250.0, s_steps=31)
-    )
+    response = TestClient(app).post("/price", json=_payload(spot=137.5, s_max=250.0, s_steps=31))
 
     assert response.status_code == 200
     sampling = _sampling(response.json())
@@ -112,9 +108,7 @@ def test_sampling_metadata_documents_linear_interpolation_location() -> None:
 
 
 def test_sampling_metadata_documents_exact_grid_node_location() -> None:
-    response = TestClient(app).post(
-        "/price", json=_payload(spot=125.0, s_max=250.0, s_steps=11)
-    )
+    response = TestClient(app).post("/price", json=_payload(spot=125.0, s_max=250.0, s_steps=11))
 
     assert response.status_code == 200
     sampling = _sampling(response.json())
@@ -126,9 +120,7 @@ def test_sampling_metadata_documents_exact_grid_node_location() -> None:
     assert sampling["extrapolated"] is False
 
 
-def test_requested_spot_outside_grid_is_rejected_by_bounded_policy_before_solving() -> (
-    None
-):
+def test_requested_spot_outside_grid_is_rejected_by_bounded_policy_before_solving() -> None:
     response = TestClient(app).post("/price", json=_payload(spot=260.0, s_max=250.0))
 
     assert response.status_code == 422

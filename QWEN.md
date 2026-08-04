@@ -25,7 +25,7 @@
 - Install: `python -m pip install -e '.[dev]'` (or `python -m pip install .` for runtime only)
 - Lock smoke: `python -m pip install -r requirements-dev.lock.txt && python -m pip check`
 - Pre-commit: `pre-commit install` then `pre-commit run --all-files`
-- Lint: `ruff check . --select E9,F63,F7,F82`  | Types: `mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py`  | Format: `black .`
+- Lint: `ruff check . --select E9,F63,F7,F82`  | Types: `mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py`  | Format: `ruff format --check .`
 - Tests: `pytest -q tests/architecture tests/test_packaging_contract.py --no-cov`, then `pytest -q`
 - Build/audit: `python -m build --sdist --wheel && python -m twine check dist/* && python -m pip_audit --progress-spinner=off --skip-editable`
 - API: `uvicorn finite_difference_options.api.main:app --reload`
@@ -33,7 +33,7 @@
 - Next.js client: `cd nextjs-client && npm ci && npm run dev`
 
 ## Coding Style & Naming Conventions
-- Python: Black formatting, Ruff linting (E, F, B), line length 120 (`pyproject.toml`).
+- Python: Ruff formatting and linting (E, F, B), line length 120 (`pyproject.toml`).
 - Types: `mypy` enforced on contract-critical modules; avoid untyped defs; keep `finite_difference_options` importable as an installed package.
 - Naming: `snake_case` for functions/modules, `PascalCase` for classes, `UPPER_SNAKE_CASE` for constants.
 - Tests: name files `tests/test_*.py`; use descriptive test names and fixtures where helpful.

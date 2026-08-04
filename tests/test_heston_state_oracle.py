@@ -33,24 +33,17 @@ def _black_scholes_call_with_dividend(
     maturity: float,
 ) -> float:
     volatility_time = np.sqrt(integrated_variance)
-    d1 = (
-        np.log(spot / strike)
-        + (rate - dividend_yield) * maturity
-        + 0.5 * integrated_variance
-    ) / volatility_time
+    d1 = (np.log(spot / strike) + (rate - dividend_yield) * maturity + 0.5 * integrated_variance) / volatility_time
     d2 = d1 - volatility_time
     return float(
-        spot * np.exp(-dividend_yield * maturity) * norm.cdf(d1)
-        - strike * np.exp(-rate * maturity) * norm.cdf(d2)
+        spot * np.exp(-dividend_yield * maturity) * norm.cdf(d1) - strike * np.exp(-rate * maturity) * norm.cdf(d2)
     )
 
 
 def _deterministic_heston_integrated_variance(case: HestonOracleCase) -> float:
     return (
         case.theta * case.maturity
-        + (case.variance - case.theta)
-        * (1.0 - np.exp(-case.kappa * case.maturity))
-        / case.kappa
+        + (case.variance - case.theta) * (1.0 - np.exp(-case.kappa * case.maturity)) / case.kappa
     )
 
 
@@ -93,9 +86,7 @@ def test_heston_payoff_receives_spot_through_explicit_log_transform() -> None:
 
     terminal = engine._build_initial_condition(option, log_spot_grid, variance_grid)
 
-    expected = np.broadcast_to(
-        np.maximum(spot_grid - 100.0, 0.0).reshape(-1, 1), (3, 2)
-    )
+    expected = np.broadcast_to(np.maximum(spot_grid - 100.0, 0.0).reshape(-1, 1), (3, 2))
     assert_allclose(terminal, expected, atol=1e-12)
     metadata = process.factor_metadata()[0]
     assert metadata.coordinate == "log_spot"
@@ -111,9 +102,7 @@ def test_heston_variance_boundary_policy_is_explicit_and_fail_closed() -> None:
     assert benchmark.min_eigenvalue_at_lower_boundary >= -1e-12
     assert benchmark.clips_interior_variance is False
 
-    with pytest.raises(
-        ValidationError, match="variance coordinate must be non-negative"
-    ):
+    with pytest.raises(ValidationError, match="variance coordinate must be non-negative"):
         process.covariance(0.0, np.array([np.log(100.0), -1e-4]))
 
 

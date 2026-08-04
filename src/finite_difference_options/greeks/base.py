@@ -45,21 +45,15 @@ class GreeksCalculator(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delta(
-        self, grid: NDArray[np.float64], s: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def delta(self, grid: NDArray[np.float64], s: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Delta values across the price grid."""
 
     @abstractmethod
-    def gamma(
-        self, grid: NDArray[np.float64], s: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def gamma(self, grid: NDArray[np.float64], s: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Gamma values across the price grid."""
 
     @abstractmethod
-    def theta(
-        self, grid: NDArray[np.float64], t: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def theta(self, grid: NDArray[np.float64], t: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Theta values across the price grid."""
 
 
@@ -106,23 +100,17 @@ class FDCalculator1D(GreeksCalculator):
 
         return greeks
 
-    def delta(
-        self, grid: NDArray[np.float64], s: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def delta(self, grid: NDArray[np.float64], s: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Delta values across the price grid."""
 
         return self._fd_greeks.delta(grid, s)
 
-    def gamma(
-        self, grid: NDArray[np.float64], s: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def gamma(self, grid: NDArray[np.float64], s: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Gamma values across the price grid."""
 
         return self._fd_greeks.gamma(grid, s)
 
-    def theta(
-        self, grid: NDArray[np.float64], t: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def theta(self, grid: NDArray[np.float64], t: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Theta values across the price grid."""
 
         return self._fd_greeks.theta(grid, t)
@@ -180,23 +168,17 @@ class FDCalculator2D(GreeksCalculator):
 
         return greeks
 
-    def delta(
-        self, grid: NDArray[np.float64], s: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def delta(self, grid: NDArray[np.float64], s: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Delta values across the price grid."""
 
         return self._fd_greeks.delta(grid, s)
 
-    def gamma(
-        self, grid: NDArray[np.float64], s: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def gamma(self, grid: NDArray[np.float64], s: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Gamma values across the price grid."""
 
         return self._fd_greeks.gamma(grid, s)
 
-    def theta(
-        self, grid: NDArray[np.float64], t: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def theta(self, grid: NDArray[np.float64], t: NDArray[np.float64]) -> NDArray[np.float64]:
         """Return Theta values across the price grid."""
 
         return self._fd_greeks.theta(grid, t)

@@ -52,7 +52,5 @@ def test_legacy_mypy_suppressions_are_exact_and_exclude_haircut_adapter() -> Non
 
     assert actual == EXPECTED
     assert not any(
-        module.startswith("finite_difference_options.integrations.haircut_")
-        for modules in actual
-        for module in modules
+        module.startswith("finite_difference_options.integrations.haircut_") for modules in actual for module in modules
     )

@@ -1,7 +1,5 @@
 """Tests for option base class and subclasses."""
 
-
-
 import numpy as np
 
 from finite_difference_options.processes.affine import GeometricBrownianMotion

@@ -40,13 +40,9 @@ def test_release_manifest_records_artifact_and_governance_hashes(tmp_path: Path)
         "dist/finite_difference_options-0.1.0-py3-none-any.whl",
         "dist/finite_difference_options-0.1.0.tar.gz",
     }
-    assert "dist/release-manifest.json" not in {
-        artifact["path"] for artifact in payload["artifacts"]
-    }
+    assert "dist/release-manifest.json" not in {artifact["path"] for artifact in payload["artifacts"]}
     assert all(len(artifact["sha256"]) == 64 for artifact in payload["artifacts"])
-    assert "docs/CAPABILITY_MATRIX.md" in {
-        item["path"] for item in payload["governance_inputs"]
-    }
+    assert "docs/CAPABILITY_MATRIX.md" in {item["path"] for item in payload["governance_inputs"]}
     assert payload["capability_evidence"]["benchmark_registry_fixture"] == (
         "tests/fixtures/fd_benchmark_registry_v1.json"
     )

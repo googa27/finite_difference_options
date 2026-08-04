@@ -13,15 +13,11 @@ from finite_difference_options.validation.black_scholes_parity import (  # noqa:
     run_public_black_scholes_parity_fixture,
 )
 
-FIXTURE_PATH = (
-    pathlib.Path(__file__).resolve().parent / "fixtures" / "arxiv_lab_bs_oracle_v1.json"
-)
+FIXTURE_PATH = pathlib.Path(__file__).resolve().parent / "fixtures" / "arxiv_lab_bs_oracle_v1.json"
 
 
 def test_black_scholes_oracle_matches_known_public_synthetic_case() -> None:
-    oracle = black_scholes_call_oracle(
-        spot=1.0, strike=1.0, rate=0.05, sigma=0.2, maturity=1.0
-    )
+    oracle = black_scholes_call_oracle(spot=1.0, strike=1.0, rate=0.05, sigma=0.2, maturity=1.0)
 
     assert abs(oracle - 0.1045058357) < 1e-10
 
@@ -118,9 +114,7 @@ def test_arxiv_lab_payload_is_static_file_and_consumable() -> None:
     assert cached["problem_spec"]["solver_plan"]["time_controls"] == {"theta": 0.5}
 
     coefficients = cached["problem_spec"]["mathematical_problem"]["pde_coefficients"]
-    operator_terms = cached["problem_spec"]["mathematical_problem"][
-        "pde_operator_terms"
-    ]
+    operator_terms = cached["problem_spec"]["mathematical_problem"]["pde_operator_terms"]
     terms_by_name = {term["name"]: term for term in operator_terms}
     assert coefficients["risk_free_rate"] == report.case.rate
     assert coefficients["volatility"] == report.case.sigma
@@ -144,15 +138,6 @@ def test_arxiv_lab_payload_is_static_file_and_consumable() -> None:
     assert cached["result_export"]["no_arbitrage"]["value_bound_ok"] is True
     assert cached["result_export"]["no_arbitrage"]["upper_bound_ok"] is True
 
-    assert (
-        cached["result_export"]["solution"]["price"]
-        == payload["result_export"]["solution"]["price"]
-    )
-    assert (
-        cached["result_export"]["solution"]["delta"]
-        == payload["result_export"]["solution"]["delta"]
-    )
-    assert (
-        cached["result_export"]["solution"]["gamma"]
-        == payload["result_export"]["solution"]["gamma"]
-    )
+    assert cached["result_export"]["solution"]["price"] == payload["result_export"]["solution"]["price"]
+    assert cached["result_export"]["solution"]["delta"] == payload["result_export"]["solution"]["delta"]
+    assert cached["result_export"]["solution"]["gamma"] == payload["result_export"]["solution"]["gamma"]

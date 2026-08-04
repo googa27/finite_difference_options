@@ -115,9 +115,7 @@ def _black_scholes_call_values(
     positive = spots > 0.0
     if not np.any(positive):
         return values
-    d1 = (np.log(spots[positive] / strike) + (rate + 0.5 * sigma**2) * maturity) / (
-        sigma * sqrt(maturity)
-    )
+    d1 = (np.log(spots[positive] / strike) + (rate + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
     d2 = d1 - sigma * sqrt(maturity)
     cdf = np.vectorize(_normal_cdf)
     values[positive] = spots[positive] * cdf(d1) - strike * exp(-rate * maturity) * cdf(d2)
@@ -141,18 +139,12 @@ def _validation_cases(mode: ValidationMode) -> tuple[_GreekValidationCase, ...]:
     sigmas = (0.15, 0.35)
     moneyness = (0.9, 1.0, 1.1)
     cases = tuple(
-        _GreekValidationCase(m, maturity, sigma)
-        for m in moneyness
-        for maturity in maturities
-        for sigma in sigmas
+        _GreekValidationCase(m, maturity, sigma) for m in moneyness for maturity in maturities for sigma in sigmas
     )
     if mode == "pr":
         return cases
     return cases + tuple(
-        _GreekValidationCase(m, maturity, sigma)
-        for m in (0.8, 1.2)
-        for maturity in (0.1, 2.0)
-        for sigma in (0.2, 0.5)
+        _GreekValidationCase(m, maturity, sigma) for m in (0.8, 1.2) for maturity in (0.1, 2.0) for sigma in (0.2, 0.5)
     )
 
 
@@ -416,11 +408,7 @@ def run_greek_derivative_validation(
 
     finest_delta_errors = [float(row["finest"]["delta"]["reference_abs_error"]) for row in matrix]
     finest_gamma_errors = [float(row["finest"]["gamma"]["reference_abs_error"]) for row in matrix]
-    ratios = [
-        float(row["finest_to_middle_error_ratio"][greek])
-        for row in matrix
-        for greek in ("delta", "gamma")
-    ]
+    ratios = [float(row["finest_to_middle_error_ratio"][greek]) for row in matrix for greek in ("delta", "gamma")]
     max_delta_abs_error = max(finest_delta_errors)
     max_gamma_abs_error = max(finest_gamma_errors)
     max_ratio = max(ratios)

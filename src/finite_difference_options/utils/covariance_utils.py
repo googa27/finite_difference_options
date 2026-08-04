@@ -33,9 +33,7 @@ def validate_covariance_matrix(matrix: NDArray[np.float64]) -> None:
         raise ValidationError(f"Covariance matrix must be 2D, got {matrix.ndim}D")
 
     if matrix.shape[0] != matrix.shape[1]:
-        raise ValidationError(
-            f"Covariance matrix must be square, got shape {matrix.shape}"
-        )
+        raise ValidationError(f"Covariance matrix must be square, got shape {matrix.shape}")
 
     # Check symmetry
     if not np.allclose(matrix, matrix.T, rtol=1e-10, atol=1e-12):
@@ -45,14 +43,11 @@ def validate_covariance_matrix(matrix: NDArray[np.float64]) -> None:
     eigenvals = np.linalg.eigvals(matrix)
     if np.any(eigenvals < -1e-10):  # Allow small numerical errors
         raise ValidationError(
-            f"Covariance matrix must be positive semi-definite. "
-            f"Minimum eigenvalue: {np.min(eigenvals):.2e}"
+            f"Covariance matrix must be positive semi-definite. Minimum eigenvalue: {np.min(eigenvals):.2e}"
         )
 
 
-def ensure_positive_definite(
-    matrix: NDArray[np.float64], min_eigenvalue: float = 1e-10
-) -> NDArray[np.float64]:
+def ensure_positive_definite(matrix: NDArray[np.float64], min_eigenvalue: float = 1e-10) -> NDArray[np.float64]:
     """Ensure matrix is positive definite by regularization.
 
     Parameters
@@ -161,9 +156,7 @@ def batch_covariance_computation(
     return base_covariance[None, :, :] * state_dependent_factors
 
 
-def cholesky_decomposition_safe(
-    matrix: NDArray[np.float64], regularization: float = 1e-10
-) -> NDArray[np.float64]:
+def cholesky_decomposition_safe(matrix: NDArray[np.float64], regularization: float = 1e-10) -> NDArray[np.float64]:
     """Safe Cholesky decomposition with regularization.
 
     Parameters

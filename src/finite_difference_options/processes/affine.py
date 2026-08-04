@@ -85,24 +85,18 @@ class GeometricBrownianMotion(AffineProcess, BaseModel):
             ),
         )
 
-    def affine_drift_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(S) = μS, so α=0, β=μ."""
         return np.array([0.0]), np.array([self.mu])
 
-    def affine_covariance_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Fail closed because ``Σ(S)=σ²S²`` is quadratic in native spot."""
         raise ValidationError(
             "GeometricBrownianMotion does not have exact affine covariance in native state coordinates; "
             "use covariance(...) or evaluate_coefficients(...) for native-state coefficients"
         )
 
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Covariance matrix Σ(S) = σ²S²."""
         self.validate_state(state)
         if state.ndim == 1:
@@ -161,21 +155,15 @@ class OrnsteinUhlenbeck(AffineProcess, BaseModel):
             ),
         )
 
-    def affine_drift_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(r) = κθ - κr, so α=κθ, β=-κ."""
         return np.array([self.kappa * self.theta]), np.array([-self.kappa])
 
-    def affine_covariance_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Σ = σ², so γ=σ², δ=0."""
         return np.array([[self.sigma**2]]), np.array([[0.0]])
 
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Constant covariance matrix Σ = σ²."""
         self.validate_state(state)
         if state.ndim == 1:
@@ -244,21 +232,15 @@ class CoxIngersollRoss(AffineProcess, BaseModel):
             ),
         )
 
-    def affine_drift_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """μ(r) = κθ - κr, so α=κθ, β=-κ."""
         return np.array([self.kappa * self.theta]), np.array([-self.kappa])
 
-    def affine_covariance_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Σ(r) = σ²r, so γ=0, δ=σ²."""
         return np.array([[0.0]]), np.array([[self.sigma**2]])
 
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Covariance matrix Σ(r) = σ²r."""
         self.validate_state(state)
         if state.ndim == 1:
@@ -347,24 +329,16 @@ class HestonModel(AffineProcess, BaseModel):
                 asset_id="spot",
                 payoff_transform="exp",
             ),
-            ProcessFactorMetadata(
-                name="variance", role=FactorRole.VARIANCE, coordinate="variance"
-            ),
+            ProcessFactorMetadata(name="variance", role=FactorRole.VARIANCE, coordinate="variance"),
         )
 
-    def affine_drift_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_drift_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Drift in log-spot state: ``(r-q-0.5v, kappa(theta-v))``."""
-        alpha = np.array(
-            [self.risk_free_rate - self.dividend_yield, self.kappa * self.theta]
-        )
+        alpha = np.array([self.risk_free_rate - self.dividend_yield, self.kappa * self.theta])
         beta = np.array([[0.0, -0.5], [0.0, -self.kappa]])
         return alpha, beta
 
-    def affine_covariance_coefficients(
-        self, time: float = 0.0
-    ) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
+    def affine_covariance_coefficients(self, time: float = 0.0) -> Tuple[NDArray[np.float64], NDArray[np.float64]]:
         """Exact covariance tensor in ``(log_spot, variance)`` coordinates."""
         constant = np.zeros((2, 2), dtype=float)
         linear = np.zeros((2, 2, 2), dtype=float)
@@ -386,17 +360,13 @@ class HestonModel(AffineProcess, BaseModel):
         if np.any(variance < 0.0):
             raise ValidationError("Heston variance coordinate must be non-negative")
 
-    def covariance(
-        self, time: float, state: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def covariance(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute Heston covariance in ``(log_spot, variance)`` coordinates."""
 
         state_array = np.asarray(state, dtype=float)
         self.validate_state(state_array)
         constant, linear = self.affine_covariance_coefficients(time)
-        covariance = AffineCovarianceForm.from_coefficients(constant, linear).evaluate(
-            state_array
-        )
+        covariance = AffineCovarianceForm.from_coefficients(constant, linear).evaluate(state_array)
         return covariance[0] if state_array.ndim == 1 else covariance
 
     def discount(self, time: float, state: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -416,16 +386,10 @@ class HestonModel(AffineProcess, BaseModel):
         spot_array = np.asarray(spot, dtype=float)
         variance_array = np.asarray(variance, dtype=float)
         if np.any(spot_array <= 0.0) or not np.all(np.isfinite(spot_array)):
-            raise ValidationError(
-                "spot must be finite and strictly positive for log-state conversion"
-            )
+            raise ValidationError("spot must be finite and strictly positive for log-state conversion")
         if np.any(variance_array < 0.0) or not np.all(np.isfinite(variance_array)):
-            raise ValidationError(
-                "variance must be finite and non-negative for Heston state conversion"
-            )
-        return np.stack(
-            np.broadcast_arrays(np.log(spot_array), variance_array), axis=-1
-        )
+            raise ValidationError("variance must be finite and non-negative for Heston state conversion")
+        return np.stack(np.broadcast_arrays(np.log(spot_array), variance_array), axis=-1)
 
     @staticmethod
     def spot_from_state(state: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -455,9 +419,7 @@ def create_black_scholes_process(mu: float, sigma: float) -> GeometricBrownianMo
     return GeometricBrownianMotion(mu=mu, sigma=sigma)
 
 
-def create_vasicek_process(
-    kappa: float, theta: float, sigma: float
-) -> OrnsteinUhlenbeck:
+def create_vasicek_process(kappa: float, theta: float, sigma: float) -> OrnsteinUhlenbeck:
     """Create a Vasicek short-rate process.
 
     This is the canonical one-factor affine short-rate configuration used for

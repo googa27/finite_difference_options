@@ -87,6 +87,7 @@ jobs:
         run: |
           python -m compileall -q src tests scripts
           ruff check . --select E9,F63,F7,F82
+          ruff format --check .
           mypy --ignore-missing-imports --follow-imports=silent src/finite_difference_options/contracts src/finite_difference_options/validation scripts/check_architecture_contract.py
       - name: Architecture and packaging contracts
         run: |

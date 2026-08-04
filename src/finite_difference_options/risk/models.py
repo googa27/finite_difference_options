@@ -5,9 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal, Optional
 
-CapabilityStatus = Literal[
-    "production", "validated", "experimental", "scaffold", "unsupported"
-]
+CapabilityStatus = Literal["production", "validated", "experimental", "scaffold", "unsupported"]
 
 REQUIRED_REGULATORY_CONTRACT_FIELDS: tuple[str, ...] = (
     "trade_id",
@@ -83,9 +81,7 @@ class RegulatoryStandard:
     effective_date: str = "not-selected"
     jurisdiction: str = "not-selected"
     licensing_status: str = "not-evaluated"
-    required_contract_fields: tuple[str, ...] = field(
-        default_factory=lambda: REQUIRED_REGULATORY_CONTRACT_FIELDS
-    )
+    required_contract_fields: tuple[str, ...] = field(default_factory=lambda: REQUIRED_REGULATORY_CONTRACT_FIELDS)
 
     def to_problem_detail(self) -> dict[str, Any]:
         """Return RFC-7807-like machine-readable failure details."""

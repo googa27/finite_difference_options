@@ -26,6 +26,7 @@ The test job installs the development profile with `python -m pip install -e '.[
 1. static smoke gate:
    - `python -m compileall -q src tests scripts`;
    - `ruff check . --select E9,F63,F7,F82`;
+   - `ruff format --check .` across the declared repository tree, using the exact Ruff version pinned in the development profile;
    - mypy on contract-critical modules with ignore-missing-imports and follow-imports=silent;
 2. architecture, documentation, and packaging contracts:
    - `python scripts/check_architecture_contract.py`;

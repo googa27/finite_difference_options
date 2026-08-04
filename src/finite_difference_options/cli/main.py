@@ -32,9 +32,7 @@ from finite_difference_options.validation.fd_verification import (
 from finite_difference_options.plotting.config_manager import PlottingConfigManager
 
 app = typer.Typer(help="Command-line tools for option pricing.")
-qps_app = typer.Typer(
-    help="Screen and solve public-synthetic QuantProblemSpec/compiled PDE fixtures."
-)
+qps_app = typer.Typer(help="Screen and solve public-synthetic QuantProblemSpec/compiled PDE fixtures.")
 validation_app = typer.Typer(help="Run deterministic FD validation benchmarks.")
 app.add_typer(qps_app, name="qps")
 app.add_typer(validation_app, name="validation")
@@ -71,11 +69,7 @@ def qps_screen(
         typer.echo(_dump_json(error_payload) if json_output else "unsupported")
         raise typer.Exit(1) from exc
     screen_payload = screen.as_dict()
-    typer.echo(
-        _dump_json(screen_payload)
-        if json_output
-        else ("supported" if screen.supported else "unsupported")
-    )
+    typer.echo(_dump_json(screen_payload) if json_output else ("supported" if screen.supported else "unsupported"))
     if not screen.supported:
         raise typer.Exit(1)
 
@@ -165,12 +159,7 @@ def price(
     s_idx = int(np.searchsorted(s, s0))
     price_at_s0 = float(values[-1, s_idx])
     typer.echo(f"Price: {price_at_s0}")
-    if (
-        greeks
-        and result.delta is not None
-        and result.gamma is not None
-        and result.theta is not None
-    ):
+    if greeks and result.delta is not None and result.gamma is not None and result.theta is not None:
         typer.echo(f"Delta: {float(result.delta[-1, s_idx])}")
         typer.echo(f"Gamma: {float(result.gamma[-1, s_idx])}")
         typer.echo(f"Theta: {float(result.theta[-1, s_idx])}")

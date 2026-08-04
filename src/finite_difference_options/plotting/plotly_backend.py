@@ -112,8 +112,6 @@ class PlotlyPlotter(Plotter):
         fig.update_layout(
             height=opts.height or 400,
             margin=dict(l=50, r=60, t=20, b=40),
-            legend=dict(
-                orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1
-            ),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         )
         return fig

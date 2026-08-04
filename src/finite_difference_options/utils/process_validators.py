@@ -122,9 +122,7 @@ def diagnose_feller_condition(
         cir_dimension = 4.0 * kappa * theta / feller_rhs
         is_satisfied = feller_margin >= -tolerance
         zero_boundary = (
-            ZeroBoundaryClassification.INACCESSIBLE
-            if is_satisfied
-            else ZeroBoundaryClassification.ATTAINABLE
+            ZeroBoundaryClassification.INACCESSIBLE if is_satisfied else ZeroBoundaryClassification.ATTAINABLE
         )
 
     requires_boundary_policy = zero_boundary is ZeroBoundaryClassification.ATTAINABLE
@@ -139,16 +137,12 @@ def diagnose_feller_condition(
         zero_boundary=zero_boundary,
         policy=normalized_policy,
         requires_explicit_boundary_policy=requires_boundary_policy,
-        route_capability_required=(
-            "attainable_variance_boundary" if requires_boundary_policy else None
-        ),
+        route_capability_required=("attainable_variance_boundary" if requires_boundary_policy else None),
         correlation_degeneracy=correlation_degeneracy,
     )
 
 
-def validate_feller_condition(
-    kappa: float, theta: float, sigma: float, process_name: str = "process"
-) -> None:
+def validate_feller_condition(kappa: float, theta: float, sigma: float, process_name: str = "process") -> None:
     """Validate strict Feller condition: 2κθ ≥ σ².
 
     This strict helper is retained for routes/models that explicitly require an
@@ -207,9 +201,7 @@ def validate_cev_beta(beta: float) -> None:
         raise ValidationError(f"CEV beta must be in [0, 1], got {beta}")
 
 
-def validate_jump_parameters(
-    jump_intensity: float, jump_mean: float, jump_volatility: float
-) -> None:
+def validate_jump_parameters(jump_intensity: float, jump_mean: float, jump_volatility: float) -> None:
     """Validate jump process parameters.
 
     Parameters
@@ -252,10 +244,7 @@ def validate_heston_parameters(
         rho=rho,
         policy=feller_policy,
     )
-    if (
-        diagnostics.policy is FellerPolicy.REQUIRE_STRICT_POSITIVITY
-        and not diagnostics.is_satisfied
-    ):
+    if diagnostics.policy is FellerPolicy.REQUIRE_STRICT_POSITIVITY and not diagnostics.is_satisfied:
         raise ValidationError(
             "Feller condition violated in Heston model: "
             f"2κθ = {diagnostics.feller_lhs:.4f} < σ² = {diagnostics.feller_rhs:.4f}. "
@@ -287,9 +276,7 @@ def validate_sabr_parameters(alpha: float, beta: float, rho: float) -> None:
     validate_correlation_parameter(rho, "rho")
 
 
-def validate_array_shape(
-    array: NDArray[np.float64], expected_shape: tuple, param_name: str
-) -> None:
+def validate_array_shape(array: NDArray[np.float64], expected_shape: tuple, param_name: str) -> None:
     """Validate array has expected shape.
 
     Parameters
@@ -307,14 +294,10 @@ def validate_array_shape(
         If shape doesn't match.
     """
     if array.shape != expected_shape:
-        raise ValidationError(
-            f"{param_name} must have shape {expected_shape}, got {array.shape}"
-        )
+        raise ValidationError(f"{param_name} must have shape {expected_shape}, got {array.shape}")
 
 
-def validate_weights_sum_to_one(
-    weights: NDArray[np.float64], tolerance: float = 1e-10
-) -> None:
+def validate_weights_sum_to_one(weights: NDArray[np.float64], tolerance: float = 1e-10) -> None:
     """Validate weights sum to 1.0.
 
     Parameters

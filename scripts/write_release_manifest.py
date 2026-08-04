@@ -50,9 +50,7 @@ def _file_record(path: Path, *, relative_to: Path | None = None) -> dict[str, An
 
 def build_manifest(dist: Path, lockfiles: tuple[str, ...] = DEFAULT_LOCKFILES) -> dict[str, Any]:
     artifact_paths = sorted(
-        path
-        for path in dist.glob("*")
-        if path.is_file() and path.name.endswith(PYTHON_DISTRIBUTION_SUFFIXES)
+        path for path in dist.glob("*") if path.is_file() and path.name.endswith(PYTHON_DISTRIBUTION_SUFFIXES)
     )
     if not artifact_paths:
         raise SystemExit(f"No distribution artifacts found under {dist}")
