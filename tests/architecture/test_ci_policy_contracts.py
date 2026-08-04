@@ -2,6 +2,8 @@ from pathlib import Path
 import re
 import tomllib
 
+from packaging.requirements import Requirement
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 NODE24_OFFICIAL_ACTION_PINS = {
@@ -14,6 +16,14 @@ NODE24_OFFICIAL_ACTION_PINS = {
 
 def _read(relative_path: str) -> str:
     return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def _requirement_names(requirements: list[str]) -> set[str]:
+    return {
+        Requirement(requirement).name.lower()
+        for requirement in requirements
+        if requirement and not requirement.startswith(("#", "-r "))
+    }
 
 
 def test_third_party_actions_are_pinned_to_full_commit_shas() -> None:
@@ -78,7 +88,20 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     assert "Optional profile /" in workflow
     assert "python -m pip install -r requirements-dev.lock.txt" in workflow
     assert "python -m pip check" in workflow
-    assert "python -m pip_audit --progress-spinner=off --skip-editable" in workflow
+    assert workflow.count("python -m pip_audit --progress-spinner=off --skip-editable") >= 2
+    audit_sequence = [
+        "python -m pip install -e '.[dev]'",
+        "python -m pip check",
+        "python -m pip_audit --progress-spinner=off --skip-editable",
+        "python -m pip install -r requirements-dev.lock.txt",
+        "python -m pip check",
+        "python -m pip_audit --progress-spinner=off --skip-editable",
+    ]
+    cursor = 0
+    for command in audit_sequence:
+        cursor = workflow.find(command, cursor)
+        assert cursor >= 0, f"missing or out-of-order audit command: {command}"
+        cursor += len(command)
     assert "cyclonedx-py environment --of JSON -o sbom.json" in workflow
     assert "Generate release manifest" in workflow
     assert "scripts/write_release_manifest.py --dist dist --output dist/release-manifest.json" in workflow
@@ -106,6 +129,67 @@ def test_formatter_has_one_exactly_pinned_owner_across_local_and_ci_surfaces() -
     assert "Black formatting" not in qwen
     assert "**Dev**: pytest, mypy, ruff" in project_context
     assert "**Dev**: pytest, mypy, ruff, black" not in project_context
+
+
+def test_testclient_dependency_uses_httpx2_without_legacy_httpx() -> None:
+    pyproject = tomllib.loads(_read("pyproject.toml"))
+    extras = pyproject["project"]["optional-dependencies"]
+    requirements = _read("requirements-dev.txt").splitlines()
+    locked_requirements = _read("requirements-dev.lock.txt").splitlines()
+
+    for profile in ("validation", "dev"):
+        assert "httpx2>=2,<3" in extras[profile]
+        assert "httpx2" in _requirement_names(extras[profile])
+        assert "httpx" not in _requirement_names(extras[profile])
+        assert "httpcore" not in _requirement_names(extras[profile])
+
+    assert "finite-difference-options[api]" in extras["validation"]
+
+    assert "httpx2>=2,<3" in requirements
+    assert "httpx2" in _requirement_names(requirements)
+    assert "httpx" not in _requirement_names(requirements)
+    assert "httpcore" not in _requirement_names(requirements)
+    assert any(line.startswith("httpx2==") for line in locked_requirements)
+    assert "httpx2" in _requirement_names(locked_requirements)
+    assert "httpx" not in _requirement_names(locked_requirements)
+    assert "httpcore" not in _requirement_names(locked_requirements)
+    assert "httpx" not in {package["name"].lower() for package in tomllib.loads(_read("uv.lock"))["package"]}
+    assert "httpcore" not in {package["name"].lower() for package in tomllib.loads(_read("uv.lock"))["package"]}
+
+
+def test_security_critical_dev_pins_are_coherent_across_locks() -> None:
+    pyproject = tomllib.loads(_read("pyproject.toml"))
+    uv_lock = tomllib.loads(_read("uv.lock"))
+    dev_dependencies = pyproject["project"]["optional-dependencies"]["dev"]
+    requirements = _read("requirements-dev.txt").splitlines()
+    locked_requirements = _read("requirements-dev.lock.txt").splitlines()
+    uv_versions = {package["name"].lower(): package["version"] for package in uv_lock["package"]}
+
+    expected_direct = {
+        "cryptography>=50,<51",
+        "GitPython>=3.1.57,<4",
+    }
+    assert expected_direct <= set(dev_dependencies)
+    assert expected_direct <= set(requirements)
+    assert "cryptography==50.0.0" in locked_requirements
+    assert "GitPython==3.1.57" in locked_requirements
+    assert uv_versions["cryptography"] == "50.0.0"
+    assert uv_versions["gitpython"] == "3.1.57"
+
+
+def test_build_tool_avoids_yanked_release_across_locks() -> None:
+    pyproject = tomllib.loads(_read("pyproject.toml"))
+    uv_lock = tomllib.loads(_read("uv.lock"))
+    extras = pyproject["project"]["optional-dependencies"]
+    requirements = _read("requirements-dev.txt").splitlines()
+    locked_requirements = _read("requirements-dev.lock.txt").splitlines()
+    uv_versions = {package["name"].lower(): package["version"] for package in uv_lock["package"]}
+
+    for profile in ("build", "dev"):
+        assert "build>=1,<1.5.1" in extras[profile]
+    assert "build>=1,<1.5.1" in requirements
+    assert "build==1.5.0" in locked_requirements
+    assert uv_versions["build"] == "1.5.0"
 
 
 def test_ci_jobs_declare_bounded_runtime_and_artifact_retention() -> None:
