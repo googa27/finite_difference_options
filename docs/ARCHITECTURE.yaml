@@ -128,7 +128,15 @@
         ],
         "evidence": "pyproject.toml/package.json/requirements and docs/ARCHITECTURE.md",
         "adapter_boundary": "repository public ports",
-        "custom_code_reason": "domain semantics, composition, adapters, or genuinely missing algorithms only"
+        "custom_code_reason": "domain semantics, composition, adapters, or genuinely missing algorithms only",
+        "findiff_api_contract": "Construct first derivatives with findiff.Diff(axis, spacing); construct higher derivatives by exponentiation, for example Diff(axis, spacing) ** 2. Runtime constructors must not call the deprecated FinDiff compatibility wrapper.",
+        "maintenance_evidence": "https://pypi.org/project/findiff/ and https://github.com/maroba/findiff/releases",
+        "api_stability_evidence": "https://findiff.readthedocs.io/en/latest/source/examples-basic.html",
+        "license_evidence": "https://github.com/maroba/findiff/blob/master/LICENSE",
+        "oracle_or_reference_tests": [
+          "tests/test_spatial_operator_findiff_api.py",
+          "tests/architecture/test_isolated_public_imports.py"
+        ]
       },
       {
         "capability": "portfolio architecture bootstrap",

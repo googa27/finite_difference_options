@@ -8,7 +8,7 @@ underlying numerical implementations for finite differences and ADI.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 from findiff import BoundaryConditions, FinDiff
@@ -16,7 +16,6 @@ from numpy.typing import NDArray
 
 from ..boundary_conditions import BlackScholesBoundaryBuilder
 from ..instruments.operators import SpatialOperator
-from ..pricing.instruments.base import UnifiedInstrument
 from ..processes.affine import GeometricBrownianMotion
 from ..processes.base import StochasticProcess
 from finite_difference_options.exceptions import ValidationError
@@ -28,6 +27,11 @@ from .finite_difference import (
     ThetaMethod,
     TimeStepper,
 )
+
+if TYPE_CHECKING:
+    from ..pricing.instruments.base import UnifiedInstrument
+else:
+    UnifiedInstrument = Any
 
 
 class Solver(ABC):

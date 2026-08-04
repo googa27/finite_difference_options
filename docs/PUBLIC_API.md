@@ -24,6 +24,8 @@ from finite_difference_options.integrations import solve_public_quant_problem_sp
 
 Do not import through `src.*`, repository-relative paths, or private modules. API stability is strongest for dataclasses/functions exported through package `__all__` values below and weakest for modules that are only retained as legacy compatibility shims.
 
+Import order is part of this contract. A fresh interpreter may import `finite_difference_options.solvers.base` before `finite_difference_options.pricing`; type-only references from the solver layer must not eagerly initialize the pricing facade. `tests/architecture/test_isolated_public_imports.py` verifies both the isolated solver import and the documented pricing-facade exports in one subprocess.
+
 ## Runtime export manifest
 
 The following lists are synchronized by `tests/architecture/test_public_docs_contract.py` against every package facade with `__all__` discovered from the machine-readable setuptools package contract in `pyproject.toml`.
