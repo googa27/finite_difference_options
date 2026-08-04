@@ -160,6 +160,30 @@
         ]
       },
       {
+        "capability": "GitHub Actions core workflow runtime",
+        "selected": [
+          "actions/checkout v7.0.1 @ 3d3c42e5aac5ba805825da76410c181273ba90b1",
+          "actions/setup-python v7.0.0 @ 5fda3b95a4ea91299a34e894583c3862153e4b97",
+          "actions/setup-node v7.0.0 @ 820762786026740c76f36085b0efc47a31fe5020",
+          "actions/upload-artifact v7.0.1 @ 043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+        ],
+        "alternatives": [
+          "mutable action tags",
+          "legacy Node 20 action majors",
+          "unreviewed third-party workflow wrappers"
+        ],
+        "evidence": "Official GitHub releases and each selected tag's action.yml declare runs.using=node24.",
+        "adapter_boundary": ".github/workflows only; actions receive least-privilege permissions and immutable SHA refs.",
+        "custom_code_reason": "No custom checkout/runtime/artifact action; maintained official actions are used directly.",
+        "maintenance_evidence": "https://github.com/actions/checkout/releases/tag/v7.0.1, https://github.com/actions/setup-python/releases/tag/v7.0.0, https://github.com/actions/setup-node/releases/tag/v7.0.0, and https://github.com/actions/upload-artifact/releases/tag/v7.0.1",
+        "api_stability_evidence": "The repository uses only retained checkout, python-version/cache, node-version, and artifact name/path/retention inputs.",
+        "license_evidence": "Each selected action repository is MIT licensed.",
+        "upgrade_policy": "Upgrade in a dedicated workflow-supply-chain change after checking action.yml runtime, release notes, immutable commit identity, zizmor, PR CI, and exact-main annotations.",
+        "oracle_or_reference_tests": [
+          "tests/architecture/test_ci_policy_contracts.py"
+        ]
+      },
+      {
         "capability": "portfolio architecture bootstrap",
         "selected": [
           "Python standard library JSON parser",

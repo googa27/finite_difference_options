@@ -4,6 +4,13 @@ import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
+NODE24_OFFICIAL_ACTION_PINS = {
+    "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",  # v7.0.1
+    "actions/setup-python": "5fda3b95a4ea91299a34e894583c3862153e4b97",  # v7.0.0
+    "actions/setup-node": "820762786026740c76f36085b0efc47a31fe5020",  # v7.0.0
+    "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",  # v7.0.1
+}
+
 
 def _read(relative_path: str) -> str:
     return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
@@ -31,6 +38,25 @@ def test_third_party_actions_are_pinned_to_full_commit_shas() -> None:
                 unpinned.append(f"{workflow_path.relative_to(REPO_ROOT)}:{line_number}:{target}")
 
     assert unpinned == []
+
+
+def test_official_actions_use_reviewed_node24_commits() -> None:
+    workflows = sorted((REPO_ROOT / ".github" / "workflows").glob("*.yml"))
+    action_pin_re = re.compile(r"(actions/(?:checkout|setup-python|setup-node|upload-artifact))@([0-9a-f]{40})")
+    seen: set[str] = set()
+
+    for workflow_path in workflows:
+        for line_number, line in enumerate(workflow_path.read_text(encoding="utf-8").splitlines(), start=1):
+            match = action_pin_re.search(line)
+            if match is None:
+                continue
+            action, actual_sha = match.groups()
+            seen.add(action)
+            assert actual_sha == NODE24_OFFICIAL_ACTION_PINS[action], (
+                f"{workflow_path}:{line_number}:{action}@{actual_sha}"
+            )
+
+    assert seen == set(NODE24_OFFICIAL_ACTION_PINS)
 
 
 def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
