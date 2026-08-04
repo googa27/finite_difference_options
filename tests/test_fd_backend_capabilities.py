@@ -84,8 +84,7 @@ def test_american_lcp_capability_is_gated_to_one_dimensional_black_scholes_route
     diagnostics = diagnose_unsupported_route(multidimensional)
 
     assert any(
-        diagnostic.reason == UnsupportedReason.UNSUPPORTED_EXERCISE
-        and "multidimensional/ADI" in diagnostic.message
+        diagnostic.reason == UnsupportedReason.UNSUPPORTED_EXERCISE and "multidimensional/ADI" in diagnostic.message
         for diagnostic in diagnostics
     )
 

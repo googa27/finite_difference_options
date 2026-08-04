@@ -28,9 +28,7 @@ class Instrument(BaseModel):
     def validate_maturity(cls, v):
         """Validate maturity."""
         if v <= 0:
-            raise InstrumentError(
-                f"Invalid instrument parameter: maturity must be positive, got {v}"
-            )
+            raise InstrumentError(f"Invalid instrument parameter: maturity must be positive, got {v}")
         return v
 
     def payoff(self, state: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -80,9 +78,7 @@ class Instrument(BaseModel):
         BoundaryConditions
             Boundary conditions for the spatial grid.
         """
-        raise NotImplementedError(
-            "Subclasses must implement boundary_conditions method"
-        )
+        raise NotImplementedError("Subclasses must implement boundary_conditions method")
 
 
 class EuropeanOption(Instrument):
@@ -102,9 +98,7 @@ class EuropeanOption(Instrument):
     def validate_strike(cls, v):
         """Validate strike price."""
         if v <= 0:
-            raise InstrumentError(
-                f"Invalid option parameter: strike price must be positive, got {v}"
-            )
+            raise InstrumentError(f"Invalid option parameter: strike price must be positive, got {v}")
         return v
 
     def generator(self, s: NDArray[np.float64]) -> FinDiff:
@@ -115,9 +109,7 @@ class EuropeanOption(Instrument):
     def boundary_conditions(self, s: NDArray[np.float64]) -> BoundaryConditions:
         """Return boundary conditions for the spatial grid."""
         # This will be implemented by subclasses
-        raise NotImplementedError(
-            "Subclasses must implement boundary_conditions method"
-        )
+        raise NotImplementedError("Subclasses must implement boundary_conditions method")
 
 
 class EuropeanCall(EuropeanOption):

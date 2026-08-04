@@ -55,14 +55,11 @@ def validate_state_dimensions(
     elif state.ndim == 2:
         actual_dim = state.shape[-1]
     else:
-        raise ValidationError(
-            f"State must be 1D or 2D array, got {state.ndim}D for {process_name}"
-        )
+        raise ValidationError(f"State must be 1D or 2D array, got {state.ndim}D for {process_name}")
 
     if actual_dim != expected_dimension:
         raise ValidationError(
-            f"State dimension {actual_dim} doesn't match {process_name} "
-            f"dimension {expected_dimension}"
+            f"State dimension {actual_dim} doesn't match {process_name} dimension {expected_dimension}"
         )
 
 
@@ -110,10 +107,7 @@ def validate_positive_state_components(
         for idx, name in zip(component_indices, component_names, strict=True):
             if np.any(state[:, idx] < 0):
                 negative_mask = state[:, idx] < 0
-                raise ValidationError(
-                    f"{name} must be non-negative, found {np.sum(negative_mask)} "
-                    f"negative values"
-                )
+                raise ValidationError(f"{name} must be non-negative, found {np.sum(negative_mask)} negative values")
             result[:, idx] = np.maximum(state[:, idx], min_value)
 
     return result

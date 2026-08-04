@@ -19,9 +19,7 @@ from numpy.typing import NDArray
 
 from finite_difference_options.exceptions import BoundaryConditionError
 
-BoundaryKind = Literal[
-    "dirichlet", "neumann", "second_derivative", "degenerate", "extrapolated"
-]
+BoundaryKind = Literal["dirichlet", "neumann", "second_derivative", "degenerate", "extrapolated"]
 BoundarySide = Literal["lower", "upper"]
 
 
@@ -100,9 +98,7 @@ class BlackScholesBoundaryBuilder:
 
         if option_type == "call":
             lower_value = 0.0
-            upper_value = max(
-                float(grid[-1]) * exp(-carry * tau) - strike * exp(-rate * tau), 0.0
-            )
+            upper_value = max(float(grid[-1]) * exp(-carry * tau) - strike * exp(-rate * tau), 0.0)
             lower_expr = "V(0,tau)=0 for a vanilla call"
             upper_expr = "V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)"
         elif option_type == "put":
@@ -111,9 +107,7 @@ class BlackScholesBoundaryBuilder:
             lower_expr = "V(0,tau)=K*exp(-r*tau) for a vanilla put"
             upper_expr = "V(Smax,tau)=0 for a far-out-of-the-money put"
         else:  # pragma: no cover - _option_type already fails closed
-            raise BoundaryConditionError(
-                f"unsupported Black-Scholes option type {option_type!r}"
-            )
+            raise BoundaryConditionError(f"unsupported Black-Scholes option type {option_type!r}")
 
         specs = (
             BoundarySpec(
@@ -175,31 +169,23 @@ class BlackScholesBoundaryBuilder:
         if np.any(np.diff(s) <= 0.0):
             raise BoundaryConditionError("spatial grid must be strictly increasing")
         if s[0] < 0.0:
-            raise BoundaryConditionError(
-                "spot grid lower boundary must be non-negative"
-            )
+            raise BoundaryConditionError("spot grid lower boundary must be non-negative")
 
     @staticmethod
     def _time_to_maturity(option: Any, override: float | None) -> float:
         value = getattr(option, "maturity", None) if override is None else override
         if value is None:
-            raise BoundaryConditionError(
-                "time_to_maturity or option.maturity is required"
-            )
+            raise BoundaryConditionError("time_to_maturity or option.maturity is required")
         tau = float(value)
         if tau < 0.0 or not np.isfinite(tau):
-            raise BoundaryConditionError(
-                "time_to_maturity must be finite and non-negative"
-            )
+            raise BoundaryConditionError("time_to_maturity must be finite and non-negative")
         return tau
 
     @staticmethod
     def _strike(option: Any) -> float:
         value = getattr(option, "strike", None)
         if value is None:
-            raise BoundaryConditionError(
-                "vanilla boundary construction requires option.strike"
-            )
+            raise BoundaryConditionError("vanilla boundary construction requires option.strike")
         strike = float(value)
         if strike <= 0.0 or not np.isfinite(strike):
             raise BoundaryConditionError("option.strike must be finite and positive")
@@ -219,9 +205,7 @@ class BlackScholesBoundaryBuilder:
             else:
                 value = ""
         if value not in {"call", "put"}:
-            raise BoundaryConditionError(
-                "only vanilla call/put Black-Scholes boundaries are supported"
-            )
+            raise BoundaryConditionError("only vanilla call/put Black-Scholes boundaries are supported")
         return value
 
     def _risk_free_rate(self, option: Any, override: float | None) -> tuple[float, str]:
@@ -234,26 +218,18 @@ class BlackScholesBoundaryBuilder:
             return self._finite_rate(explicit, "instrument"), "instrument"
 
         model = getattr(option, "model", None)
-        model_rate = (
-            getattr(model, "risk_free_rate", None) if model is not None else None
-        )
+        model_rate = getattr(model, "risk_free_rate", None) if model is not None else None
         if model_rate is not None:
             return (
                 self._finite_rate(model_rate, "model.risk_free_rate"),
                 "model.risk_free_rate",
             )
-        if (
-            self.allow_legacy_mu_rate
-            and model is not None
-            and getattr(model, "mu", None) is not None
-        ):
+        if self.allow_legacy_mu_rate and model is not None and getattr(model, "mu", None) is not None:
             return (
                 self._finite_rate(model.mu, "legacy model.mu"),
                 "legacy model.mu",
             )
-        raise BoundaryConditionError(
-            "risk_free_rate must be supplied explicitly for vanilla boundaries"
-        )
+        raise BoundaryConditionError("risk_free_rate must be supplied explicitly for vanilla boundaries")
 
     @staticmethod
     def _dividend_yield(option: Any, override: float | None) -> float:
@@ -266,9 +242,7 @@ class BlackScholesBoundaryBuilder:
                 value = getattr(model, "dividend_yield", 0.0)
         carry = float(value)
         if carry < 0.0 or not np.isfinite(carry):
-            raise BoundaryConditionError(
-                "dividend_yield must be finite and non-negative"
-            )
+            raise BoundaryConditionError("dividend_yield must be finite and non-negative")
         return carry
 
     @staticmethod
@@ -297,9 +271,7 @@ class HestonBoundaryBuilder:
         v = np.asarray(variance_grid, dtype=float)
         BlackScholesBoundaryBuilder._validate_grid(np.exp(x))
         if v.ndim != 1 or len(v) < 2 or np.any(np.diff(v) <= 0.0) or v[0] < 0.0:
-            raise BoundaryConditionError(
-                "Heston variance grid must be one-dimensional, increasing, and non-negative"
-            )
+            raise BoundaryConditionError("Heston variance grid must be one-dimensional, increasing, and non-negative")
         tau = BlackScholesBoundaryBuilder._time_to_maturity(option, time_to_maturity)
         strike = BlackScholesBoundaryBuilder._strike(option)
         option_type = BlackScholesBoundaryBuilder._option_type(option)
@@ -308,11 +280,7 @@ class HestonBoundaryBuilder:
         s_max = float(np.exp(x[-1]))
 
         lower_spot = 0.0 if option_type == "call" else strike * exp(-rate * tau)
-        upper_spot = (
-            max(s_max * exp(-carry * tau) - strike * exp(-rate * tau), 0.0)
-            if option_type == "call"
-            else 0.0
-        )
+        upper_spot = max(s_max * exp(-carry * tau) - strike * exp(-rate * tau), 0.0) if option_type == "call" else 0.0
         return BoundaryResolution(
             risk_free_rate=rate,
             dividend_yield=carry,

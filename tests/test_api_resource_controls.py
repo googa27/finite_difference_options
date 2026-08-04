@@ -58,10 +58,7 @@ def test_success_metadata_includes_configured_resource_budget() -> None:
     assert budget["output_nodes"] == 1
     assert budget["estimated_response_bytes"] == 8
     assert budget["timeout_seconds"] == 0.5
-    assert (
-        budget["max_concurrent_solves"]
-        == api_main.DEFAULT_API_RESOURCE_POLICY.max_concurrent_solves
-    )
+    assert budget["max_concurrent_solves"] == api_main.DEFAULT_API_RESOURCE_POLICY.max_concurrent_solves
 
 
 def test_full_grid_price_budget_counts_scalar_price_output() -> None:
@@ -163,9 +160,7 @@ def test_pre_solve_timeout_releases_concurrency_slot(monkeypatch) -> None:
     api_main._SOLVE_SEMAPHORE.release()
 
 
-def test_dimension_compute_budget_rejects_unsupported_state_dimension_before_solver() -> (
-    None
-):
+def test_dimension_compute_budget_rejects_unsupported_state_dimension_before_solver() -> None:
     response = TestClient(app).post("/price", json=_payload(state_dimensions=2))
 
     assert response.status_code == 422

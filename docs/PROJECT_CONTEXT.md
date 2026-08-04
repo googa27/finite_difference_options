@@ -75,7 +75,7 @@ Unified multi-dimensional PDE pricing framework for financial derivatives using 
 - **Core**: numpy, scipy, findiff
 - **Web**: fastapi, streamlit, uvicorn
 - **CLI**: typer, click
-- **Dev**: pytest, mypy, ruff, black
+- **Dev**: pytest, mypy, ruff
 - **Optional**: plotly (enhanced plotting)
 
 ## Testing Strategy

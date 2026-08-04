@@ -1,7 +1,5 @@
 """Tests for OptionPricer.compute_grid."""
 
-
-
 import numpy as np
 from scipy.stats import norm
 

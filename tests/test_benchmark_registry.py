@@ -58,9 +58,7 @@ def test_capability_matrix_evidence_ids_are_registry_rows() -> None:
 def test_registry_rows_reference_existing_fixture_paths() -> None:
     for case in validate_benchmark_registry():
         for fixture_path in case.fixture_paths:
-            assert (
-                ROOT / fixture_path
-            ).exists(), f"{case.benchmark_id} references missing fixture {fixture_path}"
+            assert (ROOT / fixture_path).exists(), f"{case.benchmark_id} references missing fixture {fixture_path}"
 
 
 def test_static_registry_fixture_matches_generated_payload(
@@ -92,15 +90,11 @@ def test_black_scholes_registered_benchmark_executes_real_runner(
     assert result.evidence["fixture_id"] == "public-synthetic.black-scholes-call.v0"
     assert result.evidence["route_id"] == "fd.black_scholes_1d.crank_nicolson"
     assert all(result.invariants.values())
-    assert json.loads(artifact.read_text(encoding="utf-8")) == json.loads(
-        json.dumps(result.as_dict())
-    )
+    assert json.loads(artifact.read_text(encoding="utf-8")) == json.loads(json.dumps(result.as_dict()))
 
     explicit_artifact = tmp_path / "explicit_result.json"
     write_benchmark_result_json(explicit_artifact, result)
-    assert json.loads(explicit_artifact.read_text(encoding="utf-8")) == json.loads(
-        json.dumps(result.as_dict())
-    )
+    assert json.loads(explicit_artifact.read_text(encoding="utf-8")) == json.loads(json.dumps(result.as_dict()))
 
 
 def test_black_scholes_runner_fails_when_declared_greek_tolerance_is_violated(
@@ -113,8 +107,7 @@ def test_black_scholes_runner_fails_when_declared_greek_tolerance_is_violated(
         report,
         errors={
             **report.errors,
-            "delta_abs": 10.0
-            * registry_by_id()["BS-CALL-PARITY-V0"].tolerances[1].threshold,
+            "delta_abs": 10.0 * registry_by_id()["BS-CALL-PARITY-V0"].tolerances[1].threshold,
         },
     )
     monkeypatch.setattr(
@@ -139,11 +132,7 @@ def test_black_scholes_runner_fails_when_declared_invariant_is_missing(
     report = black_scholes_parity.run_public_black_scholes_parity_fixture()
     incomplete_report = replace(
         report,
-        no_arbitrage={
-            key: value
-            for key, value in report.no_arbitrage.items()
-            if key != "gamma_non_negative_ok"
-        },
+        no_arbitrage={key: value for key, value in report.no_arbitrage.items() if key != "gamma_non_negative_ok"},
     )
     monkeypatch.setattr(
         black_scholes_parity,
@@ -197,9 +186,7 @@ def test_validated_route_parity_benchmarks_execute_real_runners() -> None:
 
     assert heston_limit.passed
     assert heston_limit.invariants["limit_price_matches_black_scholes"]
-    assert float(heston_limit.metrics["price_abs"]) <= float(
-        heston_limit.metrics["threshold"]
-    )
+    assert float(heston_limit.metrics["price_abs"]) <= float(heston_limit.metrics["threshold"])
 
 
 def test_american_lcp_registered_benchmark_executes_real_runner() -> None:
@@ -242,9 +229,7 @@ def test_registry_validation_rejects_duplicate_oracleless_validated_case() -> No
         state_convention="invalid",
         grid_family="invalid",
         time_schedule="invalid",
-        oracle=valid.oracle.__class__(
-            kind="none", source="none", independence="none", notes="none"
-        ),
+        oracle=valid.oracle.__class__(kind="none", source="none", independence="none", notes="none"),
         tolerances=(),
         invariants=("unexecuted_parity",),
     )

@@ -53,9 +53,7 @@ def _validate_oracle_case(case: HestonOracleCase) -> None:
     if case.variance < 0.0 or case.theta < 0.0:
         raise ValidationError("variance and theta must be non-negative")
     if case.kappa <= 0.0 or case.vol_of_vol < 0.0:
-        raise ValidationError(
-            "kappa must be positive and vol_of_vol must be non-negative"
-        )
+        raise ValidationError("kappa must be positive and vol_of_vol must be non-negative")
     if not -1.0 < case.rho < 1.0:
         raise ValidationError("rho must be strictly between -1 and 1")
     values = np.array(
@@ -82,15 +80,11 @@ def _deterministic_variance_integral(case: HestonOracleCase) -> float:
 
     return float(
         case.theta * case.maturity
-        + (case.variance - case.theta)
-        * (1.0 - np.exp(-case.kappa * case.maturity))
-        / case.kappa
+        + (case.variance - case.theta) * (1.0 - np.exp(-case.kappa * case.maturity)) / case.kappa
     )
 
 
-def _black_scholes_call_with_integrated_variance(
-    case: HestonOracleCase, integrated_variance: float
-) -> float:
+def _black_scholes_call_with_integrated_variance(case: HestonOracleCase, integrated_variance: float) -> float:
     """Dividend-aware Black--Scholes call with total variance over the horizon."""
 
     forward_spot_discounted = case.spot * np.exp(-case.dividend_yield * case.maturity)
@@ -100,14 +94,10 @@ def _black_scholes_call_with_integrated_variance(
 
     volatility_time = float(np.sqrt(integrated_variance))
     d1 = (
-        np.log(case.spot / case.strike)
-        + (case.rate - case.dividend_yield) * case.maturity
-        + 0.5 * integrated_variance
+        np.log(case.spot / case.strike) + (case.rate - case.dividend_yield) * case.maturity + 0.5 * integrated_variance
     ) / volatility_time
     d2 = d1 - volatility_time
-    return float(
-        forward_spot_discounted * norm.cdf(d1) - strike_discounted * norm.cdf(d2)
-    )
+    return float(forward_spot_discounted * norm.cdf(d1) - strike_discounted * norm.cdf(d2))
 
 
 def _heston_characteristic_function(u: complex, case: HestonOracleCase) -> complex:
@@ -171,16 +161,12 @@ def heston_call_oracle(
 
     def p1_integrand(u: float) -> float:
         z = complex(u)
-        numerator = np.exp(-1j * z * log_strike) * _heston_characteristic_function(
-            z - 1j, case
-        )
+        numerator = np.exp(-1j * z * log_strike) * _heston_characteristic_function(z - 1j, case)
         return float(np.real(numerator / (1j * z * phi_minus_i)))
 
     def p2_integrand(u: float) -> float:
         z = complex(u)
-        numerator = np.exp(-1j * z * log_strike) * _heston_characteristic_function(
-            z, case
-        )
+        numerator = np.exp(-1j * z * log_strike) * _heston_characteristic_function(z, case)
         return float(np.real(numerator / (1j * z)))
 
     p1_integral, _ = quad(

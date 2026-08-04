@@ -19,9 +19,7 @@ class PayoffCalculator(ABC):
     """Abstract base class for payoff calculation strategies."""
 
     @abstractmethod
-    def calculate_payoff(
-        self, instrument: UnifiedInstrument, *grids: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def calculate_payoff(self, instrument: UnifiedInstrument, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Calculate instrument payoff at maturity.
 
         Parameters
@@ -42,9 +40,7 @@ class PayoffCalculator(ABC):
 class EuropeanPayoffCalculator(PayoffCalculator):
     """Payoff calculator for European options."""
 
-    def calculate_payoff(
-        self, instrument: UnifiedInstrument, *grids: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def calculate_payoff(self, instrument: UnifiedInstrument, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Calculate European option payoff."""
         if len(grids) == 0:
             raise ValidationError("At least one grid required")
@@ -54,9 +50,7 @@ class EuropeanPayoffCalculator(PayoffCalculator):
 
         # Validate that the instrument has the expected attributes
         if not hasattr(instrument, "strike") or not hasattr(instrument, "option_type"):
-            raise ValidationError(
-                "Instrument must have 'strike' and 'option_type' attributes"
-            )
+            raise ValidationError("Instrument must have 'strike' and 'option_type' attributes")
 
         # For European option, only the first grid (price) matters
         # Return payoff based on the first grid only, regardless of other grids
@@ -69,15 +63,11 @@ class EuropeanPayoffCalculator(PayoffCalculator):
 class BasketPayoffCalculator(PayoffCalculator):
     """Payoff calculator for basket options."""
 
-    def calculate_payoff(
-        self, instrument: UnifiedInstrument, *grids: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def calculate_payoff(self, instrument: UnifiedInstrument, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Calculate basket option payoff."""
         # Validate that the instrument has the expected attributes
         if not hasattr(instrument, "weights") or not hasattr(instrument, "option_type"):
-            raise ValidationError(
-                "Instrument must have 'weights' and 'option_type' attributes"
-            )
+            raise ValidationError("Instrument must have 'weights' and 'option_type' attributes")
 
         basket_instrument = cast(Any, instrument)
         weights = np.asarray(basket_instrument.weights, dtype=np.float64)
@@ -95,24 +85,18 @@ class BasketPayoffCalculator(PayoffCalculator):
             return np.maximum(basket_strike - basket_value, 0.0)
 
     @staticmethod
-    def _basket_value(
-        weights: NDArray[np.float64], *grids: NDArray[np.float64]
-    ) -> NDArray[np.float64]:
+    def _basket_value(weights: NDArray[np.float64], *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         arrays = [np.asarray(grid, dtype=np.float64) for grid in grids]
         if len(arrays) == 1:
             return weights[0] * arrays[0]
-        if arrays[0].ndim > 1 and all(
-            array.shape == arrays[0].shape for array in arrays
-        ):
+        if arrays[0].ndim > 1 and all(array.shape == arrays[0].shape for array in arrays):
             basket_value = np.zeros_like(arrays[0], dtype=np.float64)
             for weight, grid in zip(weights, arrays, strict=True):
                 basket_value += weight * grid
             return basket_value
 
         if not all(array.ndim == 1 for array in arrays):
-            raise ValidationError(
-                "Basket grids must be one-dimensional coordinate arrays or matching pointwise arrays"
-            )
+            raise ValidationError("Basket grids must be one-dimensional coordinate arrays or matching pointwise arrays")
         output_shape = tuple(array.shape[0] for array in arrays)
         basket_value = np.zeros(output_shape, dtype=np.float64)
         for axis, (weight, grid) in enumerate(zip(weights, arrays, strict=True)):
@@ -130,9 +114,7 @@ class BasketPayoffCalculator(PayoffCalculator):
             weights = np.asarray(basket_instrument.weights, dtype=np.float64)
             strikes = np.asarray(basket_instrument.strikes, dtype=np.float64)
             return float(np.sum(weights * strikes))
-        raise ValidationError(
-            "Instrument must have either 'strike' or 'strikes' attribute"
-        )
+        raise ValidationError("Instrument must have either 'strike' or 'strikes' attribute")
 
 
 # Factory for creating appropriate payoff calculators
@@ -163,9 +145,7 @@ class PayoffCalculatorFactory:
 
         if isinstance(instrument, UnifiedEuropeanOption):
             return EuropeanPayoffCalculator()
-        elif isinstance(
-            instrument, (UnifiedBasketOption, StandardBasketOption, SpreadOption)
-        ):
+        elif isinstance(instrument, (UnifiedBasketOption, StandardBasketOption, SpreadOption)):
             return BasketPayoffCalculator()
         else:
             raise ValidationError(f"Unsupported instrument type: {type(instrument)}")

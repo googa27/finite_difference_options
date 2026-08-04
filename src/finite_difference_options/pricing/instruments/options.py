@@ -146,7 +146,6 @@ class UnifiedBermudanOption(UnifiedAmericanOption):
             raise ValidationError("exercise_dates must not exceed maturity")
 
 
-
 class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     """Basket option payoff on a weighted combination of underlying states.
 
@@ -219,9 +218,7 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
             raise ValidationError("strikes and weights must be nonempty")
         if len(self.strikes) != len(self.weights):
             raise ValidationError("strikes and weights must have same length")
-        if not np.all(np.isfinite(self.strikes)) or not np.all(
-            np.isfinite(self.weights)
-        ):
+        if not np.all(np.isfinite(self.strikes)) or not np.all(np.isfinite(self.weights)):
             raise ValidationError("strikes and weights must contain only finite values")
         if self.asset_ids is not None and len(self.asset_ids) != len(self.weights):
             raise ValidationError("asset_ids must have the same length as weights")
@@ -309,18 +306,10 @@ class StandardBasketOption(UnifiedInstrument, BaseModel):
         validate_weights_sum_to_one(self.weights)
         if self.asset_ids is not None and len(self.asset_ids) != len(self.weights):
             raise ValidationError("asset_ids must have the same length as weights")
-        if self.asset_currencies is not None and len(self.asset_currencies) != len(
-            self.weights
-        ):
-            raise ValidationError(
-                "asset_currencies must have the same length as weights"
-            )
+        if self.asset_currencies is not None and len(self.asset_currencies) != len(self.weights):
+            raise ValidationError("asset_currencies must have the same length as weights")
         if self.asset_currencies is not None and self.basket_currency is not None:
-            mismatches = [
-                currency
-                for currency in self.asset_currencies
-                if currency != self.basket_currency
-            ]
+            mismatches = [currency for currency in self.asset_currencies if currency != self.basket_currency]
             if mismatches:
                 raise ValidationError(
                     "cross-currency basket conversion is unsupported; provide single-currency inputs "
@@ -367,15 +356,9 @@ class SpreadOption(StandardBasketOption):
         if self.asset_ids is not None and len(self.asset_ids) != 2:
             raise ValidationError("asset_ids must have length 2 for spread options")
         if self.asset_currencies is not None and len(self.asset_currencies) != 2:
-            raise ValidationError(
-                "asset_currencies must have length 2 for spread options"
-            )
+            raise ValidationError("asset_currencies must have length 2 for spread options")
         if self.asset_currencies is not None and self.basket_currency is not None:
-            mismatches = [
-                currency
-                for currency in self.asset_currencies
-                if currency != self.basket_currency
-            ]
+            mismatches = [currency for currency in self.asset_currencies if currency != self.basket_currency]
             if mismatches:
                 raise ValidationError("cross-currency spread conversion is unsupported")
 

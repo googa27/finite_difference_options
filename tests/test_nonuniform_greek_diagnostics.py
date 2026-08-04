@@ -26,9 +26,9 @@ def _black_scholes_call_value(s: np.ndarray, *, strike: float, rate: float, sigm
     values[~positive] = 0.0
     d1 = (np.log(s[positive] / strike) + (rate + 0.5 * sigma**2) * tau) / (sigma * sqrt(tau))
     d2 = d1 - sigma * sqrt(tau)
-    values[positive] = s[positive] * np.vectorize(_standard_normal_cdf)(d1) - strike * exp(
-        -rate * tau
-    ) * np.vectorize(_standard_normal_cdf)(d2)
+    values[positive] = s[positive] * np.vectorize(_standard_normal_cdf)(d1) - strike * exp(-rate * tau) * np.vectorize(
+        _standard_normal_cdf
+    )(d2)
     return values
 
 
@@ -148,9 +148,9 @@ def test_black_scholes_nonuniform_greeks_converge_and_report_error_diagnostics()
     assert fine_gamma_estimate is not None
     assert fine_gamma_estimate.diagnostics["reference_abs_error"] == pytest.approx(errors[2][1])
     assert fine_gamma_estimate.diagnostics["refinement_abs_error"] is not None
-    assert fine_gamma_estimate.diagnostics["reported_abs_error"] >= fine_gamma_estimate.diagnostics[
-        "reference_abs_error"
-    ]
+    assert (
+        fine_gamma_estimate.diagnostics["reported_abs_error"] >= fine_gamma_estimate.diagnostics["reference_abs_error"]
+    )
     assert fine_gamma_estimate.diagnostics["independent_within_reported_error"] is True
 
 

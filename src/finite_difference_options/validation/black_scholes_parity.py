@@ -61,7 +61,6 @@ class TimeAxisSpec:
 
 def _portable_row_index(index: int, row_count: int) -> int:
     """Return a nonnegative row index for JSON consumers outside Python."""
-
     portable_index = index if index >= 0 else row_count + index
     if portable_index < 0 or portable_index >= row_count:
         raise IndexError(f"row index {index} is outside a grid with {row_count} rows")
@@ -92,7 +91,6 @@ class BlackScholesParityCase:
 
     def normalized_units(self) -> dict[str, str]:
         """Return explicit synthetic units for evidence serialization."""
-
         return self.units or {"underlying": "synthetic_currency", "time": "ACT/365F"}
 
 
@@ -129,24 +127,20 @@ class BlackScholesParityReport:
     @property
     def max_abs_error(self) -> float:
         """Maximum absolute pricing error across convergence rows."""
-
         return max(observation.abs_error for observation in self.observations)
 
     @property
     def final_abs_error(self) -> float:
         """Absolute pricing error on the finest configured grid."""
-
         return self.observations[-1].abs_error
 
     @property
     def converged(self) -> bool:
         """Whether the finest grid satisfies the fixture tolerance."""
-
         return self.final_abs_error <= self.case.tolerance
 
     def convergence_table(self) -> tuple[dict[str, float | int], ...]:
         """Return a JSON-friendly convergence table."""
-
         return tuple(
             {
                 "s_steps": row.s_steps,
@@ -160,7 +154,6 @@ class BlackScholesParityReport:
 
     def as_dict(self) -> dict[str, Any]:
         """Return the arXiv-Lab-friendly serialized export payload."""
-
         final_s_steps = self.observations[-1].s_steps
         final_t_steps = self.observations[-1].t_steps
         valuation_time_index = _portable_row_index(self.time_axis.valuation_index, final_t_steps)
@@ -232,7 +225,12 @@ class BlackScholesParityReport:
 
 
 def black_scholes_call_oracle(
-    spot: float, strike: float, rate: float, sigma: float, maturity: float, dividend_yield: float = 0.0  # noqa: E501
+    spot: float,
+    strike: float,
+    rate: float,
+    sigma: float,
+    maturity: float,
+    dividend_yield: float = 0.0,  # noqa: E501
 ) -> float:
     """Analytical Black--Scholes call price used as the public oracle."""
     d1 = (log(spot / strike) + (rate - dividend_yield + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
@@ -241,7 +239,12 @@ def black_scholes_call_oracle(
 
 
 def black_scholes_call_greeks(
-    spot: float, strike: float, rate: float, sigma: float, maturity: float, dividend_yield: float = 0.0  # noqa: E501
+    spot: float,
+    strike: float,
+    rate: float,
+    sigma: float,
+    maturity: float,
+    dividend_yield: float = 0.0,  # noqa: E501
 ) -> dict[str, float]:
     """Analytical Black--Scholes call delta and gamma used for benchmark deltas."""
     d1 = (log(spot / strike) + (rate - dividend_yield + 0.5 * sigma**2) * maturity) / (sigma * sqrt(maturity))
@@ -256,7 +259,6 @@ def _build_public_problem_spec(
     grid_levels: tuple[tuple[int, int], ...],
 ) -> dict[str, Any]:
     """Build a tiny public QuantProblemSpec payload for the deterministic fixture."""
-
     max_s_steps = max(level[0] for level in grid_levels)
     max_t_steps = max(level[1] for level in grid_levels)
     coefficient_terms = [
@@ -359,7 +361,6 @@ def public_black_scholes_problem_spec(
     grid_levels: tuple[tuple[int, int], ...] = ((40, 40), (80, 120), (120, 200)),
 ) -> dict[str, Any]:
     """Return the canonical QuantProblemSpec for the executable public fixture."""
-
     fixture_case = case or BlackScholesParityCase()
     return _build_public_problem_spec(fixture_case, grid_levels)
 
@@ -376,7 +377,6 @@ def run_public_black_scholes_parity_fixture(
     grids. It records boundary assumptions and resource controls so a router can
     compare evidence without importing private market data or hidden defaults.
     """
-
     case = case or BlackScholesParityCase()
     oracle_price = black_scholes_call_oracle(case.spot, case.strike, case.rate, case.sigma, case.maturity)
     reference_greeks = black_scholes_call_greeks(case.spot, case.strike, case.rate, case.sigma, case.maturity)

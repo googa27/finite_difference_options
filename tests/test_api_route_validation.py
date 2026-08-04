@@ -29,9 +29,7 @@ def _payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def _assert_unsupported(
-    response, *, route: str, reason_fragment: str
-) -> dict[str, object]:
+def _assert_unsupported(response, *, route: str, reason_fragment: str) -> dict[str, object]:
     assert response.status_code == 501
     body = response.json()
     assert body["schema_version"] == API_SCHEMA_VERSION
@@ -44,9 +42,7 @@ def _assert_unsupported(
     return body
 
 
-def test_supported_black_scholes_vanilla_contract_is_explicit_and_still_prices() -> (
-    None
-):
+def test_supported_black_scholes_vanilla_contract_is_explicit_and_still_prices() -> None:
     response = TestClient(app).post("/price", json=_payload())
 
     assert response.status_code == 200
@@ -101,12 +97,8 @@ def test_known_but_unsupported_route_contracts_fail_closed_before_pricing(
 ) -> None:
     response = TestClient(app).post("/price", json=_payload(**overrides))
 
-    body = _assert_unsupported(
-        response, route="/price", reason_fragment=reason_fragment
-    )
-    assert (
-        body["detail"]["requested_contract"]["model"] == _payload(**overrides)["model"]
-    )
+    body = _assert_unsupported(response, route="/price", reason_fragment=reason_fragment)
+    assert body["detail"]["requested_contract"]["model"] == _payload(**overrides)["model"]
 
 
 def test_unsupported_contracts_fail_closed_on_greeks_and_full_pde_routes() -> None:
@@ -118,12 +110,8 @@ def test_unsupported_contracts_fail_closed_on_greeks_and_full_pde_routes() -> No
         json=_payload(model="heston", process="heston", include_full_grid=True),
     )
 
-    _assert_unsupported(
-        greeks, route="/greeks", reason_fragment="model heston is not enabled"
-    )
-    _assert_unsupported(
-        pde, route="/pde_solution", reason_fragment="model heston is not enabled"
-    )
+    _assert_unsupported(greeks, route="/greeks", reason_fragment="model heston is not enabled")
+    _assert_unsupported(pde, route="/pde_solution", reason_fragment="model heston is not enabled")
 
 
 @pytest.mark.parametrize(
@@ -137,12 +125,8 @@ def test_unsupported_contracts_fail_closed_on_greeks_and_full_pde_routes() -> No
         ("vol_of_vol", -0.01),
     ],
 )
-def test_model_specific_scalar_constraints_are_validated(
-    field: str, bad_value: float
-) -> None:
-    response = TestClient(app).post(
-        "/price", json=_payload(model="heston", **{field: bad_value})
-    )
+def test_model_specific_scalar_constraints_are_validated(field: str, bad_value: float) -> None:
+    response = TestClient(app).post("/price", json=_payload(model="heston", **{field: bad_value}))
 
     assert response.status_code == 422
     body = response.json()
@@ -156,9 +140,7 @@ def test_supported_black_scholes_route_rejects_unused_heston_parameters() -> Non
     assert response.status_code == 422
     body = response.json()
     assert body["error"]["code"] == "validation_error"
-    assert "black_scholes route does not accept model-specific fields" in str(
-        body["detail"]
-    )
+    assert "black_scholes route does not accept model-specific fields" in str(body["detail"])
 
 
 def test_openapi_exposes_explicit_model_payoff_process_enums() -> None:

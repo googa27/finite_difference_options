@@ -1,7 +1,5 @@
 """Tests for input validation functionality."""
 
-
-
 import numpy as np
 import pytest
 from finite_difference_options.exceptions import (
@@ -73,9 +71,7 @@ def test_validate_model_parameters():
         validate_model_parameters(0.05, -0.2, 0.0)  # Negative volatility not allowed
 
     with pytest.raises(ModelError, match="Invalid model parameter"):
-        validate_model_parameters(
-            0.05, 0.2, -0.01
-        )  # Negative dividend yield not allowed
+        validate_model_parameters(0.05, 0.2, -0.01)  # Negative dividend yield not allowed
 
 
 def test_option_validation_in_constructor():

@@ -176,14 +176,10 @@ def validate_links(repo_root: Path) -> list[str]:
                 try:
                     candidate.relative_to(repo_root.resolve())
                 except ValueError:
-                    failures.append(
-                        f"{rel_file}:{line_number}: link escapes repository: {target}"
-                    )
+                    failures.append(f"{rel_file}:{line_number}: link escapes repository: {target}")
                     continue
                 if not candidate.exists():
-                    failures.append(
-                        f"{rel_file}:{line_number}: missing relative link target: {target}"
-                    )
+                    failures.append(f"{rel_file}:{line_number}: missing relative link target: {target}")
     return failures
 
 

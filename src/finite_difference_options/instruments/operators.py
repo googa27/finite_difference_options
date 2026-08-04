@@ -34,24 +34,16 @@ class SpatialOperator:
 
         grid = np.asarray(s, dtype=float)
         if grid.ndim != 1 or len(grid) < 3:
-            raise ValidationError(
-                "SpatialOperator requires a one-dimensional grid with at least 3 nodes"
-            )
+            raise ValidationError("SpatialOperator requires a one-dimensional grid with at least 3 nodes")
         if not np.all(np.isfinite(grid)) or np.any(np.diff(grid) <= 0.0):
-            raise ValidationError(
-                "SpatialOperator grid must be finite and strictly increasing"
-            )
+            raise ValidationError("SpatialOperator grid must be finite and strictly increasing")
         spacing = np.diff(grid)
         ds = float(spacing[0])
         d1 = fd.Diff(0, ds)
         d2 = d1**2
         m = self.model
         discount = self._resolved_discount_rate()
-        return (
-            fd.Coef(0.5 * m.sigma**2 * grid**2) * d2
-            + fd.Coef(m.mu * grid) * d1
-            - discount * fd.Identity()
-        )
+        return fd.Coef(0.5 * m.sigma**2 * grid**2) * d2 + fd.Coef(m.mu * grid) * d1 - discount * fd.Identity()
 
     def _resolved_discount_rate(self) -> float:
         if self.discount_rate is not None:

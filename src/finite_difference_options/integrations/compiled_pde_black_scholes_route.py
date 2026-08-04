@@ -117,11 +117,7 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
         "reference_delta": reference_greeks["delta"],
         "reference_gamma": reference_greeks["gamma"],
         "convergence": tuple(observations),
-        "converged": (
-            price_abs <= price_tolerance
-            and delta_abs <= delta_tolerance
-            and gamma_abs <= gamma_tolerance
-        ),
+        "converged": (price_abs <= price_tolerance and delta_abs <= delta_tolerance and gamma_abs <= gamma_tolerance),
         "errors": {
             "price_abs": price_abs,
             "price_tolerance": price_tolerance,
@@ -151,8 +147,7 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
         },
         "boundary_assumptions": (
             "lower boundary: explicit compiled PDE Dirichlet V(0,tau)=0",
-            "upper boundary: explicit compiled PDE time-dependent far-field "
-            "V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)",
+            "upper boundary: explicit compiled PDE time-dependent far-field V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)",
             "uniform physical-price grid on the compiled route domain",
             "theta time stepping with per-step boundary-row rebuild",
         ),

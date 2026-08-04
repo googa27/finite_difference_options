@@ -99,9 +99,7 @@ class TestUnifiedBasketOption:
         strikes = np.array([100.0, 110.0])
         weights = np.array([0.6, 0.4])
 
-        option = UnifiedBasketOption(
-            strikes=strikes, weights=weights, maturity=1.0, option_type="call"
-        )
+        option = UnifiedBasketOption(strikes=strikes, weights=weights, maturity=1.0, option_type="call")
         assert_array_equal(option.strikes, strikes)
         assert_array_equal(option.weights, weights)
         assert option.maturity == 1.0
@@ -110,12 +108,8 @@ class TestUnifiedBasketOption:
     def test_parameter_validation(self):
         """Test basket option parameter validation."""
         # Mismatched strikes and weights
-        with pytest.raises(
-            ValidationError, match="strikes and weights must have same length"
-        ):
-            UnifiedBasketOption(
-                strikes=np.array([100.0]), weights=np.array([0.6, 0.4]), maturity=1.0
-            )
+        with pytest.raises(ValidationError, match="strikes and weights must have same length"):
+            UnifiedBasketOption(strikes=np.array([100.0]), weights=np.array([0.6, 0.4]), maturity=1.0)
 
         # Negative strike
         with pytest.raises(ValidationError, match="All strikes must be positive"):
@@ -130,9 +124,7 @@ class TestUnifiedBasketOption:
         strikes = np.array([100.0, 110.0])
         weights = np.array([0.6, 0.4])
 
-        option = UnifiedBasketOption(
-            strikes=strikes, weights=weights, maturity=1.0, option_type="call"
-        )
+        option = UnifiedBasketOption(strikes=strikes, weights=weights, maturity=1.0, option_type="call")
 
         # Create 2D grids
         s1_grid = np.array([90.0, 100.0, 110.0])
@@ -157,9 +149,7 @@ class TestUnifiedBasketOption:
         strikes = np.array([100.0, 110.0])
         weights = np.array([0.6, 0.4])
 
-        option = UnifiedBasketOption(
-            strikes=strikes, weights=weights, maturity=1.0, option_type="put"
-        )
+        option = UnifiedBasketOption(strikes=strikes, weights=weights, maturity=1.0, option_type="put")
 
         s1_grid = np.array([90.0, 100.0])
         s2_grid = np.array([100.0])
@@ -175,9 +165,7 @@ class TestUnifiedBasketOption:
 
     def test_wrong_number_of_grids(self):
         """Test error with wrong number of grids."""
-        option = UnifiedBasketOption(
-            strikes=np.array([100.0, 110.0]), weights=np.array([0.6, 0.4]), maturity=1.0
-        )
+        option = UnifiedBasketOption(strikes=np.array([100.0, 110.0]), weights=np.array([0.6, 0.4]), maturity=1.0)
 
         with pytest.raises(ValidationError, match="Expected 2 grids, got 1"):
             option.payoff(np.array([100.0]))

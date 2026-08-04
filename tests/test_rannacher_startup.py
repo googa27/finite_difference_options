@@ -74,10 +74,6 @@ def test_rannacher_startup_reduces_near_strike_gamma_roughness() -> None:
     )
     rannacher = rannacher_pricer.price(option=option, s=s_grid, t=time_grid)
 
-    assert _gamma_roughness(rannacher, s_grid) < 0.85 * _gamma_roughness(
-        pure_cn, s_grid
-    )
-    assert [entry.label for entry in rannacher_pricer.last_step_schedule[:4]] == [
-        "rannacher_be_half_step"
-    ] * 4
+    assert _gamma_roughness(rannacher, s_grid) < 0.85 * _gamma_roughness(pure_cn, s_grid)
+    assert [entry.label for entry in rannacher_pricer.last_step_schedule[:4]] == ["rannacher_be_half_step"] * 4
     assert np.all(np.isfinite(rannacher))

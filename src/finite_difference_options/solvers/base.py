@@ -125,9 +125,7 @@ class FiniteDifferenceSolverAdapter(Solver):
         and ``prices[-1]`` at maturity, consistent with unified API docs.
         """
         if len(grids) != 1:
-            raise ValidationError(
-                "1D finite difference solver expects a single spatial grid"
-            )
+            raise ValidationError("1D finite difference solver expects a single spatial grid")
 
         if time_grid is None or len(time_grid) == 0:
             time_grid = np.linspace(0.0, instrument.maturity, 50)
@@ -155,7 +153,6 @@ class FiniteDifferenceSolverAdapter(Solver):
         self.last_step_schedule = self._solver.last_step_schedule
         return solution[::-1]
 
-
     def _solve_obstacle_lcp(
         self,
         initial_condition: NDArray[np.float64],
@@ -167,9 +164,7 @@ class FiniteDifferenceSolverAdapter(Solver):
     ) -> NDArray[np.float64]:
         """Solve a 1D Black-Scholes obstacle problem and return calendar order."""
         if not hasattr(instrument, "strike") or not hasattr(instrument, "option_type"):
-            raise ValidationError(
-                "American/Bermudan LCP route requires a vanilla strike and option_type"
-            )
+            raise ValidationError("American/Bermudan LCP route requires a vanilla strike and option_type")
         if not isinstance(self._process, GeometricBrownianMotion):
             raise ValidationError(
                 "American/Bermudan LCP route currently supports only one-factor Black-Scholes/GBM processes"
@@ -259,9 +254,7 @@ class FiniteDifferenceSolverAdapter(Solver):
             raise ValidationError("American/Bermudan LCP route requires volatility/sigma")
         sigma = float(explicit)
         if sigma <= 0.0 or not np.isfinite(sigma):
-            raise ValidationError(
-                "American/Bermudan LCP volatility must be finite and positive"
-            )
+            raise ValidationError("American/Bermudan LCP volatility must be finite and positive")
         return sigma
 
 
@@ -299,17 +292,11 @@ class ADISolverWrapper(Solver):
 
         dimension = self._process.dimension.value
         if dimension not in {2, 3}:
-            raise ValidationError(
-                f"ADI wrapper supports only 2D and 3D processes, got {dimension}D"
-            )
+            raise ValidationError(f"ADI wrapper supports only 2D and 3D processes, got {dimension}D")
         if len(grids) != dimension:
-            raise ValidationError(
-                f"Expected {dimension} grids for ADI solve, got {len(grids)}"
-            )
+            raise ValidationError(f"Expected {dimension} grids for ADI solve, got {len(grids)}")
 
-        drift, covariance, reaction = self._build_process_coefficients(
-            float(time_grid[-1]), grids
-        )
+        drift, covariance, reaction = self._build_process_coefficients(float(time_grid[-1]), grids)
 
         if dimension == 2:
             return self._adi_solver.solve_2d(
@@ -350,8 +337,7 @@ class ADISolverWrapper(Solver):
         expected_reaction_shape = (states.shape[0],)
         if drift.shape != expected_drift_shape:
             raise ValidationError(
-                "process drift must have shape "
-                f"{expected_drift_shape} on the ADI state grid, got {drift.shape}"
+                f"process drift must have shape {expected_drift_shape} on the ADI state grid, got {drift.shape}"
             )
         if covariance.shape != expected_covariance_shape:
             raise ValidationError(
@@ -364,23 +350,13 @@ class ADISolverWrapper(Solver):
                 f"{expected_reaction_shape} on the ADI state grid, got {reaction.shape}"
             )
         if not np.all(np.isfinite(drift)):
-            raise ValidationError(
-                "process drift contains non-finite values on the ADI state grid"
-            )
+            raise ValidationError("process drift contains non-finite values on the ADI state grid")
         if not np.all(np.isfinite(covariance)):
-            raise ValidationError(
-                "process covariance contains non-finite values on the ADI state grid"
-            )
+            raise ValidationError("process covariance contains non-finite values on the ADI state grid")
         if not np.all(np.isfinite(reaction)):
-            raise ValidationError(
-                "process reaction/discount contains non-finite values on the ADI state grid"
-            )
-        if not np.allclose(
-            covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12
-        ):
-            raise ValidationError(
-                "process covariance must be symmetric on the ADI state grid"
-            )
+            raise ValidationError("process reaction/discount contains non-finite values on the ADI state grid")
+        if not np.allclose(covariance, np.swapaxes(covariance, -1, -2), rtol=1e-10, atol=1e-12):
+            raise ValidationError("process covariance must be symmetric on the ADI state grid")
         min_eigenvalue = float(np.min(np.linalg.eigvalsh(covariance)))
         if min_eigenvalue < -1e-10:
             raise ValidationError(

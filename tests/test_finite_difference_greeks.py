@@ -1,7 +1,5 @@
 """Unit tests for FiniteDifferenceGreeks."""
 
-
-
 import numpy as np
 
 from finite_difference_options.greeks import FiniteDifferenceGreeks

@@ -50,9 +50,7 @@ def _env_bool(name: str, *, default: bool = False) -> bool:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    raise ValueError(
-        f"{name} must be a boolean string: one of 1/0, true/false, yes/no, on/off"
-    )
+    raise ValueError(f"{name} must be a boolean string: one of 1/0, true/false, yes/no, on/off")
 
 
 def _env_int(name: str, *, default: int) -> int:
@@ -103,9 +101,7 @@ class DeploymentSecurityPolicy(BaseModel):
             auth_required=_env_bool("FDO_API_AUTH_REQUIRED"),
             api_key=os.environ.get("FDO_API_KEY") or None,
             rate_limit_requests=_env_int("FDO_API_RATE_LIMIT_REQUESTS", default=120),
-            rate_limit_window_seconds=_env_float(
-                "FDO_API_RATE_LIMIT_WINDOW_SECONDS", default=60.0
-            ),
+            rate_limit_window_seconds=_env_float("FDO_API_RATE_LIMIT_WINDOW_SECONDS", default=60.0),
         )
 
 
@@ -247,13 +243,9 @@ class OptionRequest(BaseModel):
     max_output_nodes: int = Field(default=50_000, ge=1, le=50_000)
     max_response_bytes: int = Field(default=8_000_000, ge=1, le=8_000_000)
     timeout_seconds: Optional[float] = Field(default=None, gt=0.0, le=5.0)
-    correlation: Optional[float] = Field(
-        default=None, ge=-1.0, le=1.0, allow_inf_nan=False
-    )
+    correlation: Optional[float] = Field(default=None, ge=-1.0, le=1.0, allow_inf_nan=False)
     variance: Optional[float] = Field(default=None, ge=0.0, allow_inf_nan=False)
-    long_run_variance: Optional[float] = Field(
-        default=None, ge=0.0, allow_inf_nan=False
-    )
+    long_run_variance: Optional[float] = Field(default=None, ge=0.0, allow_inf_nan=False)
     mean_reversion: Optional[float] = Field(default=None, gt=0.0, allow_inf_nan=False)
     vol_of_vol: Optional[float] = Field(default=None, ge=0.0, allow_inf_nan=False)
 
@@ -269,23 +261,16 @@ class OptionRequest(BaseModel):
             raise ValueError("strike must lie inside the spatial grid [0, s_max]")
         if self.state_dimensions > policy.max_state_dimensions:
             raise ValueError(
-                "state dimension budget exceeded: "
-                f"{self.state_dimensions} > {policy.max_state_dimensions}"
+                f"state dimension budget exceeded: {self.state_dimensions} > {policy.max_state_dimensions}"
             )
         if self.s_steps > policy.max_s_steps:
-            raise ValueError(
-                f"spatial step budget exceeded: {self.s_steps} > {policy.max_s_steps}"
-            )
+            raise ValueError(f"spatial step budget exceeded: {self.s_steps} > {policy.max_s_steps}")
         if self.t_steps > policy.max_t_steps:
-            raise ValueError(
-                f"time step budget exceeded: {self.t_steps} > {policy.max_t_steps}"
-            )
+            raise ValueError(f"time step budget exceeded: {self.t_steps} > {policy.max_t_steps}")
         node_count = self.state_dimensions * self.s_steps * self.t_steps
         node_budget = policy.max_compute_nodes
         if node_count > node_budget:
-            raise ValueError(
-                f"request exceeds node budget: {node_count} > {node_budget}"
-            )
+            raise ValueError(f"request exceeds node budget: {node_count} > {node_budget}")
         if self.model == PricingModel.BLACK_SCHOLES:
             extra_model_fields = [
                 name
@@ -300,8 +285,7 @@ class OptionRequest(BaseModel):
             ]
             if extra_model_fields:
                 raise ValueError(
-                    "black_scholes route does not accept model-specific fields: "
-                    + ", ".join(extra_model_fields)
+                    "black_scholes route does not accept model-specific fields: " + ", ".join(extra_model_fields)
                 )
         return self
 
@@ -309,9 +293,7 @@ class OptionRequest(BaseModel):
     def resolved_s_max(self) -> float:
         """Return explicit or default spatial upper bound."""
 
-        return float(
-            self.s_max if self.s_max is not None else max(self.spot, self.strike) * 3.0
-        )
+        return float(self.s_max if self.s_max is not None else max(self.spot, self.strike) * 3.0)
 
 
 class RouteWarning(BaseModel):
@@ -679,9 +661,7 @@ def _validation_error_details(exc: RequestValidationError) -> list[dict[str, Any
 
 
 @app.exception_handler(RequestValidationError)
-def _validation_exception_handler(
-    http_request: Request, exc: RequestValidationError
-) -> JSONResponse:
+def _validation_exception_handler(http_request: Request, exc: RequestValidationError) -> JSONResponse:
     """Return Pydantic/FastAPI validation failures as stable v1 error responses."""
 
     return _error_response(
@@ -788,9 +768,7 @@ def _auth_failure(
     )
 
 
-def _enforce_authentication(
-    http_request: Request, policy: DeploymentSecurityPolicy
-) -> JSONResponse | None:
+def _enforce_authentication(http_request: Request, policy: DeploymentSecurityPolicy) -> JSONResponse | None:
     if not policy.auth_required:
         return None
     if not policy.api_key:
@@ -823,9 +801,7 @@ def _rate_limit_key(http_request: Request) -> tuple[str, str]:
     return (http_request.url.path, client_host)
 
 
-def _enforce_rate_limit(
-    http_request: Request, policy: DeploymentSecurityPolicy
-) -> JSONResponse | None:
+def _enforce_rate_limit(http_request: Request, policy: DeploymentSecurityPolicy) -> JSONResponse | None:
     allowed, observed, retry_after = _RATE_LIMITER.check(
         _rate_limit_key(http_request),
         max_requests=policy.rate_limit_requests,
@@ -926,9 +902,7 @@ def _unsupported_contract_reason(request: OptionRequest) -> str | None:
     if request.model != PricingModel.BLACK_SCHOLES:
         return f"model {request.model.value} is not enabled"
     if request.process != ProcessType.GEOMETRIC_BROWNIAN_MOTION:
-        return (
-            f"process {request.process.value} is incompatible with model black_scholes"
-        )
+        return f"process {request.process.value} is incompatible with model black_scholes"
     if request.payoff_family != PayoffFamily.VANILLA_EUROPEAN:
         return f"payoff family {request.payoff_family.value} is incompatible with model black_scholes"
     if request.exercise_style != ExerciseStyle.EUROPEAN:
@@ -972,19 +946,11 @@ def _output_nodes(route: str, request: OptionRequest) -> int:
 
     grid_nodes = request.s_steps * request.t_steps
     if route == "/price":
-        return (
-            1 + request.s_steps + request.t_steps + grid_nodes
-            if request.include_full_grid
-            else 1
-        )
+        return 1 + request.s_steps + request.t_steps + grid_nodes if request.include_full_grid else 1
     if route == "/greeks":
         return 3
     if route == "/pde_solution":
-        return (
-            request.s_steps + request.t_steps + 4 * grid_nodes
-            if request.include_full_grid
-            else 0
-        )
+        return request.s_steps + request.t_steps + 4 * grid_nodes if request.include_full_grid else 0
     return 0
 
 
@@ -1134,9 +1100,7 @@ def _compute_grid(request: OptionRequest, *, return_greeks: bool = False):
     )
 
 
-def _sample_grid_at_spot(
-    values: np.ndarray, grid: np.ndarray, spot: float
-) -> GridSample:
+def _sample_grid_at_spot(values: np.ndarray, grid: np.ndarray, spot: float) -> GridSample:
     """Sample a one-dimensional solution grid at the requested spot with diagnostics."""
 
     values_array = np.asarray(values, dtype=float)
@@ -1173,9 +1137,7 @@ def _sample_grid_at_spot(
         )
 
     upper_index = int(np.searchsorted(grid_array, requested_spot, side="left"))
-    if upper_index < len(grid_array) and np.isclose(
-        grid_array[upper_index], requested_spot, rtol=0.0, atol=1e-12
-    ):
+    if upper_index < len(grid_array) and np.isclose(grid_array[upper_index], requested_spot, rtol=0.0, atol=1e-12):
         value = float(values_array[upper_index])
         diagnostics = SamplingDiagnostics(
             requested_spot=requested_spot,
@@ -1188,9 +1150,7 @@ def _sample_grid_at_spot(
         )
         return GridSample(value=value, sampling=diagnostics)
 
-    if upper_index <= 0 or upper_index >= len(
-        grid_array
-    ):  # pragma: no cover - defensive
+    if upper_index <= 0 or upper_index >= len(grid_array):  # pragma: no cover - defensive
         raise HTTPException(
             status_code=400,
             detail={
@@ -1212,9 +1172,7 @@ def _sample_grid_at_spot(
             detail="requested-state sampling requires a strictly increasing grid",
         )
     weight = (requested_spot - lower_spot) / bracket_width
-    value = float(
-        (1.0 - weight) * values_array[lower_index] + weight * values_array[upper_index]
-    )
+    value = float((1.0 - weight) * values_array[lower_index] + weight * values_array[upper_index])
     diagnostics = SamplingDiagnostics(
         requested_spot=requested_spot,
         method="linear_interpolation",
@@ -1270,9 +1228,7 @@ def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
     with _ResourceLease(route, budget) as lease:
         res = _compute_grid(request, return_greeks=True)
         lease.check_deadline(stage="after_solve")
-        if (
-            res.delta is None or res.gamma is None or res.theta is None
-        ):  # pragma: no cover - defensive
+        if res.delta is None or res.gamma is None or res.theta is None:  # pragma: no cover - defensive
             raise HTTPException(status_code=500, detail="Greek grid was not computed")
         delta_sample = _sample_grid_at_spot(res.delta[-1], res.s, request.spot)
         gamma_sample = _sample_grid_at_spot(res.gamma[-1], res.s, request.spot)
@@ -1296,9 +1252,7 @@ def greeks(request: OptionRequest, http_request: Request) -> GreeksResponse:
     )
 
 
-@app.post(
-    "/pde_solution", response_model=FullPDEResponse, responses=API_ERROR_RESPONSES
-)
+@app.post("/pde_solution", response_model=FullPDEResponse, responses=API_ERROR_RESPONSES)
 def pde_solution(request: OptionRequest, http_request: Request) -> FullPDEResponse:
     """Return complete solution and Greeks grids only after explicit opt-in."""
 
@@ -1313,9 +1267,7 @@ def pde_solution(request: OptionRequest, http_request: Request) -> FullPDERespon
     with _ResourceLease(route, budget) as lease:
         res = _compute_grid(request, return_greeks=True)
         lease.check_deadline(stage="after_solve")
-        if (
-            res.delta is None or res.gamma is None or res.theta is None
-        ):  # pragma: no cover - defensive
+        if res.delta is None or res.gamma is None or res.theta is None:  # pragma: no cover - defensive
             raise HTTPException(status_code=500, detail="Greek grid was not computed")
         lease.check_deadline(stage="after_grid_assembly")
     return FullPDEResponse(

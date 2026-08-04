@@ -28,9 +28,7 @@ class PlottingConfigManager:
     elev: Optional[float] = 25
     azim: Optional[float] = -60
 
-    def heatmap(
-        self, *, x_label: str = "Time", y_label: str = "Asset price", **overrides
-    ) -> PlotOptions:
+    def heatmap(self, *, x_label: str = "Time", y_label: str = "Asset price", **overrides) -> PlotOptions:
         # Allow overrides for fields we set explicitly to avoid duplicates.
         cmap = overrides.pop("cmap", self.cmap)
         height = overrides.pop("height", self.height)

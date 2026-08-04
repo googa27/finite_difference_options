@@ -129,9 +129,7 @@ def validate_option_parameters(strike: float, maturity: float) -> None:
         raise InstrumentError(f"Invalid option parameter: {e}") from e
 
 
-def validate_model_parameters(
-    risk_free_rate: float, volatility: float, dividend_yield: float = 0.0
-) -> None:
+def validate_model_parameters(risk_free_rate: float, volatility: float, dividend_yield: float = 0.0) -> None:
     """Validate geometric Brownian motion model parameters.
 
     Parameters
@@ -190,9 +188,7 @@ def validate_array(
         raise ValidationError(f"{name} must be a numpy array")
 
     if array.size < min_length:
-        raise ValidationError(
-            f"{name} must have at least {min_length} elements, got {array.size}"
-        )
+        raise ValidationError(f"{name} must have at least {min_length} elements, got {array.size}")
 
     if not np.isfinite(array).all():
         raise ValidationError(f"{name} contains non-finite values")
@@ -224,6 +220,5 @@ def validate_spot_price(spot_price: float, spatial_grid: NDArray[np.float64]) ->
 
     if spot_price < spatial_grid[0] or spot_price > spatial_grid[-1]:
         raise ValidationError(
-            f"spot_price {spot_price} is outside spatial grid range "
-            f"[{spatial_grid[0]}, {spatial_grid[-1]}]"
+            f"spot_price {spot_price} is outside spatial grid range [{spatial_grid[0]}, {spatial_grid[-1]}]"
         )

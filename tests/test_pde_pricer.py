@@ -1,7 +1,5 @@
 """Tests for the finite difference Black--Scholes pricer."""
 
-
-
 import numpy as np
 from finite_difference_options.processes.affine import GeometricBrownianMotion
 from finite_difference_options.instruments.base import EuropeanCall, EuropeanPut

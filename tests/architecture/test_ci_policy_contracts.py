@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -15,9 +16,7 @@ def test_third_party_actions_are_pinned_to_full_commit_shas() -> None:
     unpinned: list[str] = []
     uses_re = re.compile(r"^\s*(?:-\s*)?uses:\s*['\"]?([^'\"\s]+)")
     for workflow_path in workflows:
-        for line_number, line in enumerate(
-            workflow_path.read_text(encoding="utf-8").splitlines(), start=1
-        ):
+        for line_number, line in enumerate(workflow_path.read_text(encoding="utf-8").splitlines(), start=1):
             match = uses_re.search(line)
             if not match:
                 continue
@@ -44,6 +43,7 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     assert "Static smoke gate" in workflow
     assert "python -m compileall -q src tests scripts" in workflow
     assert "ruff check . --select E9,F63,F7,F82" in workflow
+    assert "ruff format --check ." in workflow
     assert "mypy --ignore-missing-imports" in workflow
     assert "Architecture and packaging contracts" in workflow
     assert "pytest -q tests/architecture tests/test_packaging_contract.py --no-cov" in workflow
@@ -57,6 +57,29 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     assert "Generate release manifest" in workflow
     assert "scripts/write_release_manifest.py --dist dist --output dist/release-manifest.json" in workflow
     assert "retention-days: 14" in workflow
+
+
+def test_formatter_has_one_exactly_pinned_owner_across_local_and_ci_surfaces() -> None:
+    pyproject = tomllib.loads(_read("pyproject.toml"))
+    dev_dependencies = pyproject["project"]["optional-dependencies"]["dev"]
+    pre_commit = _read(".pre-commit-config.yaml")
+    requirements = _read("requirements-dev.txt")
+    locked_requirements = _read("requirements-dev.lock.txt")
+    qwen = _read("QWEN.md")
+    project_context = _read("docs/PROJECT_CONTEXT.md")
+
+    assert "ruff==0.15.21" in dev_dependencies
+    assert not any(dependency.startswith("black") for dependency in dev_dependencies)
+    assert "ruff==0.15.21" in requirements.splitlines()
+    assert "ruff==0.15.21" in locked_requirements.splitlines()
+    assert not any(line.startswith(("black==", "pytokens==")) for line in locked_requirements.splitlines())
+    assert "entry: ruff format --check --force-exclude" in pre_commit
+    assert "entry: ruff check --force-exclude" in pre_commit
+    assert "entry: black" not in pre_commit
+    assert "Ruff formatting and linting" in qwen
+    assert "Black formatting" not in qwen
+    assert "**Dev**: pytest, mypy, ruff" in project_context
+    assert "**Dev**: pytest, mypy, ruff, black" not in project_context
 
 
 def test_ci_jobs_declare_bounded_runtime_and_artifact_retention() -> None:

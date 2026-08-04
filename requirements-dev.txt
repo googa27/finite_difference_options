@@ -1,7 +1,6 @@
 # Direct development dependencies mirrored from pyproject.toml.
 # For a reproducible fully pinned environment, use requirements-dev.lock.txt.
 -r requirements.txt
-black>=26.3.1,<27
 build>=1,<2
 cyclonedx-bom>=5,<8
 fastapi>=0.116,<1
@@ -14,7 +13,7 @@ pre-commit>=4.3,<5
 pytest>=9.0.3,<10
 pytest-cov>=5,<7
 pytest-xdist>=3.6,<4
-ruff>=0.12,<1
+ruff==0.15.21
 seaborn>=0.13,<1
 streamlit>=1.48,<2
 twine>=5,<7
