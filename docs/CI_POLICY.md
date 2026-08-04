@@ -53,13 +53,13 @@ The optional-profile job builds a wheel and installs it in clean environments fo
 - `viz`;
 - `validation`.
 
-Each profile imports its advertised optional surface from the installed wheel. This keeps FastAPI, Typer, Streamlit, Matplotlib/Plotly/Seaborn, and test tooling out of core metadata while still proving the extras resolve.
+Each profile imports its advertised optional surface from the installed wheel. The validation profile composes the API extra and owns `httpx2>=2,<3` for Starlette/FastAPI TestClient; its clean-wheel smoke imports TestClient/httpx2 and proves legacy `httpx` is absent. This keeps FastAPI, Typer, Streamlit, Matplotlib/Plotly/Seaborn, and test tooling out of core metadata while still proving the extras resolve.
 
 ### Audit/SBOM job
 
-The audit job installs the development profile, applies `requirements-dev.lock.txt`, runs `python -m pip check`, runs `python -m pip_audit --progress-spinner=off --skip-editable`, and emits a CycloneDX JSON SBOM.
+The audit job installs and audits the declared development profile first, then applies and audits `requirements-dev.lock.txt`, runs `python -m pip check` in both states, and emits a CycloneDX JSON SBOM. This prevents a secure legacy audit lock from hiding a vulnerable pyproject/uv resolution.
 
-`requirements-dev.lock.txt` is the pinned reproducible development/audit environment. `pyproject.toml` remains the package metadata source of truth and intentionally keeps compatible runtime ranges.
+`requirements-dev.lock.txt` is the pinned reproducible development/audit environment. `pyproject.toml` remains the package metadata source of truth and intentionally keeps compatible runtime ranges. Security-critical development floors for cryptography and GitPython, plus a ceiling excluding yanked build 1.5.1, are declared directly and enforced against both `uv.lock` and the legacy audit lock by architecture tests.
 
 ### Node job
 
