@@ -43,8 +43,8 @@ class SpatialOperator:
             )
         spacing = np.diff(grid)
         ds = float(spacing[0])
-        d1 = fd.FinDiff(0, ds, 1)
-        d2 = fd.FinDiff(0, ds, 2)
+        d1 = fd.Diff(0, ds)
+        d2 = d1**2
         m = self.model
         discount = self._resolved_discount_rate()
         return (

@@ -37,6 +37,25 @@ Truncation and far-field behavior must be explicit. For example, a vanilla equit
 
 Spatial derivative operators must declare coordinate, order, stencil, local spacing and boundary closure. Uniform-grid formulas and nonuniform-grid formulas are different policies. Mixed derivatives use the declared covariance convention and sign; covariance is validated for shape, finiteness, symmetry and positive semidefiniteness before operator assembly.
 
+For the current one-factor, uniform-spot adapter with spacing $\Delta S$, the maintained Findiff construction is
+
+$$
+D_S = \operatorname{Diff}(0, \Delta S),
+\qquad
+D_{SS} = D_S^2,
+$$
+
+and the semidiscrete GBM operator is
+
+$$
+L_h
+= \frac{1}{2}\sigma^2 S^2 D_{SS}
++ \mu S D_S
+- rI.
+$$
+
+`SpatialOperator` uses `findiff.Diff` for $D_S$ and operator exponentiation for $D_{SS}$. The deprecated `FinDiff` compatibility constructor is not a supported runtime adapter API. A quadratic-oracle test checks this assembly because second-order stencils differentiate quadratic values exactly, including the one-sided boundary closures used by Findiff.
+
 The core must not invent dummy drifts, covariances, discounts or sources. A selectable route that cannot obtain an explicit coefficient field fails closed before numerical work.
 
 ## Time stepping
