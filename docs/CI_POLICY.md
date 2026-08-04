@@ -74,7 +74,7 @@ If the frontend becomes a maintained deliverable, a successor issue must add a c
 
 ## Supply-chain/runtime controls
 
-All third-party GitHub Actions are pinned to reviewed full commit SHAs. Mutable tags such as `@v4` or `@v0` may appear only in explanatory comments, not as executable refs. The CI workflow declares top-level read-only contents permission, workflow concurrency/cancellation, per-job timeouts, and explicit artifact retention.
+All third-party GitHub Actions are pinned to reviewed full commit SHAs. Mutable tags such as `@v7` may appear only in explanatory comments, not as executable refs. The core official action matrix uses Node-24-backed releases: checkout v7.0.1, setup-python v7.0.0, setup-node v7.0.0, and upload-artifact v7.0.1. `tests/architecture/test_ci_policy_contracts.py` owns the immutable commit mapping and rejects legacy action pins. The CI workflow declares top-level read-only contents permission, workflow concurrency/cancellation, per-job timeouts, and explicit artifact retention.
 
 Release-manifest generation is intentionally lightweight and deterministic: `scripts/write_release_manifest.py` hashes built distributions plus governance inputs (`pyproject.toml`, requirements/lock files, capability matrix, and benchmark-registry fixture). This links source commit, artifact hashes, CI run metadata, and production route evidence without reading secrets.
 
