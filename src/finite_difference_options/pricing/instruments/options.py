@@ -12,6 +12,7 @@ import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from ._option_type import _validate_vanilla_option_type
 from .base import UnifiedInstrument
 from .payoff_calculators import PayoffCalculatorFactory
 from ...processes.base import FactorRole
@@ -61,10 +62,8 @@ class UnifiedEuropeanOption(UnifiedInstrument, BaseModel):
     @field_validator("option_type")
     @classmethod
     def validate_option_type(cls, v: str) -> str:
-        """Validate option type and normalise invalid values."""
-        if v not in ["call", "put"]:
-            raise ValidationError(f"option_type must be 'call' or 'put', got {v}")
-        return v
+        """Validate a supported vanilla option type and fail closed otherwise."""
+        return _validate_vanilla_option_type(v)
 
     def payoff(self, *grids: NDArray[np.float64]) -> NDArray[np.float64]:
         """Compute European payoff for one or more spot grids.
@@ -196,9 +195,7 @@ class UnifiedBasketOption(UnifiedInstrument, BaseModel):
     @classmethod
     def validate_option_type(cls, v: str) -> str:
         """Validate option type."""
-        if v not in ["call", "put"]:
-            raise ValidationError(f"option_type must be 'call' or 'put', got {v}")
-        return v
+        return _validate_vanilla_option_type(v)
 
     def __init__(self, **data):
         """Initialise and perform cross-field checks.
@@ -289,9 +286,7 @@ class StandardBasketOption(UnifiedInstrument, BaseModel):
     @classmethod
     def validate_option_type(cls, v: str) -> str:
         """Validate option type."""
-        if v not in ["call", "put"]:
-            raise ValidationError(f"option_type must be 'call' or 'put', got {v}")
-        return v
+        return _validate_vanilla_option_type(v)
 
     def __init__(self, **data):
         """Initialise and perform basket cross-field validation."""
