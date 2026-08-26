@@ -11,6 +11,7 @@ from typing import Any, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from ._option_type import _validate_vanilla_option_type
 from .base import UnifiedInstrument
 from finite_difference_options.exceptions import ValidationError
 
@@ -52,12 +53,14 @@ class EuropeanPayoffCalculator(PayoffCalculator):
         if not hasattr(instrument, "strike") or not hasattr(instrument, "option_type"):
             raise ValidationError("Instrument must have 'strike' and 'option_type' attributes")
 
+        option_type = _validate_vanilla_option_type(cast(Any, instrument).option_type)
+
         # For European option, only the first grid (price) matters
         # Return payoff based on the first grid only, regardless of other grids
-        if instrument.option_type == "call":
-            return np.maximum(price_grid - instrument.strike, 0.0)
+        if option_type == "call":
+            return np.maximum(price_grid - cast(Any, instrument).strike, 0.0)
         else:  # put
-            return np.maximum(instrument.strike - price_grid, 0.0)
+            return np.maximum(cast(Any, instrument).strike - price_grid, 0.0)
 
 
 class BasketPayoffCalculator(PayoffCalculator):
@@ -71,7 +74,7 @@ class BasketPayoffCalculator(PayoffCalculator):
 
         basket_instrument = cast(Any, instrument)
         weights = np.asarray(basket_instrument.weights, dtype=np.float64)
-        option_type = basket_instrument.option_type
+        option_type = _validate_vanilla_option_type(basket_instrument.option_type)
 
         if len(grids) != len(weights):
             raise ValidationError(f"Expected {len(weights)} grids, got {len(grids)}")

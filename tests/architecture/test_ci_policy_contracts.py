@@ -167,14 +167,14 @@ def test_security_critical_dev_pins_are_coherent_across_locks() -> None:
 
     expected_direct = {
         "cryptography>=50,<51",
-        "GitPython>=3.1.57,<4",
+        "GitPython>=3.1.60,<4",
     }
     assert expected_direct <= set(dev_dependencies)
     assert expected_direct <= set(requirements)
     assert "cryptography==50.0.0" in locked_requirements
-    assert "GitPython==3.1.57" in locked_requirements
+    assert "GitPython==3.1.60" in locked_requirements
     assert uv_versions["cryptography"] == "50.0.0"
-    assert uv_versions["gitpython"] == "3.1.57"
+    assert uv_versions["gitpython"] == "3.1.60"
 
 
 def test_build_tool_avoids_yanked_release_across_locks() -> None:
