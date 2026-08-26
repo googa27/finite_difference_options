@@ -208,14 +208,14 @@
         "selected": [
           "build >=1,<1.5.1 (resolved 1.5.0)",
           "cryptography >=50,<51 (resolved 50.0.0)",
-          "GitPython >=3.1.57,<4 (resolved 3.1.57)"
+          "GitPython >=3.1.60,<4 (resolved 3.1.60)"
         ],
         "alternatives": [
           "yanked build 1.5.1",
           "transitive-only vulnerable versions",
           "audit-lock-only overrides that leave uv.lock vulnerable"
         ],
-        "evidence": "Direct uv audit identified CVE-2026-69247 in cryptography 49.0.0 and seven GitPython advisories fixed by 3.1.57; uv also selected yanked build 1.5.1 until an explicit ceiling restored stable 1.5.0.",
+        "evidence": "Direct uv audit identified CVE-2026-69247 in cryptography 49.0.0 and later GitPython advisories fixed by 3.1.60; uv also selected yanked build 1.5.1 until an explicit ceiling restored stable 1.5.0.",
         "adapter_boundary": "Development/audit environments only; not application runtime dependencies.",
         "custom_code_reason": "No custom security package; direct minimums keep pyproject, uv.lock, and the legacy audit lock coherent.",
         "maintenance_evidence": "https://pypi.org/project/cryptography/ and https://pypi.org/project/GitPython/",
