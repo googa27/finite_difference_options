@@ -119,6 +119,7 @@ def benchmark(repetitions):
     assert old["evidence"]["status"] == new["evidence"]["status"] == "passed"
     return {
         "schema": "fd.compiled-version-performance/v1",
+        "benchmark_source_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "repetitions": repetitions,
         "execution_order": "v0 then v1 first calls; alternating order thereafter in one process",
         "runtime": v1_runtime_identity(),

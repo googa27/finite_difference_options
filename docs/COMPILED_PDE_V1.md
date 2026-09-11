@@ -73,3 +73,11 @@ The checker independently recomputes hashes and results, and compares the comple
 With separately verified FPF and FD wheels installed, run `python scripts/example_compiled_pde_v1_fpf.py --out /tmp/fpf-fd-v1.json`. It calls FPF's public fixture/compiler, passes the actual serialized output through FD screening and v1 solve, recomputes the v1 verification bundle, and records both distributions and the narrow evidence limits. It makes no provider/network calls.
 
 Run `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 NUMEXPR_NUM_THREADS=1 python scripts/benchmark_compiled_pde_versions.py --out /tmp/fd-versions.json`. The runner compares complete retained-dense and banded kernels on identical 121-by-200 and 401-by-400 node grids plus the whole evidence pipeline. It records first-call and alternating warm-process samples, exact input/grid hashes, cache counts, owned-array storage limits, NumPy/SciPy build details and errors against the same analytic value. Each invocation starts with a fresh local cache. Scientific evidence and timing are separate; no speedup is a portable performance guarantee.
+
+The recorded 2026-09-11 run uses Python 3.12.3, NumPy 2.5.3 and SciPy 1.18.1 with all four listed thread variables set to one. These are medians of five alternating warm-process runs; each local LU cache starts empty. Full-history parity uses `rtol=atol=3e-12`, with maximum absolute differences 6.22e-15 and 2.45e-14 in the two grids. Raw samples, full inputs, actual cache counts and memory limits are in [the benchmark receipt](benchmarks/compiled_pde_versions_20260911.json).
+
+| Workload | Dense v0 seconds | Banded v1 seconds | Measured speedup |
+|---|---:|---:|---:|
+| Complete kernel, 121 space × 200 time nodes | 0.034288 | 0.007505 | 4.57× |
+| Complete kernel, 401 space × 400 time nodes | 0.971711 | 0.017057 | 56.97× |
+| Complete verification evidence | 0.392753 | 0.108122 | 3.63× |
