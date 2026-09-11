@@ -1,0 +1,208 @@
+{
+  "exports": [
+    "CompiledPDEAdapterError",
+    "CompiledPDEDiagnostic",
+    "CompiledPDEScreeningResult",
+    "CompiledPDESolveResult",
+    "load_compiled_pde_json",
+    "packaged_compiled_black_scholes_fixture",
+    "packaged_compiled_black_scholes_fixture_path",
+    "screen_compiled_pde_payload",
+    "solve_compiled_pde_payload"
+  ],
+  "metadata": {
+    "CompiledPDEAdapterError": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "(diagnostics: 'Sequence[CompiledPDEDiagnostic]') -> 'None'"
+    },
+    "CompiledPDEDiagnostic": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "(code: 'str', message: 'str', path: 'str', expected: 'str | None' = None, observed: 'str | None' = None) -> None"
+    },
+    "CompiledPDEScreeningResult": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "(status: 'CompiledPDEStatus', supported: 'bool', diagnostics: 'tuple[dict[str, str | None], ...]', route: 'dict[str, Any]') -> None"
+    },
+    "CompiledPDESolveResult": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "(schema_version: 'str', backend_id: 'str', status: 'CompiledPDESolveStatus', problem_id: 'str', values: 'dict[str, float]', diagnostics: 'dict[str, Any]', evidence: 'dict[str, Any]', route: 'dict[str, Any]') -> None"
+    },
+    "load_compiled_pde_json": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "(path: 'str | Path') -> 'dict[str, Any]'"
+    },
+    "packaged_compiled_black_scholes_fixture": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "() -> 'dict[str, Any]'"
+    },
+    "packaged_compiled_black_scholes_fixture_path": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "() -> 'Iterator[Path]'"
+    },
+    "screen_compiled_pde_payload": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "(payload: 'Mapping[str, Any]') -> 'CompiledPDEScreeningResult'"
+    },
+    "solve_compiled_pde_payload": {
+      "module": "finite_difference_options.integrations.compiled_pde_adapter",
+      "signature": "(payload: 'Mapping[str, Any]') -> 'CompiledPDESolveResult'"
+    }
+  },
+  "pickles": [
+    "gASVtQAAAAAAAACMO2Zpbml0ZV9kaWZmZXJlbmNlX29wdGlvbnMuaW50ZWdyYXRpb25zLmNvbXBpbGVkX3BkZV9hZGFwdGVylIwVQ29tcGlsZWRQREVEaWFnbm9zdGljlJOUKYGUfZQojARjb2RllIwLdW5zdXBwb3J0ZWSUjAdtZXNzYWdllIwJc3ludGhldGljlIwEcGF0aJSMB3BheWxvYWSUjAhleHBlY3RlZJROjAhvYnNlcnZlZJROdWIu",
+    "gASV5gcAAAAAAACMO2Zpbml0ZV9kaWZmZXJlbmNlX29wdGlvbnMuaW50ZWdyYXRpb25zLmNvbXBpbGVkX3BkZV9hZGFwdGVylIwaQ29tcGlsZWRQREVTY3JlZW5pbmdSZXN1bHSUk5QpgZR9lCiMBnN0YXR1c5SMCXN1cHBvcnRlZJRoBoiMC2RpYWdub3N0aWNzlCmMBXJvdXRllH2UKIwKYmFja2VuZF9pZJSMJ2Zpbml0ZV9kaWZmZXJlbmNlX29wdGlvbnMuZmRfYmFja2VuZC52MJSMCWRpbWVuc2lvbpRLAYwKcHJvYmxlbV9pZJSMM3B1YmxpYy1zeW50aGV0aWMuY29tcGlsZWQtcGRlLmJsYWNrLXNjaG9sZXMtY2FsbC52MJSMEXNvdXJjZV9wcm9ibGVtX2lklIwjYmxhY2tfc2Nob2xlc19jYWxsX3B1YmxpY19zeW50aGV0aWOUjA5mb3JtdWxhdGlvbl9pZJSMGWJsYWNrX3NjaG9sZXNfY2FsbF9wZGVfdjCUjBhzb3VyY2VfaXJfY2Fub25pY2FsX2hhc2iUjEdzaGEyNTY6NWFiNTM3NzlhNWUzMjIyODRhNmNiMThiMjIzMDJjMTE5ZjIyYmM3NDA2NTlhZWRmMWMwNzgyMzUyOWQ2OGE0N5SMDWNvbXBpbGVkX2hhc2iUjEdzaGEyNTY6OTcwMDg4ZTVkY2IxNjUzNWVkZmQyMzBiZmU5OTJlYTdlYjY4YWVkZTkwMWM3YjU0MzY4MmIzOWYxYTVhYzMyZZSMB21lYXN1cmWUjAFRlIwJbnVtZXJhaXJllH2UKIwIY3VycmVuY3mUjANVU0SUjARraW5klIwUbW9uZXlfbWFya2V0X2FjY291bnSUdYwQdGltZV9vcmllbnRhdGlvbpSMCGJhY2t3YXJklIwYb3BlcmF0b3Jfc2lnbl9jb252ZW50aW9ulIwhYmFja3dhcmRfZ2VuZXJhdG9yX21pbnVzX2Rpc2NvdW50lIwTYm91bmRhcnlfY29uZGl0aW9uc5SMCmFzeW1wdG90aWOUjAlkaXJpY2hsZXSUhpSMEGJvdW5kYXJ5X2RldGFpbHOUfZQojAVsb3dlcpR9lCiMCmFwcGxpZXNfdG+UjA52YWx1ZV9mdW5jdGlvbpSMC2JvdW5kYXJ5X2lklGgpjApleHByZXNzaW9ulIwFViA9IDCUaB1oJYwIbG9jYXRpb26UjAVTID0gMJSMBHVuaXSUfZQoaBuMA1VTRJSMCWRpbWVuc2lvbpSMBW1vbmV5lIwFc2NhbGWUjAhhYnNvbHV0ZZR1dYwFdXBwZXKUfZQoaCuMDnZhbHVlX2Z1bmN0aW9ulGgtaDloLowdViB+IFMgLSBLICogZXhwKC1yICogKFQgLSB0KSmUaB1oJGgwjA1TIC0+IGluZmluaXR5lGgyfZQoaBuMA1VTRJRoNYwFbW9uZXmUaDeMCGFic29sdXRllHV1dYwFdW5pdHOUfZQojAV2YWx1ZZR9lChoG4wDVVNElGg1jAVtb25leZRoN4wIYWJzb2x1dGWUdYwFc3RhdGWUXZR9lChoG4wDVVNElGg1jAVtb25leZRoN4wIYWJzb2x1dGWUdWGMCGJvdW5kYXJ5lF2UKGgzaD5ldYwIbnVtZXJpY3OUfZQojARzcG90lEc/8AAAAAAAAIwGc3RyaWtllEc/8AAAAAAAAIwOcmlza19mcmVlX3JhdGWURz+pmZmZmZmajA5kaXZpZGVuZF95aWVsZJRHAAAAAAAAAACMCnZvbGF0aWxpdHmURz/JmZmZmZmajAhtYXR1cml0eZRHP/AAAAAAAACMBmRvbWFpbpR9lCiMBXNfbWlulEcAAAAAAAAAAIwFc19tYXiUR0AIAAAAAAAAjAV0X21pbpRHAAAAAAAAAACMBXRfbWF4lEc/8AAAAAAAAHWMC2dyaWRfbGV2ZWxzlEsoSyiGlEtQS3iGlEt4S8iGlIeUjAV0aGV0YZRHP+AAAAAAAACMCnRvbGVyYW5jZXOUfZQojAVwcmljZZRHP0BiTdLxqfyMBWRlbHRhlEc/UGJN0vGp/IwFZ2FtbWGURz+AYk3S8an8dXWMEWNvbXBpbGVyX2V2aWRlbmNllH2UKIwQY29tcGlsZXJfdmVyc2lvbpSMG3BkZV9pcl9zeW1ib2xpY19jb21waWxlci52MJSMD2dyYW1tYXJfdmVyc2lvbpSMFnJlc3RyaWN0ZWRfbWF0aF9hc3QudjCUjBBsaWJyYXJ5X2RlY2lzaW9ulIx2bGFyay9zeW1weS9waW50IHJlbWFpbiBvcHRpb25hbCBjb21waWxlci1leHRyYSBkZXBlbmRlbmNpZXM7IGFjY2VwdGVkIGNhbGxhYmxlIHBhdGggaXMgZGVwZW5kZW5jeS1mcmVlIGFuZCBzb2x2ZXItZnJlZZSMBnBhcnNlcpSMbHB5dGhvbi5hc3QucGFyc2UobW9kZT0nZXZhbCcpIHdpdGggZXhwbGljaXQgYm91bmRlZCBub2RlcyBwbHVzIHN0ZGxpYiBtYXRoIGludGVycHJldGVyOyBubyBldmFsL2V4ZWMvc3ltcGlmeZSMC3JlZ2lzdHJ5X2lklIw1cHVibGljLXN5bnRoZXRpYy5ibGFja19zY2hvbGVzX2NhbGxfcGRlX3YwLnN5bWJvbHMudjCUdXV1Yi4="
+  ],
+  "screen": {
+    "diagnostics": [],
+    "route": {
+      "backend_id": "finite_difference_options.fd_backend.v0",
+      "boundary_conditions": [
+        "asymptotic",
+        "dirichlet"
+      ],
+      "boundary_details": {
+        "lower": {
+          "applies_to": "value_function",
+          "boundary_id": "lower",
+          "expression": "V = 0",
+          "kind": "dirichlet",
+          "location": "S = 0",
+          "unit": {
+            "currency": "USD",
+            "dimension": "money",
+            "scale": "absolute"
+          }
+        },
+        "upper": {
+          "applies_to": "value_function",
+          "boundary_id": "upper",
+          "expression": "V ~ S - K * exp(-r * (T - t))",
+          "kind": "asymptotic",
+          "location": "S -> infinity",
+          "unit": {
+            "currency": "USD",
+            "dimension": "money",
+            "scale": "absolute"
+          }
+        }
+      },
+      "compiled_hash": "sha256:970088e5dcb16535edfd230bfe992ea7eb68aede901c7b543682b39f1a5ac32e",
+      "compiler_evidence": {
+        "compiler_version": "pde_ir_symbolic_compiler.v0",
+        "grammar_version": "restricted_math_ast.v0",
+        "library_decision": "lark/sympy/pint remain optional compiler-extra dependencies; accepted callable path is dependency-free and solver-free",
+        "parser": "python.ast.parse(mode='eval') with explicit bounded nodes plus stdlib math interpreter; no eval/exec/sympify",
+        "registry_id": "public-synthetic.black_scholes_call_pde_v0.symbols.v0"
+      },
+      "dimension": 1,
+      "formulation_id": "black_scholes_call_pde_v0",
+      "measure": "Q",
+      "numeraire": {
+        "currency": "USD",
+        "kind": "money_market_account"
+      },
+      "numerics": {
+        "dividend_yield": 0.0,
+        "domain": {
+          "s_max": 3.0,
+          "s_min": 0.0,
+          "t_max": 1.0,
+          "t_min": 0.0
+        },
+        "grid_levels": [
+          [
+            40,
+            40
+          ],
+          [
+            80,
+            120
+          ],
+          [
+            120,
+            200
+          ]
+        ],
+        "maturity": 1.0,
+        "risk_free_rate": 0.05,
+        "spot": 1.0,
+        "strike": 1.0,
+        "theta": 0.5,
+        "tolerances": {
+          "delta": 0.001,
+          "gamma": 0.008,
+          "price": 0.0005
+        },
+        "volatility": 0.2
+      },
+      "operator_sign_convention": "backward_generator_minus_discount",
+      "problem_id": "public-synthetic.compiled-pde.black-scholes-call.v0",
+      "source_ir_canonical_hash": "sha256:5ab53779a5e322284a6cb18b22302c119f22bc740659aedf1c07823529d68a47",
+      "source_problem_id": "black_scholes_call_public_synthetic",
+      "time_orientation": "backward",
+      "units": {
+        "boundary": [
+          {
+            "currency": "USD",
+            "dimension": "money",
+            "scale": "absolute"
+          },
+          {
+            "currency": "USD",
+            "dimension": "money",
+            "scale": "absolute"
+          }
+        ],
+        "state": [
+          {
+            "currency": "USD",
+            "dimension": "money",
+            "scale": "absolute"
+          }
+        ],
+        "value": {
+          "currency": "USD",
+          "dimension": "money",
+          "scale": "absolute"
+        }
+      }
+    },
+    "status": "supported",
+    "supported": true
+  },
+  "source_commit": "c85b40378dda19e51f0b7e9352aa23edc9cd9ac0",
+  "verification": {
+    "constants": {
+      "FD_BS_VERIFICATION_BENCHMARK_ID": "fd-bs-001",
+      "FD_BS_VERIFICATION_SCHEMA_VERSION": "finite-difference-options.fd-verification-evidence/v0",
+      "FD_BS_VERIFICATION_VERSIONED_ID": "FD-BS-001-V0"
+    },
+    "exports": [
+      "FD_BS_VERIFICATION_BENCHMARK_ID",
+      "FD_BS_VERIFICATION_SCHEMA_VERSION",
+      "FD_BS_VERIFICATION_VERSIONED_ID",
+      "FDVerificationError",
+      "run_fd_bs_verification_benchmark",
+      "validate_fd_bs_verification_bundle",
+      "write_fd_bs_verification_json"
+    ],
+    "metadata": {
+      "FDVerificationError": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "(failures: 'tuple[str, ...]') -> 'None'"
+      },
+      "run_fd_bs_verification_benchmark": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "() -> 'dict[str, Any]'"
+      },
+      "validate_fd_bs_verification_bundle": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "(bundle: 'Mapping[str, Any]') -> 'None'"
+      },
+      "write_fd_bs_verification_json": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "(path: 'str | Path') -> 'dict[str, Any]'"
+      }
+    }
+  }
+}

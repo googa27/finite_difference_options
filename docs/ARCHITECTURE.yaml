@@ -36,6 +36,16 @@
         "nonuniform_intervals": "each_interval_used_as_step_dt",
         "invalid_grid_failure": "ValueError before stepping",
         "fitness_gate": "tests/test_finite_difference_solver_time_grid.py"
+      },
+      "compiled_pde_adapter": {
+        "public_module": "finite_difference_options.integrations.compiled_pde_adapter",
+        "private_contracts": "integrations/_compiled_pde_contracts.py",
+        "private_validation": "integrations/_compiled_pde_validation.py",
+        "identity_policy": "public imports, signatures, class modules and trusted historical DTO pickles remain stable",
+        "numerical_policy": "unchanged exact v0 fixture and dense route; no v1 behavior in extraction",
+        "fitness_gate": "tests/test_compiled_pde_compatibility.py",
+        "private_grid_evidence": "validation/fd_evidence/grid_metrics.py",
+        "architecture_fitness_gate": "scripts/check_architecture_contract.py; docs/architecture_contract.toml; tests/architecture/test_compiled_boundary_contract.py"
       }
     },
     "extension_points": [
@@ -590,15 +600,6 @@
       "risk": "Large context increases change blast radius, review cost, and AI/human navigation burden.",
       "accepted_ceiling": 749,
       "refactoring_trigger": "The file may not grow; the next behavioral change must extract a cohesive responsibility behind compatibility tests or reduce the accepted ceiling."
-    },
-    {
-      "rule": "python_module_max_lines",
-      "path": "src/finite_difference_options/integrations/compiled_pde_adapter.py",
-      "reason": "Issue #141 keeps the compiled pde_ir.v0 fixture adapter as the typed boundary module while the exact native Black-Scholes route lives in a small private integration helper, so hash/unit/time/boundary screening, explicit boundary-schedule application, and solve evidence stay review-local.",
-      "owner": "googa27/finite_difference_options#141",
-      "risk": "The adapter remains above the default locality budget while the compiled route blocker is resolved on the open PR; behavior is fail-closed, public-synthetic only, and covered by CLI/API/negative/fallback-guard tests.",
-      "accepted_ceiling": 782,
-      "refactoring_trigger": "Any additional compiled PDE route, schema version, numerical capability, or non-blocker cleanup must extract validation helpers or result DTOs before growing this file."
     },
     {
       "rule": "python_module_max_lines",

@@ -136,6 +136,8 @@ Package-root convenience exports are intentionally empty.
 - `solve_public_quant_problem_spec`
 <!-- public-api:finite_difference_options.integrations:end -->
 
+The `compiled_pde_adapter` public module retains its existing imports and signatures. Its private DTO and validation modules are implementation details. The extraction preserves exact v0 fixture screening and numerical behavior; no new route or schema is enabled.
+
 ### `finite_difference_options.models`
 
 <!-- public-api:finite_difference_options.models:start -->
