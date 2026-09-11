@@ -78,6 +78,8 @@ The recorded 2026-09-11 run uses Python 3.12.3, NumPy 2.5.3 and SciPy 1.18.1 wit
 
 | Workload | Dense v0 seconds | Banded v1 seconds | Measured speedup |
 |---|---:|---:|---:|
-| Complete kernel, 121 space × 200 time nodes | 0.034288 | 0.007505 | 4.57× |
-| Complete kernel, 401 space × 400 time nodes | 0.971711 | 0.017057 | 56.97× |
-| Complete verification evidence | 0.392753 | 0.108122 | 3.63× |
+| Complete kernel, 121 space × 200 time nodes | 0.032655 | 0.006780 | 4.82× |
+| Complete kernel, 401 space × 400 time nodes | 1.167834 | 0.016311 | 71.60× |
+| Complete verification evidence | 0.445975 | 0.114385 | 3.90× |
+
+The benchmark receipt retains boundary schedule counts and SHA256 values; full schedules remain in numerical evidence, avoiding duplicate trajectory data in the timing table.

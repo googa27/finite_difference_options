@@ -109,6 +109,15 @@ def _grid_case(nodes, time_nodes, repetitions):
     }
 
 
+def _finest_metrics(row):
+    schedule = row["boundary_schedule_applied"]
+    return {
+        **{key: value for key, value in row.items() if key != "boundary_schedule_applied"},
+        "boundary_schedule_count": len(schedule),
+        "boundary_schedule_sha256": hashlib.sha256(json.dumps(schedule, sort_keys=True).encode()).hexdigest(),
+    }
+
+
 def benchmark(repetitions):
     grid_cases = [_grid_case(nodes, times, repetitions) for nodes, times in ((121, 200), (401, 400))]
     old, new, evidence_timing = _paired(
@@ -138,8 +147,8 @@ def benchmark(repetitions):
             "timings": evidence_timing,
             "v0_config": old["config"],
             "v1_config": new["config"],
-            "v0_finest": old["results"]["full_refinement"]["rows"][-1],
-            "v1_finest": new["results"]["full_refinement"]["rows"][-1],
+            "v0_finest": _finest_metrics(old["results"]["full_refinement"]["rows"][-1]),
+            "v1_finest": _finest_metrics(new["results"]["full_refinement"]["rows"][-1]),
             "both_status": "passed",
             "limits": "validation retains dense matrix residual references; scientific thresholds are unchanged",
         },
