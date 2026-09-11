@@ -588,4 +588,12 @@ Probable extensions must cross named ports/capability registries rather than add
 
 The public one-dimensional cache uses `solvers/_tridiagonal.py` for SciPy `dgttrf` factorization and `dgttrs` repeated solves. Operator assembly, theta/time conventions, Dirichlet boundary rows, cache keys/counters, public APIs and float64 output rank remain unchanged. Factor and RHS-coefficient arrays are read-only snapshots; each solve owns its RHS buffer. Shape, finiteness, native status and the retained absolute U-pivot floor are checked explicitly. Empty multi-RHS batches return before entering the native wrapper. [The numerical statement, compatibility limits and measured decision](LAPACK_CACHE_REFACTOR.md) accompany the architecture decision and regression tests.
 
+The compiled adapter and grid-evidence extractions are individually registered in
+`docs/architecture_contract.toml`. Required-file checks and static import rules
+prevent contracts/validation from depending backwards on their orchestration
+facades, and prevent grid metrics from importing `fd_verification`. The checker
+resolves absolute, relative and imported-member paths; twelve negative mutation
+cases in `tests/architecture/test_compiled_boundary_contract.py` exercise missing
+modules and forbidden dependency edges without changing numerical code.
+
 Issue #170 adds an explicit compiled v1 executor with a private banded operator/kernel in `solvers/_compiled_black_scholes.py`, reusing `solvers/_tridiagonal.py`. V0 remains the default and retains dense arithmetic for historical replay. `validation/fd_evidence/replay_identity.py` owns version/runtime identity and `carry_bounds.py` owns deterministic-carry pointwise diagnostics. See [COMPILED_PDE_V1.md](COMPILED_PDE_V1.md) for exact-dt cache scope, version refusal, evidence acceptance and consumer limits.

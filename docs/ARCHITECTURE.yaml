@@ -44,7 +44,8 @@
         "identity_policy": "public imports, signatures, class modules and trusted historical DTO pickles remain stable",
         "numerical_policy": "v0 default and dense arithmetic retained; explicit solve_compiled_pde_payload_v1 with banded numerics and v1 schema",
         "fitness_gate": "tests/test_compiled_pde_compatibility.py",
-        "private_grid_evidence": "validation/fd_evidence/grid_metrics.py"
+        "private_grid_evidence": "validation/fd_evidence/grid_metrics.py",
+        "architecture_fitness_gate": "scripts/check_architecture_contract.py; docs/architecture_contract.toml; tests/architecture/test_compiled_boundary_contract.py"
       },
       "compiled_pde_numerics_v1": {
         "document": "docs/COMPILED_PDE_V1.md",

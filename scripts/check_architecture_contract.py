@@ -31,7 +31,7 @@ def _has_python(path: Path) -> bool:
     return any(child.suffix == ".py" and "__pycache__" not in child.parts for child in path.rglob("*.py"))
 
 
-def _module_imports(path: Path) -> set[str]:
+def _module_imports(path: Path, package_root: Path) -> set[str]:
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     except SyntaxError as exc:  # pragma: no cover - compileall should catch this first, message aids local use.
@@ -44,9 +44,16 @@ def _module_imports(path: Path) -> set[str]:
                 imports.add(alias.name)
                 imports.add(alias.name.split(".")[0])
         elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.add(node.module)
-                imports.add(node.module.split(".")[0])
+            parts = node.module.split(".") if node.module else []
+            if node.level:
+                package = list(path.relative_to(package_root.parent).parts[:-1])
+                parts = [*package[: len(package) - node.level + 1], *parts]
+            base = ".".join(parts)
+            if base:
+                imports.add(base)
+            for alias in node.names:
+                if alias.name != "*":
+                    imports.add(f"{base}.{alias.name}" if base else alias.name)
     return imports
 
 
@@ -173,7 +180,9 @@ def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
             for path in files:
                 if "__pycache__" in path.parts:
                     continue
-                hits = sorted(imported for imported in _module_imports(path) if _matches_prefix(imported, forbidden))
+                hits = sorted(
+                    imported for imported in _module_imports(path, package_root) if _matches_prefix(imported, forbidden)
+                )
                 if hits:
                     violations[str(path.relative_to(repo_root))] = hits
             if violations:

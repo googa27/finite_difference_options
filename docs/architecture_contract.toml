@@ -191,6 +191,40 @@ public_imports = ["finite_difference_options.solvers.finite_difference"]
 forbidden_legacy_modules = []
 compatibility_shims = []
 
+# Private extracted modules must not depend backwards on their public orchestrators.
+[[import_rules]]
+source = "src/finite_difference_options/integrations/_compiled_pde_contracts.py"
+forbidden_prefixes = ["finite_difference_options.integrations", "finite_difference_options.validation", "finite_difference_options.solvers"]
+
+[[import_rules]]
+source = "src/finite_difference_options/integrations/_compiled_pde_validation.py"
+forbidden_prefixes = ["finite_difference_options.integrations.compiled_pde_adapter", "finite_difference_options.integrations.compiled_pde_black_scholes_route", "finite_difference_options.validation", "finite_difference_options.solvers"]
+
+[[import_rules]]
+source = "src/finite_difference_options/validation/fd_evidence/grid_metrics.py"
+forbidden_prefixes = ["finite_difference_options.validation.fd_verification"]
+
+[[canonical_capabilities]]
+name = "compiled-pde-contract-validation"
+canonical_modules = [
+  "src/finite_difference_options/integrations/compiled_pde_adapter.py",
+  "src/finite_difference_options/integrations/_compiled_pde_contracts.py",
+  "src/finite_difference_options/integrations/_compiled_pde_validation.py",
+]
+public_imports = ["finite_difference_options.integrations.compiled_pde_adapter"]
+forbidden_legacy_modules = []
+compatibility_shims = []
+
+[[canonical_capabilities]]
+name = "compiled-fd-grid-verification"
+canonical_modules = [
+  "src/finite_difference_options/validation/fd_verification.py",
+  "src/finite_difference_options/validation/fd_evidence/grid_metrics.py",
+]
+public_imports = ["finite_difference_options.validation.fd_verification"]
+forbidden_legacy_modules = []
+compatibility_shims = []
+
 [[canonical_capabilities]]
 name = "compiled-black-scholes-banded-v1"
 canonical_modules = [
