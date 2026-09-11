@@ -113,6 +113,8 @@ uv run fd-options qps solve src/finite_difference_options/validation/fixtures/co
 
 The compiled PDE adapter consumes serialized public-synthetic FPF `pde_ir.v0` compiler output only. It is a separate adapter (`solve_compiled_pde_payload`), not part of the generic `solve_public_quant_problem_spec` QuantProblemSpec dispatcher. It preserves source IR and compiled-operator hashes, units, measure, numeraire, time orientation and boundary semantics, then executes the exact 1D European Black-Scholes route through the maintained FD validation solver. Private/mutated fixtures and unsupported boundary, dimension, exercise or output requests fail closed before discretization.
 
+An explicit Python `solve_compiled_pde_payload_v1` route and versioned verification functions use banded numerics while existing calls and CLI remain v0. See the [numerical and replay contract](docs/COMPILED_PDE_V1.md) for APIs, installed FPF composition, carry assumptions and exact-replay refusals.
+
 ### Heston stochastic-volatility smoke example
 
 This example is an experimental shape/finite-value smoke path for a vanilla equity call under Heston state `(log_spot, variance)`. It is not a basket option and is not advertised as a production Heston benchmark; semi-analytical Fourier oracle tests cover the Heston reference-price and Black-Scholes-limit evidence.

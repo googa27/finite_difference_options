@@ -48,6 +48,12 @@ from finite_difference_options.validation.fd_evidence.manufactured import (
     manufactured_u,
 )
 from finite_difference_options.validation.fd_evidence.perturbations import perturbation_evidence
+from finite_difference_options.validation.fd_evidence.replay_identity import (
+    SUPPORTED_CODE_VERSIONS,
+    V1_SCHEMA,
+    V1_METHOD,
+    v1_runtime_identity,
+)
 
 FD_BS_VERIFICATION_BENCHMARK_ID = "fd-bs-001"
 FD_BS_VERIFICATION_VERSIONED_ID = "FD-BS-001-V0"
@@ -77,6 +83,15 @@ class FDVerificationError(ValueError):
 def run_fd_bs_verification_benchmark() -> dict[str, Any]:
     """Return the public-synthetic Black-Scholes FD evidence bundle."""
 
+    return _run_fd_bs_verification("v0")
+
+
+def run_fd_bs_verification_benchmark_v1() -> dict[str, Any]:
+    """Opt into banded v1 evidence with explicit method/runtime replay identity."""
+    return _run_fd_bs_verification("v1")
+
+
+def _run_fd_bs_verification(numerical_version: str) -> dict[str, Any]:
     route = screen_compiled_pde_payload(packaged_compiled_black_scholes_fixture()).route
     numerics = cast(Mapping[str, Any], route["numerics"])
     spot = float(numerics["spot"])
@@ -87,9 +102,9 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
     maturity = float(numerics["maturity"])
     oracle = black_scholes_call_oracle(spot, strike, rate, sigma, maturity, dividend_yield=q)
     greeks = black_scholes_call_greeks(spot, strike, rate, sigma, maturity, dividend_yield=q)
-    spatial = _refinement_table(route, _SPATIAL_LEVELS, oracle, greeks)
-    temporal = _temporal_refinement_table(route, _TEMPORAL_LEVELS, oracle, greeks)
-    full = _refinement_table(route, _FULL_LEVELS, oracle, greeks)
+    spatial = _refinement_table(route, _SPATIAL_LEVELS, oracle, greeks, numerical_version=numerical_version)
+    temporal = _temporal_refinement_table(route, _TEMPORAL_LEVELS, oracle, greeks, numerical_version=numerical_version)
+    full = _refinement_table(route, _FULL_LEVELS, oracle, greeks, numerical_version=numerical_version)
     finest = full["rows"][-1]
     manufactured = _manufactured_residual_table(rate=rate, q=q, sigma=sigma)
     perturbations = perturbation_evidence(
@@ -98,6 +113,7 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         manufactured,
         algebraic_tol=_ALGEBRAIC_RESIDUAL_TOL,
         boundary_tol=_BOUNDARY_TOL,
+        numerical_version=numerical_version,
     )
     results = {
         "black_scholes_oracle": {"price": oracle, **greeks, "dividend_yield": q},
@@ -118,9 +134,9 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
     }
     request = {
         "benchmark_id": FD_BS_VERIFICATION_BENCHMARK_ID,
-        "versioned_benchmark_id": FD_BS_VERIFICATION_VERSIONED_ID,
+        "versioned_benchmark_id": FD_BS_VERIFICATION_VERSIONED_ID if numerical_version == "v0" else "FD-BS-001-V1",
         "problem_id": EXPECTED_PROBLEM_ID,
-        "route_id": "fd.compiled_pde.black_scholes_call_v0",
+        "route_id": "fd.compiled_pde.black_scholes_call_" + numerical_version,
         "requested_outputs": ("value", "delta", "gamma"),
         "privacy_class": "public_synthetic",
     }
@@ -135,10 +151,15 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         "theta": float(numerics["theta"]),
         "operator": "dV/dtau = 0.5*sigma^2*S^2*V_SS + (r-q)*S*V_S - r*V",
     }
-    provenance = {
+    provenance: dict[str, Any] = {
         "distribution": "finite-difference-options",
         "code_version": installed_distribution_version(),
     }
+    if numerical_version == "v1":
+        config["numerical_method"] = V1_METHOD
+        config["dtype"] = "float64"
+        config["time_step_policy"] = "exact_binary64_intervals; local factor cache without rounding"
+        provenance["numerical_runtime"] = v1_runtime_identity()
     convention = {
         "measure": route["measure"],
         "numeraire": route["numeraire"],
@@ -149,7 +170,7 @@ def run_fd_bs_verification_benchmark() -> dict[str, Any]:
         "boundary_schedule_source": "compiled_route_explicit_schedule",
     }
     bundle = {
-        "schema_version": FD_BS_VERIFICATION_SCHEMA_VERSION,
+        "schema_version": FD_BS_VERIFICATION_SCHEMA_VERSION if numerical_version == "v0" else V1_SCHEMA,
         "benchmark_id": FD_BS_VERIFICATION_BENCHMARK_ID,
         "request": request,
         "config": config,
@@ -171,6 +192,15 @@ def write_fd_bs_verification_json(path: str | Path) -> dict[str, Any]:
     """Run the verification benchmark, validate it, and persist deterministic JSON."""
 
     bundle = run_fd_bs_verification_benchmark()
+    return _write_verification_bundle(path, bundle)
+
+
+def write_fd_bs_verification_json_v1(path: str | Path) -> dict[str, Any]:
+    """Write explicitly selected v1 evidence; the original writer remains v0."""
+    return _write_verification_bundle(path, run_fd_bs_verification_benchmark_v1())
+
+
+def _write_verification_bundle(path: str | Path, bundle: dict[str, Any]) -> dict[str, Any]:
     validate_fd_bs_verification_bundle(bundle)
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -182,27 +212,49 @@ def validate_fd_bs_verification_bundle(bundle: Mapping[str, Any]) -> None:
     """Recompute hashes and numerical evidence; never trust stored booleans."""
 
     failures: list[str] = []
+    if not isinstance(bundle, Mapping):
+        raise FDVerificationError(("verification bundle must be a mapping",))
+    try:
+        _canonicalize(bundle)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise FDVerificationError(("verification bundle must contain finite JSON values",)) from exc
     supplied = copy.deepcopy(dict(bundle))
-    if supplied.get("schema_version") != FD_BS_VERIFICATION_SCHEMA_VERSION:
-        failures.append("schema_version does not match FD verification contract")
+    for name in ("request", "config", "provenance", "convention", "results", "evidence"):
+        if not isinstance(supplied.get(name), Mapping):
+            failures.append(f"{name} must be a mapping")
+    if failures:
+        raise FDVerificationError(tuple(failures))
+    schema = supplied.get("schema_version")
+    versions = {FD_BS_VERIFICATION_SCHEMA_VERSION: "v0", V1_SCHEMA: "v1"}
+    if not isinstance(schema, str) or schema not in versions:
+        raise FDVerificationError(("schema_version has no available replay implementation",))
+    numerical_version = versions[schema]
     if supplied.get("benchmark_id") != FD_BS_VERIFICATION_BENCHMARK_ID:
         failures.append("benchmark_id does not match FD verification contract")
     provenance = supplied.get("provenance")
-    if not isinstance(provenance, Mapping):
-        failures.append("provenance must be an object")
+    if not isinstance(provenance, Mapping) or provenance.get("distribution") != "finite-difference-options":
+        failures.append("provenance distribution is invalid")
     elif (
-        provenance.get("distribution") != "finite-difference-options"
-        or not isinstance(provenance.get("code_version"), str)
-        or not provenance.get("code_version")
+        not isinstance(provenance.get("code_version"), str)
+        or provenance.get("code_version") not in SUPPORTED_CODE_VERSIONS
     ):
-        failures.append("provenance distribution/code_version is invalid")
-    hashes = cast(Mapping[str, Any], cast(Mapping[str, Any], supplied.get("evidence", {})).get("hashes", {}))
+        failures.append("replay code_version has no available verified implementation")
+    elif numerical_version == "v1" and provenance.get("numerical_runtime") != v1_runtime_identity():
+        failures.append("v1 replay numerical runtime/implementation is unavailable")
+    if failures:
+        raise FDVerificationError(tuple(failures))
+    evidence = cast(Mapping[str, Any], supplied["evidence"])
+    hashes = evidence.get("hashes")
+    if not isinstance(hashes, Mapping):
+        raise FDVerificationError(("evidence hashes must be a mapping",))
     recomputed_hashes = _hashes_for_bundle(supplied)
     for key in _HASH_KEYS:
         if hashes.get(key) != recomputed_hashes[key]:
             failures.append(f"hash mismatch: {key}")
+    if failures:
+        raise FDVerificationError(tuple(failures))
 
-    fresh = run_fd_bs_verification_benchmark()
+    fresh = run_fd_bs_verification_benchmark() if numerical_version == "v0" else run_fd_bs_verification_benchmark_v1()
     if _canonicalize(supplied.get("request")) != _canonicalize(fresh["request"]):
         failures.append("request does not match executable benchmark")
     if _canonicalize(supplied.get("config")) != _canonicalize(fresh["config"]):
@@ -211,7 +263,13 @@ def validate_fd_bs_verification_bundle(bundle: Mapping[str, Any]) -> None:
         failures.append("convention does not match executable benchmark")
     if _canonicalize(supplied.get("results")) != _canonicalize(fresh["results"]):
         failures.append("results do not match recomputed numerical truth")
-    supplied_results = cast(Mapping[str, Any], supplied.get("results", {}))
+    if numerical_version == "v1" and _canonicalize(supplied) != _canonicalize(fresh):
+        failures.append("v1 envelope does not match the selected numerical replay")
+    if failures:
+        raise FDVerificationError(tuple(failures))
+    # Results now equal the executable result structure, so gate evaluation cannot
+    # interpret unchecked caller-supplied records or booleans as numerical evidence.
+    supplied_results = cast(Mapping[str, Any], supplied["results"])
     supplied_status = cast(Mapping[str, Any], supplied.get("evidence", {})).get("status")
     expected_status = "passed" if _evaluate_gates(supplied_results) else "failed"
     if supplied_status != expected_status:
@@ -319,6 +377,8 @@ __all__ = [
     "FD_BS_VERIFICATION_VERSIONED_ID",
     "FDVerificationError",
     "run_fd_bs_verification_benchmark",
+    "run_fd_bs_verification_benchmark_v1",
     "validate_fd_bs_verification_bundle",
     "write_fd_bs_verification_json",
+    "write_fd_bs_verification_json_v1",
 ]

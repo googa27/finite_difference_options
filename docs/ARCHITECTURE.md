@@ -595,3 +595,5 @@ facades, and prevent grid metrics from importing `fd_verification`. The checker
 resolves absolute, relative and imported-member paths; twelve negative mutation
 cases in `tests/architecture/test_compiled_boundary_contract.py` exercise missing
 modules and forbidden dependency edges without changing numerical code.
+
+Issue #170 adds an explicit compiled v1 executor with a private banded operator/kernel in `solvers/_compiled_black_scholes.py`, reusing `solvers/_tridiagonal.py`. V0 remains the default and retains dense arithmetic for historical replay. `validation/fd_evidence/replay_identity.py` owns version/runtime identity and `carry_bounds.py` owns deterministic-carry pointwise diagnostics. See [COMPILED_PDE_V1.md](COMPILED_PDE_V1.md) for exact-dt cache scope, version refusal, evidence acceptance and consumer limits.

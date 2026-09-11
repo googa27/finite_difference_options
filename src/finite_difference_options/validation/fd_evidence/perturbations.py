@@ -9,6 +9,7 @@ import numpy as np
 
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _black_scholes_matrix,
+    _select_grid_solver,
     _solve_compiled_black_scholes_grid,
     _upper_call_boundary,
 )
@@ -25,6 +26,7 @@ def perturbation_evidence(
     *,
     algebraic_tol: float,
     boundary_tol: float,
+    numerical_version: str = "v0",
 ) -> dict[str, Any]:
     """Return recomputed negative-control residual and boundary evidence."""
 
@@ -40,8 +42,12 @@ def perturbation_evidence(
         },
         "manufactured_pde_consistency_linf": float(manufactured_rows[-1]["pde_consistency_linf"]),
         "cases": {
-            "operator_sign_flip": _residual_case(_wrong_operator_residual(route, sign=-1.0)),
-            "reaction_sign_flip": _residual_case(_wrong_operator_residual(route, reaction_sign=1.0)),
+            "operator_sign_flip": _residual_case(
+                _wrong_operator_residual(route, sign=-1.0, numerical_version=numerical_version)
+            ),
+            "reaction_sign_flip": _residual_case(
+                _wrong_operator_residual(route, reaction_sign=1.0, numerical_version=numerical_version)
+            ),
             "source_shift": _residual_case(_source_shift_residual(rate=rate, q=q, sigma=sigma, source_shift=1.0e-2)),
             "static_boundary": _boundary_case(_static_boundary_error(route)),
         },
@@ -74,12 +80,14 @@ def _source_shift_residual(*, rate: float, q: float, sigma: float, source_shift:
     return float(np.max(np.abs(residual[1:-1])))
 
 
-def _wrong_operator_residual(route: Mapping[str, Any], *, sign: float = 1.0, reaction_sign: float = -1.0) -> float:
+def _wrong_operator_residual(
+    route: Mapping[str, Any], *, sign: float = 1.0, reaction_sign: float = -1.0, numerical_version: str = "v0"
+) -> float:
     numerics = cast(Mapping[str, Any], route["numerics"])
     domain = cast(Mapping[str, Any], numerics["domain"])
     s_grid = np.linspace(float(domain["s_min"]), float(domain["s_max"]), 80)
     t_grid = np.linspace(float(domain["t_min"]), float(domain["t_max"]), 120)
-    values, _schedule, _operator = _solve_compiled_black_scholes_grid(
+    values, _schedule, _operator = _select_grid_solver(numerical_version)(
         spot_grid=s_grid,
         time_grid=t_grid,
         strike=float(numerics["strike"]),

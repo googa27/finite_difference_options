@@ -97,3 +97,7 @@ A Greek states the differentiated coordinate or parameter, units, transform, ste
 ## Evidence obligations
 
 A route can be documented as validated only when tests or fixtures cover the relevant mathematical claim. Current evidence includes Black-Scholes parity, Pinares public-synthetic proxy convergence, nonuniform Greek validation, Rannacher kink smoothing, American LCP diagnostics, benchmark-registry checks and architecture/package gates. The capability matrix remains the maturity source of truth.
+
+## Versioned compiled Black–Scholes route
+
+The explicit v1 kernel uses the same nonuniform three-point generator and theta time stepping as the retained v0 route, with banded application and cached pivoted LU. Its complete equation/stencil/boundary, smooth-grid order, carry bounds, residual oracles and strict replay limitations are specified in [COMPILED_PDE_V1.md](COMPILED_PDE_V1.md). No general positivity or arbitrary-grid second-order claim follows from this optimization.

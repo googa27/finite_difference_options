@@ -60,3 +60,7 @@ Machine-readable capability keys: `stochastic-processes-and-coefficients`, `inst
 - `compiled-fd-grid-verification`: `validation/fd_verification.py` owns evidence orchestration; `validation/fd_evidence/grid_metrics.py` owns refinement and residual measurements and cannot import its orchestrator.
 
 `docs/architecture_contract.toml` declares each required implementation file and dependency rule. The architecture contract checker resolves both absolute and relative static imports, including `from package import module`; negative mutation tests enforce these boundaries. Historical public names remain re-exported at their original facades.
+
+### compiled-black-scholes-banded-v1
+
+`solvers/_compiled_black_scholes.py` owns the opt-in compiled three-diagonal operator and fixed-coefficient exact-dt stepping; it reuses the canonical `_tridiagonal.py` LAPACK adapter. The dense implementation in `integrations/compiled_pde_black_scholes_route.py` is retained for versioned v0 replay and independent reference tests. It is not selected by the v1 solve path. `validation/fd_evidence/replay_identity.py` owns replay identity, while `carry_bounds.py` owns pointwise carry diagnostics.

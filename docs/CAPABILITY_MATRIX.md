@@ -40,3 +40,5 @@ Maintained documentation set:
 - CI policy: `docs/CI_POLICY.md`
 
 Archived planning material under `docs/planning/` and `docs/archive/` is not a current capability source of truth.
+
+The compiled route additionally offers explicit `solve_compiled_pde_payload_v1` and `FD-BS-001-V1` verification evidence for the same exact public-synthetic fixture. Its banded implementation, strict replay identity and pointwise carry diagnostics are governed by [COMPILED_PDE_V1.md](COMPILED_PDE_V1.md). This adds no product scope or overall maturity promotion; CLI/default/pinned-UI routes remain v0.

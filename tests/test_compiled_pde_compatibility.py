@@ -14,7 +14,8 @@ from finite_difference_options.integrations import compiled_pde_adapter as adapt
 
 def test_compiled_adapter_legacy_public_contract() -> None:
     reference = json.loads((Path(__file__).parent / "fixtures/compiled_pde_adapter_v0_contract.json").read_text())
-    assert adapter.__all__ == reference["exports"]
+    assert [name for name in adapter.__all__ if name != "solve_compiled_pde_payload_v1"] == reference["exports"]
+    assert set(adapter.__all__) - set(reference["exports"]) == {"solve_compiled_pde_payload_v1"}
     for name, expected in reference["metadata"].items():
         member = getattr(adapter, name)
         assert member.__module__ == expected["module"]
@@ -41,7 +42,9 @@ def test_fd_verification_legacy_public_contract() -> None:
     reference = json.loads((Path(__file__).parent / "fixtures/compiled_pde_adapter_v0_contract.json").read_text())[
         "verification"
     ]
-    assert fd_verification.__all__ == reference["exports"]
+    additions = {"run_fd_bs_verification_benchmark_v1", "write_fd_bs_verification_json_v1"}
+    assert [name for name in fd_verification.__all__ if name not in additions] == reference["exports"]
+    assert set(fd_verification.__all__) - set(reference["exports"]) == additions
     for name, expected in reference["metadata"].items():
         member = getattr(fd_verification, name)
         assert member.__module__ == expected["module"]

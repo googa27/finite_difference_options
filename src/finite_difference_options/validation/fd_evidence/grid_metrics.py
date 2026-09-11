@@ -7,6 +7,7 @@ from typing import Any, cast
 import numpy as np
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _black_scholes_matrix,
+    _select_grid_solver,
     _solve_compiled_black_scholes_grid,
     _upper_call_boundary,
 )
@@ -20,8 +21,13 @@ def _refinement_table(
     levels: tuple[tuple[int, int], ...],
     oracle: float,
     greeks: Mapping[str, float],
+    *,
+    numerical_version: str = "v0",
 ) -> dict[str, Any]:
-    rows = [_run_grid_level(route, s_steps, t_steps, oracle, greeks) for s_steps, t_steps in levels]
+    rows = [
+        _run_grid_level(route, s_steps, t_steps, oracle, greeks, numerical_version=numerical_version)
+        for s_steps, t_steps in levels
+    ]
     for index in range(1, len(rows)):
         prev = rows[index - 1]
         curr = rows[index]
@@ -37,17 +43,21 @@ def _temporal_refinement_table(
     levels: tuple[tuple[int, int], ...],
     oracle: float,
     greeks: Mapping[str, float],
+    *,
+    numerical_version: str = "v0",
 ) -> dict[str, Any]:
     if not levels:
         return {"levels": levels, "rows": (), "min_observed_temporal_price_order": None}
     s_steps = levels[-1][0]
-    reference = _run_grid_level(route, s_steps, _TEMPORAL_REFERENCE_T_STEPS, oracle, greeks)
+    reference = _run_grid_level(
+        route, s_steps, _TEMPORAL_REFERENCE_T_STEPS, oracle, greeks, numerical_version=numerical_version
+    )
     reference_price = float(reference["price"])
     rows = []
     for s_level, t_steps in levels:
         if s_level != s_steps:
             raise ValueError("temporal refinement levels must hold spatial grid fixed")
-        row = _run_grid_level(route, s_level, t_steps, oracle, greeks)
+        row = _run_grid_level(route, s_level, t_steps, oracle, greeks, numerical_version=numerical_version)
         row["temporal_reference_price"] = reference_price
         row["temporal_reference_t_steps"] = _TEMPORAL_REFERENCE_T_STEPS
         row["temporal_price_abs"] = float(abs(float(row["price"]) - reference_price))
@@ -81,12 +91,14 @@ def _run_grid_level(
     t_steps: int,
     oracle: float,
     greeks: Mapping[str, float],
+    *,
+    numerical_version: str = "v0",
 ) -> dict[str, Any]:
     numerics = cast(Mapping[str, Any], route["numerics"])
     domain = cast(Mapping[str, Any], numerics["domain"])
     s_grid = np.linspace(float(domain["s_min"]), float(domain["s_max"]), s_steps)
     t_grid = np.linspace(float(domain["t_min"]), float(domain["t_max"]), t_steps)
-    values, schedule, _operator = _solve_compiled_black_scholes_grid(
+    values, schedule, _operator = _select_grid_solver(numerical_version)(
         spot_grid=s_grid,
         time_grid=t_grid,
         strike=float(numerics["strike"]),
@@ -102,7 +114,7 @@ def _run_grid_level(
     delta = float(np.interp(spot, s_grid, delta_slice))
     gamma = float(np.interp(spot, s_grid, gamma_slice))
     residuals = _residuals(values, s_grid, t_grid, numerics)
-    return {
+    row = {
         "s_steps": s_steps,
         "t_steps": t_steps,
         "h": float(np.max(np.diff(s_grid))),
@@ -122,6 +134,9 @@ def _run_grid_level(
         "algebraic_residual_l2": residuals["algebraic_residual_l2"],
         "boundary_schedule_applied": schedule,
     }
+    if numerical_version == "v1":
+        row["numerical_operator"] = _operator
+    return row
 
 
 def _residuals(

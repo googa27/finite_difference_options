@@ -1,0 +1,32 @@
+{
+  "source_commit": "c85b40378dda19e51f0b7e9352aa23edc9cd9ac0",
+  "python": "3.12.3",
+  "versions": {
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "finite-difference-options": "0.1.0"
+  },
+  "sha256": {
+    "authentic-v0-evidence.json": "c1d61c15b4db07df113251bb0da7a60c621cabde90cd2c7df89e12d0e9b2d9fc",
+    "authentic-v0-solve.json": "7351c4b592cff18b8ab6d03027328a5bafec3f3207b4ed93c9b9ae936b0a12f6"
+  },
+  "capture_command": "clean installed c85b403 wheel; run_fd_bs_verification_benchmark() and solve_compiled_pde_payload(packaged_compiled_black_scholes_fixture()); json.dumps(indent=2, sort_keys=True) plus newline",
+  "thread_environment": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1"
+  },
+  "portability": "Exact replay only when recomputed numerical fields agree. Different runtime roundoff is refused, never tolerated or rewritten.",
+  "retained_v0_function_ast_sha256": {
+    "_solve_compiled_black_scholes_grid": "1bd391ce26408508dca48c2853985e35bddd536d6c5845b037109cd797ea9303",
+    "_black_scholes_matrix": "02f00f12efd0ac1c5b3315073ba4519348616ff904b0d4e87f423fd071dbaab3",
+    "_apply_dirichlet_rows": "a7ba446039c81d909a087d3c675d04c46aadac30b45d0ee597c8880943a05373",
+    "_upper_call_boundary": "005ae8c8e2c32dac7fdbe3242001d6cea484c4ea45196a45bda6dfdc41593964",
+    "_validate_route_grid": "49042061c324e23cbfa2bd43f6cb48b4884976dc47c5ba2750419c6b449a28c1",
+    "_grid_metadata": "bb4d53a8defbc79e88c32560e0eb2dbb100cd38205022f95bb2d3a77617de34c",
+    "_compiled_no_arbitrage": "bfd4187e6bf17d9c83bea76e62136c6574c521ca928432a9c0c317ce76eb9078",
+    "_sha256_ref": "2abfd9b9b8389614981766844ffc8115dd04c9a54b9695ac0f025bd6ac2e1615"
+  },
+  "ast_fingerprint": "recursive AST type/fields, omitting None/empty-list fields and source locations; sorted compact JSON SHA256, Ellipsis encoded as literal name"
+}

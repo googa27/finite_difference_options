@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from hashlib import sha256
 from math import exp
 from typing import Any, cast
@@ -16,7 +16,8 @@ from finite_difference_options.validation.black_scholes_parity import (
 )
 
 
-def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any]:
+def _run_compiled_black_scholes_route(route: Mapping[str, Any], *, numerical_version: str = "v0") -> dict[str, Any]:
+    solve_grid = _select_grid_solver(numerical_version)
     numerics = cast(Mapping[str, Any], route["numerics"])
     spot = float(numerics["spot"])
     strike = float(numerics["strike"])
@@ -66,7 +67,7 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
     for s_steps, t_steps in grid_levels:
         s_grid = np.linspace(s_min, s_max, s_steps, dtype=np.float64)
         t_grid = np.linspace(t_min, t_max, t_steps, dtype=np.float64)
-        values, boundary_schedule, operator_diagnostics = _solve_compiled_black_scholes_grid(
+        values, boundary_schedule, operator_diagnostics = solve_grid(
             spot_grid=s_grid,
             time_grid=t_grid,
             strike=strike,
@@ -102,6 +103,21 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
     price_abs = float(abs(fd_price - oracle_price))
     delta_abs = float(abs(fd_delta - reference_greeks["delta"]))
     gamma_abs = float(abs(fd_gamma - reference_greeks["gamma"]))
+    no_arbitrage = _compiled_no_arbitrage(spot, strike, fd_price, fd_delta, fd_gamma)
+    if numerical_version == "v1":
+        from finite_difference_options.validation.fd_evidence.carry_bounds import call_carry_bounds
+
+        no_arbitrage = call_carry_bounds(
+            spot=spot,
+            strike=strike,
+            value=fd_price,
+            delta=fd_delta,
+            gamma=fd_gamma,
+            risk_free_rate=rate,
+            dividend_yield=dividend_yield,
+            maturity=maturity,
+        )
+    bounds_ok = all(bool(value) for name, value in no_arbitrage.items() if name.endswith("_ok"))
     resource_controls = {
         "max_s_steps": max(level[0] for level in grid_levels),
         "max_t_steps": max(level[1] for level in grid_levels),
@@ -109,6 +125,8 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
         "deterministic": "true",
         "boundary_rebuilt_each_time_step": "true",
     }
+    if numerical_version == "v1":
+        resource_controls["boundary_rebuilt_each_time_step"] = "values_only; fixed identity rows reused"
     return {
         "oracle_price": oracle_price,
         "price": fd_price,
@@ -117,7 +135,12 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
         "reference_delta": reference_greeks["delta"],
         "reference_gamma": reference_greeks["gamma"],
         "convergence": tuple(observations),
-        "converged": (price_abs <= price_tolerance and delta_abs <= delta_tolerance and gamma_abs <= gamma_tolerance),
+        "converged": (
+            price_abs <= price_tolerance
+            and delta_abs <= delta_tolerance
+            and gamma_abs <= gamma_tolerance
+            and (numerical_version == "v0" or bounds_ok)
+        ),
         "errors": {
             "price_abs": price_abs,
             "price_tolerance": price_tolerance,
@@ -137,7 +160,7 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
             "gamma_tolerance_ok": gamma_abs <= gamma_tolerance,
             "max_abs_price_error": float(max(row["abs_error"] for row in observations)),
         },
-        "no_arbitrage": _compiled_no_arbitrage(spot, strike, fd_price, fd_delta, fd_gamma),
+        "no_arbitrage": no_arbitrage,
         "boundary_schedule_applied": {
             "source": "compiled_route_explicit_schedule",
             "lower_expression": "V(0,tau)=0",
@@ -149,7 +172,9 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
             "lower boundary: explicit compiled PDE Dirichlet V(0,tau)=0",
             "upper boundary: explicit compiled PDE time-dependent far-field V(Smax,tau)=Smax*exp(-q*tau)-K*exp(-r*tau)",
             "uniform physical-price grid on the compiled route domain",
-            "theta time stepping with per-step boundary-row rebuild",
+            "theta time stepping with per-step boundary-row rebuild"
+            if numerical_version == "v0"
+            else "theta time stepping with exact-dt cached identity rows and per-step boundary values",
         ),
         "resource_controls": resource_controls,
         "operator": final_operator_diagnostics,
@@ -158,8 +183,20 @@ def _run_compiled_black_scholes_route(route: Mapping[str, Any]) -> dict[str, Any
             "orientation": "tau_increasing_from_maturity_to_valuation",
         },
         "grid_metadata": _grid_metadata(final_s_grid, final_t_grid),
-        "config_hash": _sha256_ref({"route": "compiled_black_scholes_v0", "numerics": numerics}),
+        "config_hash": _sha256_ref({"route": "compiled_black_scholes_" + numerical_version, "numerics": numerics}),
     }
+
+
+def _select_grid_solver(
+    numerical_version: str,
+) -> Callable[..., tuple[np.ndarray, tuple[dict[str, float | int | str], ...], dict[str, Any]]]:
+    if numerical_version == "v0":
+        return _solve_compiled_black_scholes_grid
+    if numerical_version == "v1":
+        from finite_difference_options.solvers._compiled_black_scholes import solve_compiled_black_scholes_grid_v1
+
+        return solve_compiled_black_scholes_grid_v1
+    raise ValueError("unsupported compiled numerical version")
 
 
 def _solve_compiled_black_scholes_grid(
