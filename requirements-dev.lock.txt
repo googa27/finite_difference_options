@@ -36,9 +36,9 @@ fqdn==1.5.1
 gitdb==4.0.12
 GitPython==3.1.60
 h11==0.16.0
-httpcore2==2.9.1
+httpcore2==2.12.0
 httptools==0.8.0
-httpx2==2.9.1
+httpx2==2.12.0
 id==1.6.1
 identify==2.6.19
 idna==3.18

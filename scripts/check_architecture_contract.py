@@ -257,6 +257,18 @@ def validate_contract(repo_root: Path, contract_path: Path) -> list[str]:
                         f"{name}: compatibility shim contains standalone logic/classes/functions: {shim_path}"
                     )
 
+    owned_files: set[Path] = set()
+    for capability in canonical_capabilities:
+        for module in _read_list(capability, "canonical_modules"):
+            path = repo_root / module
+            owned_files.update(path.rglob("*.py") if path.is_dir() else [path])
+    for name in _read_list(topology, "inventoried_packages"):
+        package = package_root / name
+        for implementation in package.rglob("*.py"):
+            if implementation.name != "__init__.py" and "__pycache__" not in implementation.parts:
+                if implementation not in owned_files:
+                    failures.append(f"Unowned implementation: {implementation.relative_to(repo_root)}")
+
     return failures
 
 

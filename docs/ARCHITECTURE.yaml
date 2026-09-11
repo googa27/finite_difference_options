@@ -139,6 +139,31 @@
         ]
       },
       {
+        "capability": "cached tridiagonal theta-system factorization and repeated solves",
+        "selected": [
+          "scipy.linalg.lapack.dgttrf",
+          "scipy.linalg.lapack.dgttrs"
+        ],
+        "alternatives": [
+          "custom Python Thomas factorization/substitution",
+          "scipy.linalg.solve_banded (refactors each solve)",
+          "scipy.sparse.linalg.splu (generic sparse setup)"
+        ],
+        "maintenance_evidence": "https://docs.scipy.org/doc/scipy/reference/linalg.lapack.html",
+        "api_stability_evidence": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lapack.dgttrf.html; https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.lapack.dgttrs.html",
+        "license_evidence": "https://github.com/scipy/scipy/blob/main/LICENSE.txt",
+        "adapter_boundary": "src/finite_difference_options/solvers/_tridiagonal.py; no new public export or dependency",
+        "custom_code_reason": "FD row-aligned diagonals, immutable cache ownership, shape/finiteness/status checks, preserved 1e-14 U-pivot floor, and zero-column RHS quick return are domain/adapter contracts; LU/substitution remain LAPACK-owned.",
+        "oracle_or_reference_tests": [
+          "tests/unit/test_cached_lapack_system.py",
+          "tests/test_public_solver_contract_and_cache.py",
+          "tests/test_pinares_fd_proxy.py",
+          "tests/test_fd_black_scholes_parity_fixture.py"
+        ],
+        "performance_evidence": "docs/benchmarks/cached_lapack_20260911.json; docs/LAPACK_CACHE_REFACTOR.md",
+        "compatibility": "Same public cache/solver API and keys, theta discretization, Dirichlet rows, float64 and output rank. Partial pivoting can solve nonsingular systems previously rejected by unpivoted Thomas. Minimum internal factor size is three; public Black-Scholes minimum remains five."
+      },
+      {
         "capability": "Python source formatting and linting",
         "selected": [
           "Ruff 0.15.21"

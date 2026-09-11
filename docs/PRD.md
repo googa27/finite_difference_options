@@ -230,3 +230,7 @@ Changes to PDE/operator convention, grid/stencil semantics, boundaries, time int
 - SciPy sparse linear algebra: https://docs.scipy.org/doc/scipy/reference/sparse.linalg.html
 
 *End of canonical Finite Difference Options PRD.*
+
+### Cached direct-solve implementation
+
+The validated public one-dimensional theta cache delegates factorization and repeated vector/multiple-RHS solves to SciPy LAPACK through a bounded private adapter. Existing discretization, boundary formulas, cache identity and public API are preserved. The adapter refuses malformed or non-finite systems and protects cached factors from mutation; empty RHS batches are handled without a native call. See [the maintained-library decision and benchmark evidence](LAPACK_CACHE_REFACTOR.md).

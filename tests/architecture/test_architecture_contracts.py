@@ -328,3 +328,27 @@ def test_canonical_capability_inventory_is_executable_and_blocks_duplicate_stack
             full_path = ROOT / shim_path
             assert full_path.is_file()
             assert PACKAGE_ROOT in full_path.parents
+
+
+@pytest.mark.parametrize("mutation", ["remove_owner", "new_unowned"])
+def test_solver_ownership_gate_refuses_uninventoried_modules(tmp_path, mutation) -> None:
+    """Private kernels need the same executable ownership discipline as facades."""
+    import importlib.util
+    import shutil
+
+    spec = importlib.util.spec_from_file_location("fd_contract_gate", ROOT / "scripts/check_architecture_contract.py")
+    assert spec is not None and spec.loader is not None
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    for name in ("src", "docs", ".github"):
+        shutil.copytree(ROOT / name, tmp_path / name, ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copy2(ROOT / "AGENTS.md", tmp_path / "AGENTS.md")
+    contract = tmp_path / "docs/architecture_contract.toml"
+    if mutation == "remove_owner":
+        contract.write_text(
+            contract.read_text().replace('  "src/finite_difference_options/solvers/_tridiagonal.py",\n', "")
+        )
+    else:
+        (tmp_path / "src/finite_difference_options/solvers/unowned.py").write_text('"""Unreviewed kernel."""\n')
+    errors = checker.validate_contract(tmp_path, contract)
+    assert any("Unowned implementation" in error for error in errors), errors

@@ -1,0 +1,825 @@
+{
+  "schema": "fd-cached-lapack-benchmark.v1",
+  "quick": false,
+  "classification": "public-synthetic",
+  "process_peak_rss_kib_linux": 853756,
+  "memory_notes": "Array bytes are exact logical storage. Tracemalloc is a separately instrumented solve and excludes untracked native allocations. RSS is cumulative whole-process Linux peak, not per-case allocation.",
+  "harness_sha256": "4e2052404c4011ae337e4dfa54b450acf2406ac7c0f24b1d5d0967df35895e6e",
+  "candidate_source_sha256": {
+    "_tridiagonal.py": "6eb32c6af7d48a51d75593c47545aa41aa3da3e7da000149cf74ed0669851c17",
+    "black_scholes.py": "ff3523c7f283c1ce1c2ca2085d19440c26d1fdd5d57c0d8db56c2b33f835ea10"
+  },
+  "baseline_commit": "0bc300ea161093ab90a4b209e9326956f22e46f5",
+  "python": "3.12.3",
+  "numpy": "2.5.0",
+  "scipy": "1.18.0",
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "processor": "x86_64",
+  "cpu_count": 8,
+  "numpy_build": {
+    "Compilers": {
+      "c": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "cc"
+      },
+      "cython": {
+        "name": "cython",
+        "linker": "cython",
+        "version": "3.2.5",
+        "commands": "cython"
+      },
+      "c++": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "c++"
+      }
+    },
+    "Machine Information": {
+      "host": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      },
+      "build": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      }
+    },
+    "Build Dependencies": {
+      "blas": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.33.112.0",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib",
+        "openblas configuration": "OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas"
+      },
+      "lapack": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.33.112.0",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib",
+        "openblas configuration": "OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas"
+      }
+    },
+    "Python Information": {
+      "path": "/tmp/build-env-uvemcwed/bin/python",
+      "version": "3.12"
+    },
+    "SIMD Extensions": {
+      "baseline": [
+        "X86_V2"
+      ],
+      "found": [
+        "X86_V3"
+      ],
+      "not found": [
+        "X86_V4",
+        "AVX512_ICL",
+        "AVX512_SPR"
+      ]
+    }
+  },
+  "scipy_build": {
+    "Compilers": {
+      "c": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "cc"
+      },
+      "cython": {
+        "name": "cython",
+        "linker": "cython",
+        "version": "3.2.5",
+        "commands": "cython"
+      },
+      "c++": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "c++"
+      },
+      "fortran": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "gfortran"
+      },
+      "pythran": {
+        "version": "0.18.1",
+        "include directory": "../../../tmp/build-env-z5xmlso7/lib/python3.12/site-packages/pythran"
+      }
+    },
+    "Machine Information": {
+      "host": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      },
+      "build": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      },
+      "cross-compiled": false
+    },
+    "Build Dependencies": {
+      "blas": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.31.dev",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/lib",
+        "openblas configuration": "OpenBLAS 0.3.31.dev DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas",
+        "has ilp64": false,
+        "cython blas ilp64": false
+      },
+      "lapack": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.31.dev",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/lib",
+        "openblas configuration": "OpenBLAS 0.3.31.dev DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas",
+        "has ilp64": false
+      },
+      "pybind11": {
+        "name": "pybind11",
+        "version": "3.0.4",
+        "detection method": "config-tool",
+        "include directory": "unknown"
+      }
+    },
+    "Python Information": {
+      "path": "/tmp/build-env-z5xmlso7/bin/python",
+      "version": "3.12"
+    }
+  },
+  "thread_environment": {
+    "OPENBLAS_NUM_THREADS": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1"
+  },
+  "notes": [
+    "Local CPU microbenchmark; no timing threshold added to unit tests.",
+    "Candidate includes finite RHS/solution checks and preserves input arrays.",
+    "Factor-once solve-many; samples run in the same process; other machine workloads may affect timing."
+  ],
+  "cases": [
+    {
+      "nodes": 101,
+      "rhs_columns": 1,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "8e214fbe8e2b3491baffc7d6a1b1c0b78a0a7c82875d5da5b864d5181c227063",
+      "old_factor": {
+        "median_seconds": 8.516614999999999e-05,
+        "samples_seconds": [
+          9.35845e-05,
+          8.493705000000001e-05,
+          8.808669999999999e-05,
+          8.516614999999999e-05,
+          8.36291e-05
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 3.2174150000000004e-05,
+        "samples_seconds": [
+          3.261875e-05,
+          3.2174150000000004e-05,
+          2.64447e-05,
+          3.207485e-05,
+          3.46114e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 8.964455000000001e-05,
+        "samples_seconds": [
+          9.530305000000001e-05,
+          9.172605e-05,
+          8.964455000000001e-05,
+          8.56485e-05,
+          8.772689999999999e-05
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 8.9988e-06,
+        "samples_seconds": [
+          1.323065e-05,
+          8.9988e-06,
+          8.96925e-06,
+          8.86335e-06,
+          1.010225e-05
+        ]
+      },
+      "solve_speedup": 9.961833800062232,
+      "factor_speedup": 2.647036518447262,
+      "max_abs_difference": 4.440892098500626e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5,
+      "matrix_nonzeros": 299,
+      "matrix_band_storage_bytes": 2424,
+      "rhs_bytes": 808,
+      "factor_storage_bytes": 3604,
+      "measured_python_solve_peak_bytes": 1270,
+      "cache_state": "factor_once_solve_many; factor setup excluded from solve timing",
+      "rhs_seed": 774,
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 101
+      },
+      "coefficients": {
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2
+      },
+      "boundary_rows": "identity",
+      "parity_rtol": 1e-12,
+      "parity_atol": 1e-12
+    },
+    {
+      "nodes": 101,
+      "rhs_columns": 8,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "8e214fbe8e2b3491baffc7d6a1b1c0b78a0a7c82875d5da5b864d5181c227063",
+      "old_factor": {
+        "median_seconds": 8.516614999999999e-05,
+        "samples_seconds": [
+          9.35845e-05,
+          8.493705000000001e-05,
+          8.808669999999999e-05,
+          8.516614999999999e-05,
+          8.36291e-05
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 3.2174150000000004e-05,
+        "samples_seconds": [
+          3.261875e-05,
+          3.2174150000000004e-05,
+          2.64447e-05,
+          3.207485e-05,
+          3.46114e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.000559332,
+        "samples_seconds": [
+          0.00055801775,
+          0.00053948095,
+          0.0005665654,
+          0.0005821776,
+          0.000559332
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 1.9998900000000003e-05,
+        "samples_seconds": [
+          2.477995e-05,
+          1.9998900000000003e-05,
+          1.92054e-05,
+          2.68383e-05,
+          1.99217e-05
+        ]
+      },
+      "solve_speedup": 27.968138247603612,
+      "factor_speedup": 2.647036518447262,
+      "max_abs_difference": 4.440892098500626e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5,
+      "matrix_nonzeros": 299,
+      "matrix_band_storage_bytes": 2424,
+      "rhs_bytes": 6464,
+      "factor_storage_bytes": 3604,
+      "measured_python_solve_peak_bytes": 7633,
+      "cache_state": "factor_once_solve_many; factor setup excluded from solve timing",
+      "rhs_seed": 774,
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 101
+      },
+      "coefficients": {
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2
+      },
+      "boundary_rows": "identity",
+      "parity_rtol": 1e-12,
+      "parity_atol": 1e-12
+    },
+    {
+      "nodes": 501,
+      "rhs_columns": 1,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "b7548ea7fdedf59ecf602a8b67f5438e08b8ca8e55152a6b2f47a0cf4154683d",
+      "old_factor": {
+        "median_seconds": 0.0005091247,
+        "samples_seconds": [
+          0.0005684558,
+          0.0004605395,
+          0.0005091247,
+          0.0006935169499999999,
+          0.00042761685
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 3.914975e-05,
+        "samples_seconds": [
+          3.8732199999999995e-05,
+          3.917695e-05,
+          4.147975e-05,
+          3.914975e-05,
+          3.70041e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.0004900477,
+        "samples_seconds": [
+          0.0004900477,
+          0.00048502155,
+          0.00049011115,
+          0.00048916165,
+          0.000511153
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 1.59544e-05,
+        "samples_seconds": [
+          2.20668e-05,
+          1.807575e-05,
+          1.59544e-05,
+          1.50678e-05,
+          1.504165e-05
+        ]
+      },
+      "solve_speedup": 30.715520483377624,
+      "factor_speedup": 13.004545367467227,
+      "max_abs_difference": 4.440892098500626e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5,
+      "matrix_nonzeros": 1499,
+      "matrix_band_storage_bytes": 12024,
+      "rhs_bytes": 4008,
+      "factor_storage_bytes": 18004,
+      "measured_python_solve_peak_bytes": 4870,
+      "cache_state": "factor_once_solve_many; factor setup excluded from solve timing",
+      "rhs_seed": 774,
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 501
+      },
+      "coefficients": {
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2
+      },
+      "boundary_rows": "identity",
+      "parity_rtol": 1e-12,
+      "parity_atol": 1e-12
+    },
+    {
+      "nodes": 501,
+      "rhs_columns": 8,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "b7548ea7fdedf59ecf602a8b67f5438e08b8ca8e55152a6b2f47a0cf4154683d",
+      "old_factor": {
+        "median_seconds": 0.0005091247,
+        "samples_seconds": [
+          0.0005684558,
+          0.0004605395,
+          0.0005091247,
+          0.0006935169499999999,
+          0.00042761685
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 3.914975e-05,
+        "samples_seconds": [
+          3.8732199999999995e-05,
+          3.917695e-05,
+          4.147975e-05,
+          3.914975e-05,
+          3.70041e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.0028249685,
+        "samples_seconds": [
+          0.0030959053,
+          0.00285956565,
+          0.0027759674,
+          0.0028249685,
+          0.0026344456000000002
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 7.026985e-05,
+        "samples_seconds": [
+          7.026985e-05,
+          6.495815000000001e-05,
+          8.44438e-05,
+          6.904985e-05,
+          7.194655e-05
+        ]
+      },
+      "solve_speedup": 40.20171524487387,
+      "factor_speedup": 13.004545367467227,
+      "max_abs_difference": 8.881784197001252e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5,
+      "matrix_nonzeros": 1499,
+      "matrix_band_storage_bytes": 12024,
+      "rhs_bytes": 32064,
+      "factor_storage_bytes": 18004,
+      "measured_python_solve_peak_bytes": 36433,
+      "cache_state": "factor_once_solve_many; factor setup excluded from solve timing",
+      "rhs_seed": 774,
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 501
+      },
+      "coefficients": {
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2
+      },
+      "boundary_rows": "identity",
+      "parity_rtol": 1e-12,
+      "parity_atol": 1e-12
+    },
+    {
+      "nodes": 2001,
+      "rhs_columns": 1,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "35869bf20cf430b843f9a96ea1f9d7c98eccd99b1c1456dd303042eb046b02d8",
+      "old_factor": {
+        "median_seconds": 0.0018562118,
+        "samples_seconds": [
+          0.0018562118,
+          0.00184766145,
+          0.001842611,
+          0.0019161316000000002,
+          0.0020583343
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 6.756210000000001e-05,
+        "samples_seconds": [
+          7.27468e-05,
+          6.756210000000001e-05,
+          6.21627e-05,
+          7.09436e-05,
+          6.47282e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.0020222285,
+        "samples_seconds": [
+          0.0020641626000000002,
+          0.0019843972,
+          0.0020289772,
+          0.0019663993,
+          0.0020222285
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 4.35647e-05,
+        "samples_seconds": [
+          4.35647e-05,
+          4.462465e-05,
+          4.154785e-05,
+          4.4393550000000005e-05,
+          3.550525e-05
+        ]
+      },
+      "solve_speedup": 46.41896994585066,
+      "factor_speedup": 27.474157848853125,
+      "max_abs_difference": 1.6375789613221059e-15,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5,
+      "matrix_nonzeros": 5999,
+      "matrix_band_storage_bytes": 48024,
+      "rhs_bytes": 16008,
+      "factor_storage_bytes": 72004,
+      "measured_python_solve_peak_bytes": 18370,
+      "cache_state": "factor_once_solve_many; factor setup excluded from solve timing",
+      "rhs_seed": 774,
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 2001
+      },
+      "coefficients": {
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2
+      },
+      "boundary_rows": "identity",
+      "parity_rtol": 1e-12,
+      "parity_atol": 1e-12
+    },
+    {
+      "nodes": 2001,
+      "rhs_columns": 8,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "35869bf20cf430b843f9a96ea1f9d7c98eccd99b1c1456dd303042eb046b02d8",
+      "old_factor": {
+        "median_seconds": 0.0018562118,
+        "samples_seconds": [
+          0.0018562118,
+          0.00184766145,
+          0.001842611,
+          0.0019161316000000002,
+          0.0020583343
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 6.756210000000001e-05,
+        "samples_seconds": [
+          7.27468e-05,
+          6.756210000000001e-05,
+          6.21627e-05,
+          7.09436e-05,
+          6.47282e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.011808618699999999,
+        "samples_seconds": [
+          0.0128756625,
+          0.011808618699999999,
+          0.01136251085,
+          0.0116420205,
+          0.01219638075
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 0.0002601764,
+        "samples_seconds": [
+          0.00026547254999999997,
+          0.0002601764,
+          0.0002522136,
+          0.0002600341,
+          0.0002667743
+        ]
+      },
+      "solve_speedup": 45.386970916655,
+      "factor_speedup": 27.474157848853125,
+      "max_abs_difference": 1.609823385706477e-15,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5,
+      "matrix_nonzeros": 5999,
+      "matrix_band_storage_bytes": 48024,
+      "rhs_bytes": 128064,
+      "factor_storage_bytes": 72004,
+      "measured_python_solve_peak_bytes": 144433,
+      "cache_state": "factor_once_solve_many; factor setup excluded from solve timing",
+      "rhs_seed": 774,
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 2001
+      },
+      "coefficients": {
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2
+      },
+      "boundary_rows": "identity",
+      "parity_rtol": 1e-12,
+      "parity_atol": 1e-12
+    }
+  ],
+  "end_to_end": [
+    {
+      "nodes": 101,
+      "time_steps": 400,
+      "old_samples_seconds": [
+        0.053228051,
+        0.058910628,
+        0.056247988,
+        0.053862462,
+        0.078418361,
+        0.088159939,
+        0.058268243
+      ],
+      "new_samples_seconds": [
+        0.015522026,
+        0.017966873,
+        0.016131129,
+        0.016387582,
+        0.018467092,
+        0.027131724,
+        0.016734065
+      ],
+      "old_median_seconds": 0.058268243,
+      "new_median_seconds": 0.016734065,
+      "speedup": 3.482013664940348,
+      "max_abs_solution_difference": 4.547473508864641e-13,
+      "price_at_100_before": 9.280682965527523,
+      "price_at_100_after": 9.280682965527518,
+      "cache_before": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      },
+      "cache_after": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      },
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 101
+      },
+      "parameters": {
+        "strike": 100.0,
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2,
+        "option_type": "call"
+      },
+      "time_grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 1.0,
+        "steps": 400
+      },
+      "theta": 0.5,
+      "dtype": "float64",
+      "cold_samples": {
+        "before": 0.053228051,
+        "after": 0.015522026
+      },
+      "warm_samples": {
+        "before": [
+          0.058910628,
+          0.056247988,
+          0.053862462,
+          0.078418361,
+          0.088159939,
+          0.058268243
+        ],
+        "after": [
+          0.017966873,
+          0.016131129,
+          0.016387582,
+          0.018467092,
+          0.027131724,
+          0.016734065
+        ]
+      },
+      "warm_speedup": 3.3768214277089568,
+      "solution_storage_bytes": 324008,
+      "parity_rtol": 3e-12,
+      "parity_atol": 3e-12
+    },
+    {
+      "nodes": 501,
+      "time_steps": 400,
+      "old_samples_seconds": [
+        0.344076713,
+        0.23700716,
+        0.224283298,
+        0.231775996,
+        0.267065287,
+        0.381369957,
+        0.375350447
+      ],
+      "new_samples_seconds": [
+        0.038580799,
+        0.025995849,
+        0.027231882,
+        0.023425093,
+        0.026574247,
+        0.026537733,
+        0.0227843
+      ],
+      "old_median_seconds": 0.267065287,
+      "new_median_seconds": 0.026537733,
+      "speedup": 10.063605922932451,
+      "max_abs_solution_difference": 3.126388037344441e-12,
+      "price_at_100_before": 9.318188907228993,
+      "price_at_100_after": 9.318188907229018,
+      "cache_before": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      },
+      "cache_after": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      },
+      "grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 400.0,
+        "nodes": 501
+      },
+      "parameters": {
+        "strike": 100.0,
+        "risk_free_rate": 0.04,
+        "dividend_yield": 0.01,
+        "volatility": 0.2,
+        "option_type": "call"
+      },
+      "time_grid": {
+        "kind": "linspace",
+        "start": 0.0,
+        "stop": 1.0,
+        "steps": 400
+      },
+      "theta": 0.5,
+      "dtype": "float64",
+      "cold_samples": {
+        "before": 0.344076713,
+        "after": 0.038580799
+      },
+      "warm_samples": {
+        "before": [
+          0.23700716,
+          0.224283298,
+          0.231775996,
+          0.267065287,
+          0.381369957,
+          0.375350447
+        ],
+        "after": [
+          0.025995849,
+          0.027231882,
+          0.023425093,
+          0.026574247,
+          0.026537733,
+          0.0227843
+        ]
+      },
+      "warm_speedup": 9.595242277596832,
+      "solution_storage_bytes": 1607208,
+      "parity_rtol": 3e-12,
+      "parity_atol": 3e-12
+    }
+  ],
+  "baseline_source_sha256": "7176deef84b8548b1e9987595b10f741d1e5329d06e7335be9e6c2baf60c23e6"
+}

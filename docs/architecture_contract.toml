@@ -54,6 +54,8 @@ allowed_top_level_packages = [
 ]
 max_top_level_package_count = 17
 ignore_top_level_dirs = []
+# Every implementation in these packages must have a canonical owner.
+inventoried_packages = ["solvers"]
 
 [repository_root]
 allowed_python_files = []
@@ -169,4 +171,22 @@ canonical_modules = [
 ]
 public_imports = ["finite_difference_options.validation", "finite_difference_options.contracts"]
 forbidden_legacy_modules = ["src/validation.py", "src/benchmarks.py", "src/capabilities.py"]
+compatibility_shims = []
+
+
+[[canonical_capabilities]]
+name = "cached-black-scholes-tridiagonal-solving"
+canonical_modules = [
+  "src/finite_difference_options/solvers/black_scholes.py",
+  "src/finite_difference_options/solvers/_tridiagonal.py",
+]
+public_imports = ["finite_difference_options.solvers"]
+forbidden_legacy_modules = []
+compatibility_shims = []
+
+[[canonical_capabilities]]
+name = "generic-theta-time-stepping"
+canonical_modules = ["src/finite_difference_options/solvers/finite_difference.py"]
+public_imports = ["finite_difference_options.solvers.finite_difference"]
+forbidden_legacy_modules = []
 compatibility_shims = []

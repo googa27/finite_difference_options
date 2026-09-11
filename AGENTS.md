@@ -360,3 +360,7 @@ Repository posture: Consume FPF contracts; avoid PDP/UI runtime dependencies; em
 
 If a command is declared unavailable, the activation trigger and replacement command belong in `docs/ARCHITECTURE.yaml`; do not fabricate successful output.
 <!-- PORTFOLIO-CONSTITUTION:END -->
+
+### Cached tridiagonal solver verification
+
+`solvers/_tridiagonal.py` owns the private SciPy LAPACK adapter used by the public Black-Scholes cache. Preserve row-aligned diagonal conversion, partial-pivot indices, read-only factor ownership, vector/multiple-RHS rank, cache keys, and the empty-RHS guard. Run `pytest -q tests/unit/test_cached_lapack_system.py tests/test_public_solver_contract_and_cache.py --no-cov` before the full numerical suite. Numerical/compatibility and benchmark details live in `docs/LAPACK_CACHE_REFACTOR.md`; never replace the zero-column guard with a native call merely because the returned empty shape looks correct.
