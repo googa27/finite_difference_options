@@ -1,0 +1,596 @@
+{
+  "classification": "public-synthetic",
+  "baseline_commit": "0bc300ea161093ab90a4b209e9326956f22e46f5",
+  "python": "3.12.3",
+  "numpy": "2.5.0",
+  "scipy": "1.18.0",
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.39",
+  "processor": "x86_64",
+  "cpu_count": 8,
+  "numpy_build": {
+    "Compilers": {
+      "c": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "cc"
+      },
+      "cython": {
+        "name": "cython",
+        "linker": "cython",
+        "version": "3.2.5",
+        "commands": "cython"
+      },
+      "c++": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "c++"
+      }
+    },
+    "Machine Information": {
+      "host": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      },
+      "build": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      }
+    },
+    "Build Dependencies": {
+      "blas": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.33.112.0",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib",
+        "openblas configuration": "OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas"
+      },
+      "lapack": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.33.112.0",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas64/lib",
+        "openblas configuration": "OpenBLAS 0.3.33.112.0  USE64BITINT DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas"
+      }
+    },
+    "Python Information": {
+      "path": "/tmp/build-env-uvemcwed/bin/python",
+      "version": "3.12"
+    },
+    "SIMD Extensions": {
+      "baseline": [
+        "X86_V2"
+      ],
+      "found": [
+        "X86_V3"
+      ],
+      "not found": [
+        "X86_V4",
+        "AVX512_ICL",
+        "AVX512_SPR"
+      ]
+    }
+  },
+  "scipy_build": {
+    "Compilers": {
+      "c": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "cc"
+      },
+      "cython": {
+        "name": "cython",
+        "linker": "cython",
+        "version": "3.2.5",
+        "commands": "cython"
+      },
+      "c++": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "c++"
+      },
+      "fortran": {
+        "name": "gcc",
+        "linker": "ld.bfd",
+        "version": "14.2.1",
+        "commands": "gfortran"
+      },
+      "pythran": {
+        "version": "0.18.1",
+        "include directory": "../../../tmp/build-env-z5xmlso7/lib/python3.12/site-packages/pythran"
+      }
+    },
+    "Machine Information": {
+      "host": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      },
+      "build": {
+        "cpu": "x86_64",
+        "family": "x86_64",
+        "endian": "little",
+        "system": "linux"
+      },
+      "cross-compiled": false
+    },
+    "Build Dependencies": {
+      "blas": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.31.dev",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/lib",
+        "openblas configuration": "OpenBLAS 0.3.31.dev DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas",
+        "has ilp64": false,
+        "cython blas ilp64": false
+      },
+      "lapack": {
+        "name": "scipy-openblas",
+        "found": true,
+        "version": "0.3.31.dev",
+        "detection method": "pkgconfig",
+        "include directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/include",
+        "lib directory": "/opt/_internal/cpython-3.12.13/lib/python3.12/site-packages/scipy_openblas32/lib",
+        "openblas configuration": "OpenBLAS 0.3.31.dev DYNAMIC_ARCH NO_AFFINITY Haswell MAX_THREADS=64",
+        "pc file directory": "/project/.openblas",
+        "has ilp64": false
+      },
+      "pybind11": {
+        "name": "pybind11",
+        "version": "3.0.4",
+        "detection method": "config-tool",
+        "include directory": "unknown"
+      }
+    },
+    "Python Information": {
+      "path": "/tmp/build-env-z5xmlso7/bin/python",
+      "version": "3.12"
+    }
+  },
+  "thread_environment": {
+    "OPENBLAS_NUM_THREADS": null,
+    "OMP_NUM_THREADS": null,
+    "MKL_NUM_THREADS": null
+  },
+  "notes": [
+    "Local CPU microbenchmark; no timing threshold added to unit tests.",
+    "Candidate includes finite RHS/solution checks and preserves input arrays.",
+    "Factor-once solve-many; samples run in the same process; other machine workloads may affect timing."
+  ],
+  "cases": [
+    {
+      "nodes": 101,
+      "rhs_columns": 1,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "8e214fbe8e2b3491baffc7d6a1b1c0b78a0a7c82875d5da5b864d5181c227063",
+      "old_factor": {
+        "median_seconds": 8.172955e-05,
+        "samples_seconds": [
+          8.42227e-05,
+          8.172955e-05,
+          8.0033e-05,
+          8.91598e-05,
+          8.17131e-05
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 2.78708e-05,
+        "samples_seconds": [
+          2.92579e-05,
+          2.8197099999999998e-05,
+          2.6101799999999998e-05,
+          2.78708e-05,
+          2.7098700000000002e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 8.959865e-05,
+        "samples_seconds": [
+          8.959865e-05,
+          9.043345e-05,
+          9.431255e-05,
+          8.54978e-05,
+          8.773725e-05
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 1.54091e-05,
+        "samples_seconds": [
+          1.041105e-05,
+          1.0882799999999999e-05,
+          1.9194849999999998e-05,
+          1.8226049999999998e-05,
+          1.54091e-05
+        ]
+      },
+      "solve_speedup": 5.814658221440577,
+      "factor_speedup": 2.9324436327626047,
+      "max_abs_difference": 4.440892098500626e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5
+    },
+    {
+      "nodes": 101,
+      "rhs_columns": 8,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "8e214fbe8e2b3491baffc7d6a1b1c0b78a0a7c82875d5da5b864d5181c227063",
+      "old_factor": {
+        "median_seconds": 8.172955e-05,
+        "samples_seconds": [
+          8.42227e-05,
+          8.172955e-05,
+          8.0033e-05,
+          8.91598e-05,
+          8.17131e-05
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 2.78708e-05,
+        "samples_seconds": [
+          2.92579e-05,
+          2.8197099999999998e-05,
+          2.6101799999999998e-05,
+          2.78708e-05,
+          2.7098700000000002e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.0004929669500000001,
+        "samples_seconds": [
+          0.0005043861500000001,
+          0.00047449875,
+          0.0004945821,
+          0.0004929669500000001,
+          0.0004917165
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 1.83195e-05,
+        "samples_seconds": [
+          2.154915e-05,
+          1.83195e-05,
+          1.830695e-05,
+          1.9977e-05,
+          1.8046349999999997e-05
+        ]
+      },
+      "solve_speedup": 26.909410737192612,
+      "factor_speedup": 2.9324436327626047,
+      "max_abs_difference": 4.440892098500626e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5
+    },
+    {
+      "nodes": 501,
+      "rhs_columns": 1,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "b7548ea7fdedf59ecf602a8b67f5438e08b8ca8e55152a6b2f47a0cf4154683d",
+      "old_factor": {
+        "median_seconds": 0.0004150058,
+        "samples_seconds": [
+          0.00041660775,
+          0.0004097358,
+          0.00042894495,
+          0.00041278109999999996,
+          0.0004150058
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 3.6242300000000004e-05,
+        "samples_seconds": [
+          4.0632050000000003e-05,
+          3.6242300000000004e-05,
+          3.639335e-05,
+          3.43177e-05,
+          3.61601e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.00045852645,
+        "samples_seconds": [
+          0.00044154190000000003,
+          0.00045852645,
+          0.00045870175,
+          0.00043982390000000003,
+          0.00046540309999999996
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 1.5893200000000002e-05,
+        "samples_seconds": [
+          2.1175e-05,
+          1.56896e-05,
+          1.5742899999999998e-05,
+          1.76977e-05,
+          1.5893200000000002e-05
+        ]
+      },
+      "solve_speedup": 28.850480079530865,
+      "factor_speedup": 11.450868184414343,
+      "max_abs_difference": 4.440892098500626e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5
+    },
+    {
+      "nodes": 501,
+      "rhs_columns": 8,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "b7548ea7fdedf59ecf602a8b67f5438e08b8ca8e55152a6b2f47a0cf4154683d",
+      "old_factor": {
+        "median_seconds": 0.0004150058,
+        "samples_seconds": [
+          0.00041660775,
+          0.0004097358,
+          0.00042894495,
+          0.00041278109999999996,
+          0.0004150058
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 3.6242300000000004e-05,
+        "samples_seconds": [
+          4.0632050000000003e-05,
+          3.6242300000000004e-05,
+          3.639335e-05,
+          3.43177e-05,
+          3.61601e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.0025550179,
+        "samples_seconds": [
+          0.0027609744,
+          0.00253642385,
+          0.0025172182000000004,
+          0.0025550179,
+          0.0026584204
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 6.608515e-05,
+        "samples_seconds": [
+          6.786165e-05,
+          6.654875e-05,
+          6.608515e-05,
+          6.49811e-05,
+          6.525980000000001e-05
+        ]
+      },
+      "solve_speedup": 38.66251192590166,
+      "factor_speedup": 11.450868184414343,
+      "max_abs_difference": 8.881784197001252e-16,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5
+    },
+    {
+      "nodes": 2001,
+      "rhs_columns": 1,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "35869bf20cf430b843f9a96ea1f9d7c98eccd99b1c1456dd303042eb046b02d8",
+      "old_factor": {
+        "median_seconds": 0.00169929825,
+        "samples_seconds": [
+          0.00169465415,
+          0.00169929825,
+          0.0016989813500000001,
+          0.00169990715,
+          0.0017016545500000001
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 6.260285e-05,
+        "samples_seconds": [
+          6.90657e-05,
+          6.260285e-05,
+          6.65944e-05,
+          6.216595e-05,
+          6.147780000000001e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.0019029834,
+        "samples_seconds": [
+          0.0019029834,
+          0.0019628761,
+          0.0018544083999999998,
+          0.0018781965,
+          0.0019592594
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 3.89264e-05,
+        "samples_seconds": [
+          4.1051300000000005e-05,
+          3.8676199999999994e-05,
+          3.55971e-05,
+          4.21147e-05,
+          3.89264e-05
+        ]
+      },
+      "solve_speedup": 48.88670413909326,
+      "factor_speedup": 27.144103663012146,
+      "max_abs_difference": 1.6375789613221059e-15,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5
+    },
+    {
+      "nodes": 2001,
+      "rhs_columns": 8,
+      "dtype": "float64",
+      "theta": 0.5,
+      "dt": 0.01,
+      "grid_sha256": "35869bf20cf430b843f9a96ea1f9d7c98eccd99b1c1456dd303042eb046b02d8",
+      "old_factor": {
+        "median_seconds": 0.00169929825,
+        "samples_seconds": [
+          0.00169465415,
+          0.00169929825,
+          0.0016989813500000001,
+          0.00169990715,
+          0.0017016545500000001
+        ]
+      },
+      "lapack_factor": {
+        "median_seconds": 6.260285e-05,
+        "samples_seconds": [
+          6.90657e-05,
+          6.260285e-05,
+          6.65944e-05,
+          6.216595e-05,
+          6.147780000000001e-05
+        ]
+      },
+      "old_solve": {
+        "median_seconds": 0.009300712050000002,
+        "samples_seconds": [
+          0.009269459550000001,
+          0.009102944699999999,
+          0.009785174300000001,
+          0.009300712050000002,
+          0.0094415634
+        ]
+      },
+      "lapack_solve": {
+        "median_seconds": 0.00022214185000000002,
+        "samples_seconds": [
+          0.0002172584,
+          0.00022214185000000002,
+          0.0002454005,
+          0.0002149501,
+          0.0002262234
+        ]
+      },
+      "solve_speedup": 41.86834695938654,
+      "factor_speedup": 27.144103663012146,
+      "max_abs_difference": 1.609823385706477e-15,
+      "max_abs_oracle_error": 0.0,
+      "factor_reuse": 100,
+      "calls_per_sample": 20,
+      "repeats": 5
+    }
+  ],
+  "end_to_end": [
+    {
+      "nodes": 101,
+      "time_steps": 400,
+      "old_samples_seconds": [
+        0.044919694,
+        0.041871103,
+        0.045894656,
+        0.041996874,
+        0.041478504,
+        0.041310109,
+        0.042493744
+      ],
+      "new_samples_seconds": [
+        0.013574527,
+        0.013485121,
+        0.012662981,
+        0.012184331,
+        0.012799912,
+        0.012846069,
+        0.013150908
+      ],
+      "old_median_seconds": 0.041996874,
+      "new_median_seconds": 0.012846069,
+      "speedup": 3.269239329167545,
+      "max_abs_solution_difference": 4.547473508864641e-13,
+      "price_at_100_before": 9.280682965527523,
+      "price_at_100_after": 9.280682965527518,
+      "cache_before": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      },
+      "cache_after": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      }
+    },
+    {
+      "nodes": 501,
+      "time_steps": 400,
+      "old_samples_seconds": [
+        0.205913255,
+        0.197886931,
+        0.186137811,
+        0.182109155,
+        0.187275125,
+        0.187302406,
+        0.194330207
+      ],
+      "new_samples_seconds": [
+        0.024700043,
+        0.025132706,
+        0.018752379,
+        0.019246733,
+        0.019057581,
+        0.018770088,
+        0.020375401
+      ],
+      "old_median_seconds": 0.187302406,
+      "new_median_seconds": 0.019246733,
+      "speedup": 9.731646716354408,
+      "max_abs_solution_difference": 3.126388037344441e-12,
+      "price_at_100_before": 9.318188907228993,
+      "price_at_100_after": 9.318188907229018,
+      "cache_before": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      },
+      "cache_after": {
+        "hits": 3199,
+        "misses": 1,
+        "entries": 1,
+        "solves": 3200,
+        "reuse_count": 3199
+      }
+    }
+  ],
+  "baseline_source_sha256": "7176deef84b8548b1e9987595b10f741d1e5329d06e7335be9e6c2baf60c23e6"
+}

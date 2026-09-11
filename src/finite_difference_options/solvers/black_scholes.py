@@ -17,6 +17,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from finite_difference_options.exceptions import ValidationError
+from finite_difference_options.solvers._tridiagonal import TridiagonalLU
 
 Array = NDArray[np.float64]
 OptionType = Literal["call", "put"]
@@ -49,7 +50,7 @@ class OperatorCacheInfo:
 
 @dataclass
 class BandedOperatorCache:
-    """Cache theta-system tridiagonal operators and Thomas factorizations.
+    """Cache theta-system tridiagonal operators and pivoted LAPACK factorizations.
 
     The cache key includes the grid bytes, coefficients, theta, time step and
     dtype so changing any numerical invariant rebuilds the operator and
@@ -201,14 +202,12 @@ class CachedBlackScholesFiniteDifferenceSolver:
 
 @dataclass(frozen=True)
 class _CachedThetaSystem:
-    """Cached tridiagonal theta-system plus its Thomas factorization."""
+    """Cached tridiagonal theta-system plus its pivoted LAPACK factorization."""
 
     rhs_lower: Array
     rhs_diag: Array
     rhs_upper: Array
-    factor_lower: Array
-    factor_diag: Array
-    factor_c_prime: Array
+    factorization: TridiagonalLU
 
     @classmethod
     def build(
@@ -246,14 +245,14 @@ class _CachedThetaSystem:
         rhs_lower[0] = rhs_upper[0] = rhs_lower[-1] = rhs_upper[-1] = 0.0
         rhs_diag[0] = rhs_diag[-1] = 1.0
 
-        factor_diag, factor_c_prime = _factor_tridiagonal(lhs_lower, lhs_diag, lhs_upper)
+        factorization = TridiagonalLU.factor(lhs_lower, lhs_diag, lhs_upper)
+        for array in (rhs_lower, rhs_diag, rhs_upper):
+            array.setflags(write=False)
         return cls(
             rhs_lower=rhs_lower,
             rhs_diag=rhs_diag,
             rhs_upper=rhs_upper,
-            factor_lower=lhs_lower,
-            factor_diag=factor_diag,
-            factor_c_prime=factor_c_prime,
+            factorization=factorization,
         )
 
     def apply_rhs(self, values: Array) -> Array:
@@ -263,7 +262,7 @@ class _CachedThetaSystem:
         return rhs
 
     def solve(self, rhs: Array) -> Array:
-        return _solve_factored_tridiagonal(self.factor_lower, self.factor_diag, self.factor_c_prime, rhs)
+        return self.factorization.solve(rhs)
 
 
 def _black_scholes_tridiagonal_operator(
@@ -295,53 +294,6 @@ def _black_scholes_tridiagonal_operator(
         diag[idx] = diffusion_scale * d2_center + drift_scale * d1_center - risk_free_rate
         upper[idx] = diffusion_scale * d2_plus + drift_scale * d1_plus
     return lower, diag, upper
-
-
-def _factor_tridiagonal(lower: Array, diag: Array, upper: Array) -> tuple[Array, Array]:
-    n = len(diag)
-    factor_diag = np.empty(n, dtype=np.float64)
-    c_prime = np.zeros(n, dtype=np.float64)
-    factor_diag[0] = diag[0]
-    if abs(factor_diag[0]) <= 1.0e-14:
-        raise ValidationError("singular tridiagonal pivot at row 0")
-    c_prime[0] = upper[0] / factor_diag[0] if n > 1 else 0.0
-    for idx in range(1, n):
-        factor_diag[idx] = diag[idx] - lower[idx] * c_prime[idx - 1]
-        if abs(factor_diag[idx]) <= 1.0e-14:
-            raise ValidationError(f"singular tridiagonal pivot at row {idx}")
-        if idx < n - 1:
-            c_prime[idx] = upper[idx] / factor_diag[idx]
-    return factor_diag, c_prime
-
-
-def _solve_factored_tridiagonal(lower: Array, factor_diag: Array, c_prime: Array, rhs: Array) -> Array:
-    values = np.asarray(rhs, dtype=np.float64)
-    if values.ndim == 1:
-        return _solve_factored_tridiagonal_vector(lower, factor_diag, c_prime, values)
-    if values.ndim != 2:
-        raise ValidationError("tridiagonal RHS must be one- or two-dimensional")
-    d_prime = np.empty_like(values, dtype=np.float64)
-    d_prime[0, :] = values[0, :] / factor_diag[0]
-    for idx in range(1, values.shape[0]):
-        d_prime[idx, :] = (values[idx, :] - lower[idx] * d_prime[idx - 1, :]) / factor_diag[idx]
-    solution = np.empty_like(values, dtype=np.float64)
-    solution[-1, :] = d_prime[-1, :]
-    for idx in range(values.shape[0] - 2, -1, -1):
-        solution[idx, :] = d_prime[idx, :] - c_prime[idx] * solution[idx + 1, :]
-    return solution
-
-
-def _solve_factored_tridiagonal_vector(lower: Array, factor_diag: Array, c_prime: Array, rhs: Array) -> Array:
-    n = len(rhs)
-    d_prime = np.empty(n, dtype=np.float64)
-    d_prime[0] = rhs[0] / factor_diag[0]
-    for idx in range(1, n):
-        d_prime[idx] = (rhs[idx] - lower[idx] * d_prime[idx - 1]) / factor_diag[idx]
-    solution = np.empty(n, dtype=np.float64)
-    solution[-1] = d_prime[-1]
-    for idx in range(n - 2, -1, -1):
-        solution[idx] = d_prime[idx] - c_prime[idx] * solution[idx + 1]
-    return solution
 
 
 def _payoff(grid: Array, *, strike: float, option_type: OptionType) -> Array:
