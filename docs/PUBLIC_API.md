@@ -133,10 +133,11 @@ Package-root convenience exports are intentionally empty.
 - `released_fd_solver_contract`
 - `screen_compiled_pde_payload`
 - `solve_compiled_pde_payload`
+- `solve_compiled_pde_payload_v1`
 - `solve_public_quant_problem_spec`
 <!-- public-api:finite_difference_options.integrations:end -->
 
-The `compiled_pde_adapter` public module retains its existing imports and signatures. Its private DTO and validation modules are implementation details. The extraction preserves exact v0 fixture screening and numerical behavior; no new route or schema is enabled.
+The `compiled_pde_adapter` public module retains its existing imports and signatures. Its private DTO and validation modules are implementation details. The existing names retain exact v0 fixture screening and numerical behavior. Explicit `solve_compiled_pde_payload_v1` opts into banded v1 numerics. The verification module adds `run_fd_bs_verification_benchmark_v1()` and `write_fd_bs_verification_json_v1(path)`; existing no-argument functions and CLI remain v0. See [versioned numerical/replay contracts](COMPILED_PDE_V1.md).
 
 ### `finite_difference_options.models`
 

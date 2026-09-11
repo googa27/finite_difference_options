@@ -133,12 +133,25 @@ def screen_compiled_pde_payload(
 def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveResult:
     """Execute the exact validated compiled PDE fixture using maintained FD infrastructure."""
 
+    return _solve_compiled_pde_version(payload, numerical_version="v0")
+
+
+def solve_compiled_pde_payload_v1(payload: Mapping[str, Any]) -> CompiledPDESolveResult:
+    """Opt into the versioned float64 banded route for the exact public fixture."""
+    return _solve_compiled_pde_version(payload, numerical_version="v1")
+
+
+def _solve_compiled_pde_version(payload: Mapping[str, Any], *, numerical_version: str) -> CompiledPDESolveResult:
     diagnostics = _validate(payload)
     if diagnostics:
         raise CompiledPDEAdapterError(diagnostics)
 
     route = _route(payload)
-    report = _run_compiled_black_scholes_route(route)
+    report = (
+        _run_compiled_black_scholes_route(route)
+        if numerical_version == "v0"
+        else _run_compiled_black_scholes_route(route, numerical_version=numerical_version)
+    )
     values = {
         "price": report["price"],
         "oracle_price": report["oracle_price"],
@@ -161,7 +174,7 @@ def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveRe
         "adapter_schema_version": FIXTURE_SCHEMA_VERSION,
         "source_schema_version": SOURCE_PDE_IR_SCHEMA_VERSION,
         "compiled_schema_version": COMPILED_OPERATOR_SCHEMA_VERSION,
-        "route_id": "fd.compiled_pde.black_scholes_call_v0",
+        "route_id": "fd.compiled_pde.black_scholes_call_" + numerical_version,
         "backend_id": DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
         "code_version": installed_distribution_version(),
         "config_hash": report["config_hash"],
@@ -185,8 +198,12 @@ def solve_compiled_pde_payload(payload: Mapping[str, Any]) -> CompiledPDESolveRe
         "resource_controls": report["resource_controls"],
         "status": "passed" if report["converged"] else "failed",
     }
+    if numerical_version == "v1":
+        from finite_difference_options.validation.fd_evidence.replay_identity import v1_runtime_identity
+
+        evidence["numerical_runtime"] = v1_runtime_identity()
     return CompiledPDESolveResult(
-        schema_version="finite-difference-options.compiled-pde-solve-result/v0",
+        schema_version="finite-difference-options.compiled-pde-solve-result/" + numerical_version,
         backend_id=DEFAULT_FD_CAPABILITY_MANIFEST.backend_id,
         status="passed" if report["converged"] else "failed",
         problem_id=EXPECTED_PROBLEM_ID,
@@ -333,4 +350,5 @@ __all__ = [
     "packaged_compiled_black_scholes_fixture_path",
     "screen_compiled_pde_payload",
     "solve_compiled_pde_payload",
+    "solve_compiled_pde_payload_v1",
 ]

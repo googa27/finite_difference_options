@@ -42,9 +42,25 @@
         "private_contracts": "integrations/_compiled_pde_contracts.py",
         "private_validation": "integrations/_compiled_pde_validation.py",
         "identity_policy": "public imports, signatures, class modules and trusted historical DTO pickles remain stable",
-        "numerical_policy": "unchanged exact v0 fixture and dense route; no v1 behavior in extraction",
+        "numerical_policy": "v0 default and dense arithmetic retained; explicit solve_compiled_pde_payload_v1 with banded numerics and v1 schema",
         "fitness_gate": "tests/test_compiled_pde_compatibility.py",
         "private_grid_evidence": "validation/fd_evidence/grid_metrics.py"
+      },
+      "compiled_pde_numerics_v1": {
+        "document": "docs/COMPILED_PDE_V1.md",
+        "private_kernel": "solvers/_compiled_black_scholes.py",
+        "factor_adapter": "solvers/_tridiagonal.py",
+        "replay_identity": "validation/fd_evidence/replay_identity.py",
+        "carry_diagnostics": "validation/fd_evidence/carry_bounds.py",
+        "default": "v0; existing CLI and pinned UI unchanged",
+        "cache": "local invocation; exact binary64 dt without rounding; fixed grid/coefficients/theta/dtype/Dirichlet rows",
+        "replay": "only verified available schema/code version/runtime; strict hashes and recomputed numerical truth",
+        "tests": [
+          "tests/unit/test_compiled_banded_grid.py",
+          "tests/validation/test_versioned_compiled_replay.py",
+          "tests/validation/test_authentic_v0_replay.py",
+          "tests/validation/test_compiled_carry_bounds.py"
+        ]
       }
     },
     "extension_points": [

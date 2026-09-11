@@ -53,3 +53,7 @@ Machine-readable capability keys: `stochastic-processes-and-coefficients`, `inst
 - `generic-theta-time-stepping`: `solvers/finite_difference.py` owns generic theta/Rannacher stepping through its existing public import.
 
 `docs/architecture_contract.toml` inventories the complete `solvers` package. The checker rejects any non-initializer Python implementation without a canonical owner, including an unregistered new private kernel. Removing the registered tridiagonal owner and adding an unknown solver both fail negative architecture tests. Other packages retain their explicit existing topology/import gates; this scoped ratchet does not claim all leaf modules elsewhere were individually inventoried.
+
+### compiled-black-scholes-banded-v1
+
+`solvers/_compiled_black_scholes.py` owns the opt-in compiled three-diagonal operator and fixed-coefficient exact-dt stepping; it reuses the canonical `_tridiagonal.py` LAPACK adapter. The dense implementation in `integrations/compiled_pde_black_scholes_route.py` is retained for versioned v0 replay and independent reference tests. It is not selected by the v1 solve path. `validation/fd_evidence/replay_identity.py` owns replay identity, while `carry_bounds.py` owns pointwise carry diagnostics.

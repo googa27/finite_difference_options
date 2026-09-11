@@ -9,6 +9,7 @@ from .compiled_pde_adapter import (
     packaged_compiled_black_scholes_fixture,
     screen_compiled_pde_payload,
     solve_compiled_pde_payload,
+    solve_compiled_pde_payload_v1,
 )
 from .haircut_backend import (
     ContractMajorMismatchError,
@@ -43,5 +44,6 @@ __all__ = [
     "released_fd_solver_contract",
     "screen_compiled_pde_payload",
     "solve_compiled_pde_payload",
+    "solve_compiled_pde_payload_v1",
     "solve_public_quant_problem_spec",
 ]

@@ -111,7 +111,8 @@ def test_fd_bs_001_schema_and_versioned_provenance_contract() -> None:
     old_version = copy.deepcopy(bundle)
     old_version["provenance"]["code_version"] = "0.0.1"
     old_version["evidence"]["hashes"] = _hashes_for_bundle(old_version)
-    validate_fd_bs_verification_bundle(old_version)
+    with pytest.raises(FDVerificationError, match="available verified implementation"):
+        validate_fd_bs_verification_bundle(old_version)
 
     wrong_distribution = copy.deepcopy(bundle)
     wrong_distribution["provenance"]["distribution"] = "different-package"

@@ -190,3 +190,18 @@ canonical_modules = ["src/finite_difference_options/solvers/finite_difference.py
 public_imports = ["finite_difference_options.solvers.finite_difference"]
 forbidden_legacy_modules = []
 compatibility_shims = []
+
+[[canonical_capabilities]]
+name = "compiled-black-scholes-banded-v1"
+canonical_modules = [
+  "src/finite_difference_options/solvers/_compiled_black_scholes.py",
+  "src/finite_difference_options/validation/fd_evidence/replay_identity.py",
+  "src/finite_difference_options/validation/fd_evidence/carry_bounds.py",
+]
+public_imports = ["finite_difference_options.integrations", "finite_difference_options.validation.fd_verification"]
+forbidden_legacy_modules = []
+compatibility_shims = []
+
+[[import_rules]]
+source = "src/finite_difference_options/solvers/_compiled_black_scholes.py"
+forbidden_prefixes = ["finite_difference_options.integrations", "finite_difference_options.validation", "financial_problem_formulations", "fastapi", "typer", "streamlit"]
