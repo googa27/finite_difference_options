@@ -53,3 +53,10 @@ Machine-readable capability keys: `stochastic-processes-and-coefficients`, `inst
 - `generic-theta-time-stepping`: `solvers/finite_difference.py` owns generic theta/Rannacher stepping through its existing public import.
 
 `docs/architecture_contract.toml` inventories the complete `solvers` package. The checker rejects any non-initializer Python implementation without a canonical owner, including an unregistered new private kernel. Removing the registered tridiagonal owner and adding an unknown solver both fail negative architecture tests. Other packages retain their explicit existing topology/import gates; this scoped ratchet does not claim all leaf modules elsewhere were individually inventoried.
+
+### Compiled fixture contract and verification ownership
+
+- `compiled-pde-contract-validation`: `integrations/compiled_pde_adapter.py` owns public screening and solving orchestration; `_compiled_pde_contracts.py` owns immutable DTOs/identities; `_compiled_pde_validation.py` owns exact serialized validation. Contracts cannot import integration, solver or verification modules; private validation cannot import its facade or execution routes.
+- `compiled-fd-grid-verification`: `validation/fd_verification.py` owns evidence orchestration; `validation/fd_evidence/grid_metrics.py` owns refinement and residual measurements and cannot import its orchestrator.
+
+`docs/architecture_contract.toml` declares each required implementation file and dependency rule. The architecture contract checker resolves both absolute and relative static imports, including `from package import module`; negative mutation tests enforce these boundaries. Historical public names remain re-exported at their original facades.
