@@ -33,3 +33,18 @@ def test_compiled_adapter_legacy_public_contract() -> None:
         assert type(restored) is type(expected)
         assert restored == expected
         assert pickle.loads(pickle.dumps(restored, protocol=4)) == expected
+
+
+def test_fd_verification_legacy_public_contract() -> None:
+    from finite_difference_options.validation import fd_verification
+
+    reference = json.loads((Path(__file__).parent / "fixtures/compiled_pde_adapter_v0_contract.json").read_text())[
+        "verification"
+    ]
+    assert fd_verification.__all__ == reference["exports"]
+    for name, expected in reference["metadata"].items():
+        member = getattr(fd_verification, name)
+        assert member.__module__ == expected["module"]
+        assert str(inspect.signature(member)) == expected["signature"]
+    for name, expected in reference["constants"].items():
+        assert getattr(fd_verification, name) == expected

@@ -43,7 +43,8 @@
         "private_validation": "integrations/_compiled_pde_validation.py",
         "identity_policy": "public imports, signatures, class modules and trusted historical DTO pickles remain stable",
         "numerical_policy": "unchanged exact v0 fixture and dense route; no v1 behavior in extraction",
-        "fitness_gate": "tests/test_compiled_pde_compatibility.py"
+        "fitness_gate": "tests/test_compiled_pde_compatibility.py",
+        "private_grid_evidence": "validation/fd_evidence/grid_metrics.py"
       }
     },
     "extension_points": [

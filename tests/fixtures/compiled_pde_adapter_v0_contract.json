@@ -170,5 +170,39 @@
     "status": "supported",
     "supported": true
   },
-  "source_commit": "c85b40378dda19e51f0b7e9352aa23edc9cd9ac0"
+  "source_commit": "c85b40378dda19e51f0b7e9352aa23edc9cd9ac0",
+  "verification": {
+    "constants": {
+      "FD_BS_VERIFICATION_BENCHMARK_ID": "fd-bs-001",
+      "FD_BS_VERIFICATION_SCHEMA_VERSION": "finite-difference-options.fd-verification-evidence/v0",
+      "FD_BS_VERIFICATION_VERSIONED_ID": "FD-BS-001-V0"
+    },
+    "exports": [
+      "FD_BS_VERIFICATION_BENCHMARK_ID",
+      "FD_BS_VERIFICATION_SCHEMA_VERSION",
+      "FD_BS_VERIFICATION_VERSIONED_ID",
+      "FDVerificationError",
+      "run_fd_bs_verification_benchmark",
+      "validate_fd_bs_verification_bundle",
+      "write_fd_bs_verification_json"
+    ],
+    "metadata": {
+      "FDVerificationError": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "(failures: 'tuple[str, ...]') -> 'None'"
+      },
+      "run_fd_bs_verification_benchmark": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "() -> 'dict[str, Any]'"
+      },
+      "validate_fd_bs_verification_bundle": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "(bundle: 'Mapping[str, Any]') -> 'None'"
+      },
+      "write_fd_bs_verification_json": {
+        "module": "finite_difference_options.validation.fd_verification",
+        "signature": "(path: 'str | Path') -> 'dict[str, Any]'"
+      }
+    }
+  }
 }
