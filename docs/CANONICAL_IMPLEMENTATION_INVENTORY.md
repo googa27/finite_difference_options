@@ -45,3 +45,11 @@ Machine-readable capability keys: `stochastic-processes-and-coefficients`, `inst
 2. each advertised public import maps under `finite_difference_options`;
 3. historical duplicate modules are absent;
 4. any declared compatibility shim stays inside the package, has a removal milestone, and does not reintroduce standalone numerical code.
+
+
+## Cached and generic time stepping
+
+- `cached-black-scholes-tridiagonal-solving`: public `finite_difference_options.solvers` owns `solvers/black_scholes.py` and its private `solvers/_tridiagonal.py` LAPACK adapter. Private implementation is not a new public export.
+- `generic-theta-time-stepping`: `solvers/finite_difference.py` owns generic theta/Rannacher stepping through its existing public import.
+
+`docs/architecture_contract.toml` inventories the complete `solvers` package. The checker rejects any non-initializer Python implementation without a canonical owner, including an unregistered new private kernel. Removing the registered tridiagonal owner and adding an unknown solver both fail negative architecture tests. Other packages retain their explicit existing topology/import gates; this scoped ratchet does not claim all leaf modules elsewhere were individually inventoried.

@@ -79,11 +79,20 @@ tolerance allows the maximum absolute difference of approximately `3.13e-12`
 at 501 nodes. Both implementations recorded the same one miss, one cache entry,
 3,199 hits and 3,200 solves after the timed and verification runs.
 
-The benchmark harness and byte-pinned baseline snapshot are retained in the
-portfolio review workspace as `reports/local/benchmark_fd_lapack.py` and
-`reports/local/_fd_black_scholes_before.py`. The initial prototype benchmark is
-historical evidence only; its raw-wrapper factorization timings omit some final
-adapter validation and must not be substituted for the final numbers here.
+The reproducible harness is now committed as
+[`scripts/benchmark_cached_lapack.py`](../scripts/benchmark_cached_lapack.py), with
+the immutable baseline and invocation in [benchmarks/README.md](../benchmarks/README.md).
+The baseline hash is checked before import. A fresh checkout is sufficient;
+no external review workspace or Git history is required.
+
+The original September11 report above is historical mixed cold/warm evidence.
+The [fresh reproducible report](benchmarks/cached_lapack_reproducible.json) adds
+complete grid/coefficient construction, exact nonzeros/logical array storage,
+separate cold and warm samples, separately instrumented Python allocation peaks,
+and cumulative Linux process RSS. Tracemalloc does not measure every native
+allocation; RSS is a whole-process peak. Local timings are not universal speed
+claims. `--quick` exists only to verify the metadata/parity contract in CI; its
+small-case timings must not be promoted to performance evidence.
 
 ## Verification
 
