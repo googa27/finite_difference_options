@@ -366,3 +366,29 @@ If a command is declared unavailable, the activation trigger and replacement com
 `solvers/_tridiagonal.py` owns the private SciPy LAPACK adapter used by the public Black-Scholes cache. Preserve row-aligned diagonal conversion, partial-pivot indices, read-only factor ownership, vector/multiple-RHS rank, cache keys, and the empty-RHS guard. Run `pytest -q tests/unit/test_cached_lapack_system.py tests/test_public_solver_contract_and_cache.py --no-cov` before the full numerical suite. Numerical/compatibility and benchmark details live in `docs/LAPACK_CACHE_REFACTOR.md`; never replace the zero-column guard with a native call merely because the returned empty shape looks correct.
 
 Compiled numerical changes must preserve the no-argument/CLI v0 arithmetic and authentic replay inputs. Use explicit v1 APIs and schema/runtime identity for banded numerics; follow `docs/COMPILED_PDE_V1.md`. Unknown versions or unavailable replay implementations fail closed, and v1 does not imply pinned UI support.
+
+## Declared dependency audit floors (issues180–183)
+
+Validation and development require HTTPX2>=2.12,<3; its locked HTTPCore2
+must be >=2.10. The optional development and audit profiles require pip>=26.2,<27
+and urllib3>=2.8,<3, and development requires virtualenv>=21.14.4,<22.
+Both uv.lock and requirements-dev.lock.txt retain compatible fixed versions;
+requirements-dev.txt mirrors these floors. These installer/transport tools
+remain outside numerical core. Existing cryptography, GitPython and build
+safeguards remain in force. Do not suppress newly discovered advisories or
+describe an import/pip-check pass as an audit pass. Re-run actual unsuppressed
+audits and SBOMs on fresh native and legacy declared environments, plus normal
+optional profiles and source gates. Fitness: tests/architecture/test_declared_security_floors.py.
+No solver, coefficient, boundary, numerical tolerance or capability maturity changes.
+
+## AnyIO legacy and HTTP-facing floor (issue184)
+
+The optional api, validation and development profiles require AnyIO>=4.14.2,<5.
+Both declared locks select4.14.2; legacy Python-discovery1.6.1 matches the
+updated virtualenv21.14.5 dependency. The legacy AnyIO4.14.1 audit refused
+three database entries. Upstream TLS-IDNA and undrained-stderr advisories affect
+<=4.14.1; the supplementary-group advisory specifies4.14.0 only, so retain that
+source/database discrepancy instead of asserting all three are reachable here.
+Fresh unsuppressed native/legacy audits and SBOMs are required; no advisory ignore.
+Numerical runtime and mandatory core remain unchanged. Issue179 compiler release
+is separately blocked until these declared dependency repairs actually integrate.

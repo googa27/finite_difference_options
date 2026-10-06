@@ -237,7 +237,7 @@
       {
         "capability": "ASGI TestClient transport",
         "selected": [
-          "httpx2 >=2,<3 (resolved 2.9.1)"
+          "httpx2 >=2.12,<3 (locked 2.13.1)"
         ],
         "alternatives": [
           "legacy httpx fallback",
@@ -659,5 +659,28 @@
         "tests/test_pricing_engine_imports.py"
       ]
     }
-  ]
+  ],
+  "declared_dependency_audit_floors": {
+    "owners": [
+      "https://github.com/googa27/finite_difference_options/issues/180",
+      "https://github.com/googa27/finite_difference_options/issues/181",
+      "https://github.com/googa27/finite_difference_options/issues/182",
+      "https://github.com/googa27/finite_difference_options/issues/183",
+      "https://github.com/googa27/finite_difference_options/issues/184"
+    ],
+    "validation_and_dev_httpx2": ">=2.12,<3",
+    "locked_httpcore2": ">=2.10",
+    "dev_and_audit_pip": ">=26.2,<27",
+    "dev_and_audit_urllib3": ">=2.8,<3",
+    "dev_virtualenv": ">=21.14.4,<22",
+    "locks": [
+      "uv.lock",
+      "requirements-dev.lock.txt"
+    ],
+    "fitness_test": "tests/architecture/test_declared_security_floors.py",
+    "acceptance": "Fresh unsuppressed native and legacy environment audits, SBOMs, installed profiles and declared source gates",
+    "scope": "Optional tools and audit floors only; unchanged core dependencies and numerical behavior",
+    "api_validation_dev_anyio": ">=4.14.2,<5",
+    "legacy_virtualenv_transitive": "python-discovery1.6.1 compatible with virtualenv21.14.5"
+  }
 }

@@ -164,9 +164,17 @@ jobs:
           PROFILE: ${{ matrix.profile }}
 
   audit:
-    name: Audit and SBOM
+    name: Audit and SBOM / ${{ matrix.lock-profile }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        lock-profile: [native, legacy]
+    env:
+      AUDIT_ENV: ${{ github.workspace }}/../fdo-audit-${{ matrix.lock-profile }}
+      EVIDENCE_DIR: audit-${{ matrix.lock-profile }}
+      UV_PYTHON_DOWNLOADS: never
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -175,20 +183,41 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Vulnerability audit and SBOM
+      - name: Bind fresh audit environment and committed inputs
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[dev]'
-          python -m pip check
-          python -m pip_audit --progress-spinner=off --skip-editable
-          python -m pip install -r requirements-dev.lock.txt
-          python -m pip check
-          python -m pip_audit --progress-spinner=off --skip-editable
-          cyclonedx-py environment --of JSON -o sbom.json
+          test ! -e "$AUDIT_ENV"
+          mkdir -p "$EVIDENCE_DIR"
+          sha256sum pyproject.toml uv.lock requirements-dev.lock.txt > "$EVIDENCE_DIR/inputs.sha256"
+      - name: Install committed native lock
+        if: matrix.lock-profile == 'native'
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ env.AUDIT_ENV }}
+        run: |
+          python -m pip install 'uv==0.11.25'
+          uv lock --check
+          uv sync --frozen --extra dev --python 3.12 --no-install-project
+      - name: Install committed legacy lock
+        if: matrix.lock-profile == 'legacy'
+        run: |
+          python -m venv "$AUDIT_ENV"
+          "$AUDIT_ENV/bin/python" -m pip install -r requirements-dev.lock.txt
+      - name: Check and inventory this lock environment
+        id: audit-inventory
+        run: |
+          "$AUDIT_ENV/bin/python" -I -m pip check
+          "$AUDIT_ENV/bin/python" -I -m pip freeze --all > "$EVIDENCE_DIR/environment.txt"
+      - name: Audit this lock environment
+        run: |
+          "$AUDIT_ENV/bin/python" -I -m pip_audit --progress-spinner=off --skip-editable --format=json --output="$EVIDENCE_DIR/audit.json"
+      - name: Generate this lock environment SBOM
+        if: ${{ always() && steps.audit-inventory.outcome == 'success' }}
+        run: |
+          "$AUDIT_ENV/bin/cyclonedx-py" environment --of JSON -o "$EVIDENCE_DIR/sbom.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
-          name: finite-difference-options-sbom
-          path: sbom.json
+          name: finite-difference-options-audit-${{ matrix.lock-profile }}
+          path: audit-${{ matrix.lock-profile }}/*
           if-no-files-found: error
           retention-days: 14
 
