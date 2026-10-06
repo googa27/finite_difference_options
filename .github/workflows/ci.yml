@@ -172,7 +172,7 @@ jobs:
       matrix:
         lock-profile: [native, legacy]
     env:
-      AUDIT_ENV: ${{ runner.temp }}/fdo-audit-${{ matrix.lock-profile }}
+      AUDIT_ENV: ${{ github.workspace }}/../fdo-audit-${{ matrix.lock-profile }}
       EVIDENCE_DIR: audit-${{ matrix.lock-profile }}
       UV_PYTHON_DOWNLOADS: never
     steps:
@@ -202,6 +202,7 @@ jobs:
           python -m venv "$AUDIT_ENV"
           "$AUDIT_ENV/bin/python" -m pip install -r requirements-dev.lock.txt
       - name: Check and inventory this lock environment
+        id: audit-inventory
         run: |
           "$AUDIT_ENV/bin/python" -I -m pip check
           "$AUDIT_ENV/bin/python" -I -m pip freeze --all > "$EVIDENCE_DIR/environment.txt"
@@ -209,6 +210,7 @@ jobs:
         run: |
           "$AUDIT_ENV/bin/python" -I -m pip_audit --progress-spinner=off --skip-editable --format=json --output="$EVIDENCE_DIR/audit.json"
       - name: Generate this lock environment SBOM
+        if: ${{ always() && steps.audit-inventory.outcome == 'success' }}
         run: |
           "$AUDIT_ENV/bin/cyclonedx-py" environment --of JSON -o "$EVIDENCE_DIR/sbom.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -101,7 +101,7 @@ def _assert_independent_lock_audits(workflow: str) -> None:
     audit = yaml.safe_load(workflow)["jobs"]["audit"]
     assert set(audit["strategy"]["matrix"]["lock-profile"]) == {"native", "legacy"}
     assert audit["strategy"]["fail-fast"] is False
-    assert audit["env"]["AUDIT_ENV"] == "${{ runner.temp }}/fdo-audit-${{ matrix.lock-profile }}"
+    assert audit["env"]["AUDIT_ENV"] == "${{ github.workspace }}/../fdo-audit-${{ matrix.lock-profile }}"
     assert audit["env"]["EVIDENCE_DIR"] == "audit-${{ matrix.lock-profile }}"
     steps = {step.get("name"): step for step in audit["steps"] if "name" in step}
     bind = steps["Bind fresh audit environment and committed inputs"]["run"]
@@ -116,7 +116,9 @@ def _assert_independent_lock_audits(workflow: str) -> None:
     assert "uv sync --frozen --extra dev --python 3.12 --no-install-project" in native["run"]
     assert 'python -m venv "$AUDIT_ENV"' in legacy["run"]
     assert '"$AUDIT_ENV/bin/python" -m pip install -r requirements-dev.lock.txt' in legacy["run"]
-    inventory = steps["Check and inventory this lock environment"]["run"]
+    inventory_step = steps["Check and inventory this lock environment"]
+    assert inventory_step["id"] == "audit-inventory"
+    inventory = inventory_step["run"]
     assert '"$AUDIT_ENV/bin/python" -I -m pip check' in inventory
     assert '"$AUDIT_ENV/bin/python" -I -m pip freeze --all > "$EVIDENCE_DIR/environment.txt"' in inventory
     assert (
@@ -126,6 +128,9 @@ def _assert_independent_lock_audits(workflow: str) -> None:
     assert (
         '"$AUDIT_ENV/bin/cyclonedx-py" environment --of JSON -o "$EVIDENCE_DIR/sbom.json"'
         in steps["Generate this lock environment SBOM"]["run"]
+    )
+    assert steps["Generate this lock environment SBOM"]["if"] == (
+        "${{ always() && steps.audit-inventory.outcome == 'success' }}"
     )
     audit_text = yaml.safe_dump(audit)
     assert "--ignore-vuln" not in audit_text
@@ -143,10 +148,13 @@ def test_independent_lock_audit_gate_rejects_loss_of_isolation_and_evidence() ->
     parsed = yaml.safe_load(workflow)
     mutations = [
         ("native frozen sync", "uv sync --frozen", "uv sync"),
+        ("job environment context", "${{ github.workspace }}", "${{ runner.temp }}"),
+        ("failure SBOM", "always() && steps.audit-inventory.outcome", "success() && steps.audit-inventory.outcome"),
+        ("inventory admission", "id: audit-inventory", "id: other-inventory"),
         ("fresh admission", 'test ! -e "$AUDIT_ENV"', 'test -e "$AUDIT_ENV"'),
         (
             "native profile environment",
-            "${{ runner.temp }}/fdo-audit-${{ matrix.lock-profile }}",
+            "${{ github.workspace }}/../fdo-audit-${{ matrix.lock-profile }}",
             "${{ runner.temp }}/shared-audit",
         ),
         ("native selector", "matrix.lock-profile == 'native'", "matrix.lock-profile == 'legacy'"),
