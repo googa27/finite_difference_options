@@ -9,6 +9,7 @@ import tomllib
 import unittest
 
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -20,6 +21,7 @@ FLOORS = {
     "virtualenv": "21.14.4",
     "anyio": "4.14.2",
 }
+CEILINGS = {"httpx2": "3", "httpcore2": "3", "pip": "27", "urllib3": "3", "virtualenv": "22", "anyio": "5"}
 UNSAFE = {
     "httpx2": "2.9.1",
     "httpcore2": "2.9.1",
@@ -41,9 +43,31 @@ def join_requirement_continuations(text: str) -> str:
 
 
 def legacy_pinned_versions(text: str, name: str) -> list[str]:
-    """Read pinned tokens; whitespace within version tokens is invalid."""
-    logical_lines = join_requirement_continuations(text)
-    return re.findall(r"^" + re.escape(name) + r"==([^\s\\]+)", logical_lines, re.MULTILINE)
+    """Read complete governed plain exact pins, never a version prefix.
+
+    Continuations and trailing hash options/comments are normalized first.
+    Conditional markers, extras, direct URLs and non-exact pins are outside the
+    committed plain-freeze contract and fail closed rather than disappear.
+    """
+    versions: list[str] = []
+    for line in join_requirement_continuations(text).splitlines():
+        line = re.split(r"\s+#", line, maxsplit=1)[0].strip()
+        token = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", line)
+        if token is None or token.group(1).lower() != name.lower():
+            continue
+        line = re.sub(r"\s+--hash=\S+", "", line)
+        try:
+            requirement = Requirement(line)
+        except InvalidRequirement as exc:
+            raise AssertionError(f"invalid governed legacy requirement {line!r}") from exc
+        assert requirement.marker is None, f"{requirement} must not disable a governed legacy pin"
+        assert not requirement.extras and requirement.url is None, f"{requirement} must be a plain exact pin"
+        specifiers = list(requirement.specifier)
+        assert len(specifiers) == 1, f"{requirement} must have one exact version"
+        specifier = specifiers[0]
+        assert specifier.operator == "==" and "*" not in specifier.version, f"{requirement} must pin one version"
+        versions.append(str(Version(specifier.version)))
+    return versions
 
 
 class DeclaredSecurityFloors(unittest.TestCase):
@@ -58,7 +82,55 @@ class DeclaredSecurityFloors(unittest.TestCase):
             any(bound >= floor for bound in lower_bounds),
             f"{requirement} does not establish the security floor {floor}",
         )
+        ceiling = Version(CEILINGS[name])
+        upper_bounds: list[tuple[Version, bool]] = []
+        for specifier in requirement.specifier:
+            if specifier.operator in {"<", "<="}:
+                upper_bounds.append((Version(specifier.version), specifier.operator == "<"))
+            elif specifier.operator == "~=":
+                # PEP440 compatible release >=V.N, ==V.* has an exclusive
+                # successor of the release prefix, preserving any epoch.
+                version = Version(specifier.version)
+                prefix = list(version.release[:-1])
+                prefix[-1] += 1
+                upper = ".".join(str(part) for part in prefix)
+                if version.epoch:
+                    upper = f"{version.epoch}!{upper}"
+                upper_bounds.append((Version(upper), True))
+        self.assertTrue(
+            any(
+                Version(bound.base_version) < ceiling or (exclusive and bound == ceiling)
+                for bound, exclusive in upper_bounds
+            ),
+            f"{requirement} must retain the exclusive compatibility ceiling {ceiling}",
+        )
         self.assertNotIn(Version(UNSAFE[name]), requirement.specifier)
+
+    def assert_pinned_interval(self, value: str, name: str) -> None:
+        version = Version(value)
+        interval = SpecifierSet(f">={FLOORS[name]},<{CEILINGS[name]}")
+        self.assertTrue(interval.contains(version, prereleases=True), f"{name}=={value} leaves {interval}")
+
+    def test_governed_plain_pin_admission_rejects_unbounded_and_malformed_inputs(self) -> None:
+        for name, floor in FLOORS.items():
+            first, rest = floor.split(".", 1)
+            malformed_split = name + "==" + first + "." + "\\" + "\n    " + rest
+            for text in (
+                f"{name}>={floor}",
+                f"{name}=={Version(floor).major}.*",
+                f"{name}[fixture]=={floor}",
+                f"{name} @ https://example.invalid/fixture.whl",
+                malformed_split,
+            ):
+                with self.subTest(package=name, rejected=text):
+                    with self.assertRaises(AssertionError):
+                        legacy_pinned_versions(text, name)
+            with self.subTest(package=name, valid="comment"):
+                self.assertEqual(legacy_pinned_versions(f"  {name} == {floor} # fixture", name), [floor])
+            for value in (UNSAFE[name], CEILINGS[name], CEILINGS[name] + ".0a1", CEILINGS[name] + ".dev1"):
+                with self.subTest(package=name, incompatible_pin=value):
+                    with self.assertRaises(AssertionError):
+                        self.assert_pinned_interval(value, name)
 
     def test_profile_floors_cannot_be_disabled_by_environment_markers(self) -> None:
         for name, floor in FLOORS.items():
@@ -150,20 +222,41 @@ class DeclaredSecurityFloors(unittest.TestCase):
                 text = f"{name}=={first}.\\\n{rest}\n"
                 self.assertEqual(legacy_pinned_versions(text, name), [floor])
 
+    def test_governed_legacy_pins_cannot_be_disabled_or_partially_parsed(self) -> None:
+        for name, floor in FLOORS.items():
+            for marker in ('python_version < "3"', 'sys_platform == "win32"'):
+                with self.subTest(package=name, marker=marker):
+                    text = f"{name}=={floor}; {marker}"
+                    self.assertIsNotNone(Requirement(text).marker)
+                    with self.assertRaises(AssertionError):
+                        legacy_pinned_versions(text, name)
+
+    def test_declared_security_ranges_cannot_lose_compatibility_ceilings(self) -> None:
+        for name, floor in FLOORS.items():
+            ceiling = Version(floor).major + 1
+            for suffix in ("", f",<{ceiling + 1}", f",!={ceiling}", f",<{ceiling}.0a1", f",<={ceiling}.dev1"):
+                with self.subTest(package=name, weakening=suffix):
+                    requirement = Requirement(f"{name}>={floor}{suffix}")
+                    self.assertIn(Version(floor), requirement.specifier)
+                    with self.assertRaises(AssertionError):
+                        self.assert_declared_floor(requirement, name)
+            with self.subTest(package=name, strengthening="inclusive safe ceiling"):
+                self.assert_declared_floor(Requirement(f"{name}>={floor},<={floor}"), name)
+
     def test_native_uv_lock_excludes_audited_unsafe_packages(self) -> None:
         packages = {x["name"]: x["version"] for x in tomllib.loads((ROOT / "uv.lock").read_text())["package"]}
-        for name, floor in FLOORS.items():
+        for name in FLOORS:
             with self.subTest(package=name):
                 self.assertIn(name, packages)
-                self.assertGreaterEqual(Version(packages[name]), Version(floor))
+                self.assert_pinned_interval(packages[name], name)
 
     def test_legacy_audit_lock_excludes_audited_unsafe_packages(self) -> None:
         text = (ROOT / "requirements-dev.lock.txt").read_text()
-        for name, floor in FLOORS.items():
+        for name in FLOORS:
             with self.subTest(package=name):
                 versions = legacy_pinned_versions(text, name)
                 self.assertEqual(len(versions), 1)
-                self.assertGreaterEqual(Version(versions[0]), Version(floor))
+                self.assert_pinned_interval(versions[0], name)
 
     def test_core_keeps_installer_transport_and_virtualenv_tools_optional(self) -> None:
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
