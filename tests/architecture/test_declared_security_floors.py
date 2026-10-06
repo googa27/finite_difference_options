@@ -30,7 +30,40 @@ UNSAFE = {
 }
 
 
+def legacy_pinned_versions(text: str, name: str) -> list[str]:
+    """Read pinned version tokens after joining requirements continuation lines."""
+    logical_lines = re.sub(r"\\\r?\n", "", text)
+    return re.findall(r"^" + re.escape(name) + r"==([^\s\\]+)", logical_lines, re.MULTILINE)
+
+
 class DeclaredSecurityFloors(unittest.TestCase):
+    def assert_declared_floor(self, requirement: Requirement, name: str) -> None:
+        """Require an inclusive safe floor, beyond excluding one bad release."""
+        floor = Version(FLOORS[name])
+        # Version membership checks satisfaction of all requirement specifiers.
+        self.assertIn(floor, requirement.specifier)
+        lower_bounds = [Version(spec.version) for spec in requirement.specifier if spec.operator in {">=", ">", "~="}]
+        self.assertTrue(
+            any(bound >= floor for bound in lower_bounds),
+            f"{requirement} does not establish the security floor {floor}",
+        )
+        self.assertNotIn(Version(UNSAFE[name]), requirement.specifier)
+
+    def test_known_bad_exclusions_cannot_replace_complete_security_floors(self) -> None:
+        for name, floor in FLOORS.items():
+            major = Version(floor).major
+            with self.subTest(package=name, requirement="weakened lower bound"):
+                weakened = Requirement(f"{name}>={major},!={UNSAFE[name]},<{major + 1}")
+                # Both old endpoint assertions pass for this insecure range.
+                self.assertIn(Version(floor), weakened.specifier)
+                self.assertNotIn(Version(UNSAFE[name]), weakened.specifier)
+                with self.assertRaises(AssertionError):
+                    self.assert_declared_floor(weakened, name)
+            with self.subTest(package=name, requirement="inclusive lower bound"):
+                self.assert_declared_floor(Requirement(f"{name}>={floor},<{major + 1}"), name)
+            with self.subTest(package=name, requirement="compatible lower bound"):
+                self.assert_declared_floor(Requirement(f"{name}~={floor}"), name)
+
     def test_httpx2_metadata_excludes_unsafe_validation_and_dev_versions(self) -> None:
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
         for profile in ("validation", "dev"):
@@ -40,8 +73,7 @@ class DeclaredSecurityFloors(unittest.TestCase):
                 if Requirement(x).name == "httpx2"
             )
             with self.subTest(profile=profile):
-                self.assertNotIn(Version(UNSAFE["httpx2"]), req.specifier)
-                self.assertIn(Version(FLOORS["httpx2"]), req.specifier)
+                self.assert_declared_floor(req, "httpx2")
 
     def test_declared_dev_and_audit_tools_exclude_unsafe_versions(self) -> None:
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
@@ -52,14 +84,12 @@ class DeclaredSecurityFloors(unittest.TestCase):
             for name in ("pip", "urllib3"):
                 with self.subTest(profile=profile, package=name):
                     self.assertIn(name, requirements)
-                    self.assertNotIn(Version(UNSAFE[name]), requirements[name].specifier)
-                    self.assertIn(Version(FLOORS[name]), requirements[name].specifier)
+                    self.assert_declared_floor(requirements[name], name)
         requirements = {
             Requirement(x).name: Requirement(x) for x in metadata["project"]["optional-dependencies"]["dev"]
         }
         self.assertIn("virtualenv", requirements)
-        self.assertNotIn(Version(UNSAFE["virtualenv"]), requirements["virtualenv"].specifier)
-        self.assertIn(Version(FLOORS["virtualenv"]), requirements["virtualenv"].specifier)
+        self.assert_declared_floor(requirements["virtualenv"], "virtualenv")
 
     def test_http_facing_anyio_metadata_excludes_original_legacy_unsafe_version(self) -> None:
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
@@ -69,8 +99,17 @@ class DeclaredSecurityFloors(unittest.TestCase):
             }
             with self.subTest(profile=profile):
                 self.assertIn("anyio", requirements)
-                self.assertNotIn(Version(UNSAFE["anyio"]), requirements["anyio"].specifier)
-                self.assertIn(Version(FLOORS["anyio"]), requirements["anyio"].specifier)
+                self.assert_declared_floor(requirements["anyio"], "anyio")
+
+    def test_legacy_pins_support_requirement_continuations(self) -> None:
+        for name, floor in FLOORS.items():
+            with self.subTest(package=name, continuation="following hash"):
+                text = f"{name}=={floor} \\\n    --hash=sha256:fixture\n"
+                self.assertEqual(legacy_pinned_versions(text, name), [floor])
+            with self.subTest(package=name, continuation="split version token"):
+                first, rest = floor.split(".", 1)
+                text = f"{name}=={first}.\\\n{rest}\n"
+                self.assertEqual(legacy_pinned_versions(text, name), [floor])
 
     def test_native_uv_lock_excludes_audited_unsafe_packages(self) -> None:
         packages = {x["name"]: x["version"] for x in tomllib.loads((ROOT / "uv.lock").read_text())["package"]}
@@ -83,7 +122,7 @@ class DeclaredSecurityFloors(unittest.TestCase):
         text = (ROOT / "requirements-dev.lock.txt").read_text()
         for name, floor in FLOORS.items():
             with self.subTest(package=name):
-                versions = re.findall(r"^" + re.escape(name) + r"==([^\s\\]+)", text, re.MULTILINE)
+                versions = legacy_pinned_versions(text, name)
                 self.assertEqual(len(versions), 1)
                 self.assertGreaterEqual(Version(versions[0]), Version(floor))
 

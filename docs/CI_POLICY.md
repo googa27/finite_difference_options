@@ -53,13 +53,13 @@ The optional-profile job builds a wheel and installs it in clean environments fo
 - `viz`;
 - `validation`.
 
-Each profile imports its advertised optional surface from the installed wheel. The validation profile composes the API extra and owns `httpx2>=2,<3` for Starlette/FastAPI TestClient; its clean-wheel smoke imports TestClient/httpx2 and proves legacy `httpx` is absent. This keeps FastAPI, Typer, Streamlit, Matplotlib/Plotly/Seaborn, and test tooling out of core metadata while still proving the extras resolve.
+Each profile imports its advertised optional surface from the installed wheel. The validation profile composes the API extra and owns `httpx2>=2.12,<3` for Starlette/FastAPI TestClient; its clean-wheel smoke imports TestClient/httpx2 and proves legacy `httpx` is absent. This keeps FastAPI, Typer, Streamlit, Matplotlib/Plotly/Seaborn, and test tooling out of core metadata while still proving the extras resolve.
 
 ### Audit/SBOM job
 
 The audit job installs and audits the declared development profile first, then applies and audits `requirements-dev.lock.txt`, runs `python -m pip check` in both states, and emits a CycloneDX JSON SBOM. This prevents a secure legacy audit lock from hiding a vulnerable pyproject/uv resolution.
 
-`requirements-dev.lock.txt` is the pinned reproducible development/audit environment. `pyproject.toml` remains the package metadata source of truth and intentionally keeps compatible runtime ranges. Security-critical development floors for cryptography and GitPython, plus a ceiling excluding yanked build 1.5.1, are declared directly and enforced against both `uv.lock` and the legacy audit lock by architecture tests.
+`requirements-dev.lock.txt` is the pinned reproducible development/audit environment. `pyproject.toml` remains the package metadata source of truth and intentionally keeps compatible runtime ranges. Security-critical development floors for cryptography and GitPython, plus a ceiling excluding yanked build 1.5.1, are declared directly and enforced against both `uv.lock` and the legacy audit lock by architecture tests. The declared optional profiles also enforce HTTPX2 >=2.12, pip >=26.2, urllib3 >=2.8, virtualenv >=21.14.4, and AnyIO >=4.14.2; both locks enforce the paired HTTPCore2 >=2.10 floor. The fitness test requires a positive safe lower bound and rejects ranges that merely blacklist one known unsafe release. These tools remain optional; the numerical core dependencies are unchanged. The validation profile deliberately states its own AnyIO floor beside its API composition: both remain governed independently, and the explicit repeated constraint is compatible.
 
 ### Node job
 
@@ -110,3 +110,8 @@ Issue #51 establishes package metadata, clean-wheel smoke, optional-profile smok
 - maintained frontend dependency and vulnerability policy if the frontend is promoted from optional example to deliverable.
 
 The architecture contract gate (`python scripts/check_architecture_contract.py`) must remain in blocking CI beside `pytest -q tests/architecture tests/test_packaging_contract.py --no-cov`; `docs/architecture_contract.toml` is the reviewed topology source of truth.
+
+
+## Resolver marker scope for the optional dependency repair
+
+The refreshed native lock makes Secretstorage's Cryptography and Jeepney child edges unconditional within that package. Its parent Keyring edge still selects Secretstorage only when `sys_platform == 'linux'`; this is the complete dependency-path boundary, rather than an inferred Windows or Pyodide installation result. HTTPX2's new jsfetch transport is likewise conditional on Emscripten. Current release acceptance is Linux Python 3.12. No Windows, Emscripten or Pyodide runtime acceptance is inferred from the lock's graph or successful Linux checks.
