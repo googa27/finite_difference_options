@@ -72,11 +72,10 @@ def legacy_pinned_versions(text: str, name: str) -> list[str]:
 
 class DeclaredSecurityFloors(unittest.TestCase):
     def assert_declared_floor(self, requirement: Requirement, name: str) -> None:
-        """Require an inclusive safe floor, beyond excluding one bad release."""
+        """Require a safe lower bound, beyond excluding one bad release."""
         self.assertIsNone(requirement.marker, f"{requirement} must govern every supported environment")
         floor = Version(FLOORS[name])
-        # Version membership checks satisfaction of all requirement specifiers.
-        self.assertIn(floor, requirement.specifier)
+        # A stronger bound may deliberately exclude the historical minimum.
         lower_bounds = [Version(spec.version) for spec in requirement.specifier if spec.operator in {">=", ">", "~="}]
         self.assertTrue(
             any(bound >= floor for bound in lower_bounds),
@@ -242,6 +241,27 @@ class DeclaredSecurityFloors(unittest.TestCase):
                         self.assert_declared_floor(requirement, name)
             with self.subTest(package=name, strengthening="inclusive safe ceiling"):
                 self.assert_declared_floor(Requirement(f"{name}>={floor},<={floor}"), name)
+
+    def test_safe_floor_strengthening_does_not_require_the_historical_minimum(self) -> None:
+        stronger = {
+            "httpx2": "2.13.0",
+            "httpcore2": "2.11.0",
+            "pip": "26.3.0",
+            "urllib3": "2.9.0",
+            "virtualenv": "21.15.0",
+            "anyio": "4.15.0",
+        }
+        for name, version in stronger.items():
+            for specifier in (
+                f">={version},<{CEILINGS[name]}",
+                f"~={version}",
+                f">{FLOORS[name]},<{CEILINGS[name]}",
+                f">={version},!={version},<{CEILINGS[name]}",
+            ):
+                with self.subTest(package=name, strengthening=specifier):
+                    requirement = Requirement(name + specifier)
+                    self.assertNotIn(Version(FLOORS[name]), requirement.specifier)
+                    self.assert_declared_floor(requirement, name)
 
     def test_native_uv_lock_excludes_audited_unsafe_packages(self) -> None:
         packages = {x["name"]: x["version"] for x in tomllib.loads((ROOT / "uv.lock").read_text())["package"]}
