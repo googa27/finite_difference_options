@@ -1,6 +1,10 @@
 from pathlib import Path
+import copy
 import re
 import tomllib
+
+import pytest
+import yaml
 
 from packaging.requirements import Requirement
 
@@ -86,26 +90,80 @@ def test_blocking_ci_has_actionable_python_and_stable_suite_contract() -> None:
     assert "Stable regression suite" in workflow
     assert "pytest -q --cov=finite_difference_options" in workflow
     assert "Optional profile /" in workflow
-    assert "python -m pip install -r requirements-dev.lock.txt" in workflow
-    assert "python -m pip check" in workflow
-    assert workflow.count("python -m pip_audit --progress-spinner=off --skip-editable") >= 2
-    audit_sequence = [
-        "python -m pip install -e '.[dev]'",
-        "python -m pip check",
-        "python -m pip_audit --progress-spinner=off --skip-editable",
-        "python -m pip install -r requirements-dev.lock.txt",
-        "python -m pip check",
-        "python -m pip_audit --progress-spinner=off --skip-editable",
-    ]
-    cursor = 0
-    for command in audit_sequence:
-        cursor = workflow.find(command, cursor)
-        assert cursor >= 0, f"missing or out-of-order audit command: {command}"
-        cursor += len(command)
-    assert "cyclonedx-py environment --of JSON -o sbom.json" in workflow
+    _assert_independent_lock_audits(workflow)
     assert "Generate release manifest" in workflow
     assert "scripts/write_release_manifest.py --dist dist --output dist/release-manifest.json" in workflow
     assert "retention-days: 14" in workflow
+
+
+def _assert_independent_lock_audits(workflow: str) -> None:
+    """Both isolated jobs must audit committed dependencies, not a pip overlay."""
+    audit = yaml.safe_load(workflow)["jobs"]["audit"]
+    assert set(audit["strategy"]["matrix"]["lock-profile"]) == {"native", "legacy"}
+    assert audit["strategy"]["fail-fast"] is False
+    assert audit["env"]["AUDIT_ENV"] == "${{ runner.temp }}/fdo-audit-${{ matrix.lock-profile }}"
+    assert audit["env"]["EVIDENCE_DIR"] == "audit-${{ matrix.lock-profile }}"
+    steps = {step.get("name"): step for step in audit["steps"] if "name" in step}
+    bind = steps["Bind fresh audit environment and committed inputs"]["run"]
+    assert 'test ! -e "$AUDIT_ENV"' in bind
+    assert "sha256sum pyproject.toml uv.lock requirements-dev.lock.txt" in bind
+    native = steps["Install committed native lock"]
+    legacy = steps["Install committed legacy lock"]
+    assert native["if"] == "matrix.lock-profile == 'native'"
+    assert legacy["if"] == "matrix.lock-profile == 'legacy'"
+    assert native["env"]["UV_PROJECT_ENVIRONMENT"] == "${{ env.AUDIT_ENV }}"
+    assert "uv lock --check" in native["run"]
+    assert "uv sync --frozen --extra dev --python 3.12 --no-install-project" in native["run"]
+    assert 'python -m venv "$AUDIT_ENV"' in legacy["run"]
+    assert '"$AUDIT_ENV/bin/python" -m pip install -r requirements-dev.lock.txt' in legacy["run"]
+    inventory = steps["Check and inventory this lock environment"]["run"]
+    assert '"$AUDIT_ENV/bin/python" -I -m pip check' in inventory
+    assert '"$AUDIT_ENV/bin/python" -I -m pip freeze --all > "$EVIDENCE_DIR/environment.txt"' in inventory
+    assert (
+        '"$AUDIT_ENV/bin/python" -I -m pip_audit --progress-spinner=off --skip-editable '
+        '--format=json --output="$EVIDENCE_DIR/audit.json"'
+    ) in steps["Audit this lock environment"]["run"]
+    assert (
+        '"$AUDIT_ENV/bin/cyclonedx-py" environment --of JSON -o "$EVIDENCE_DIR/sbom.json"'
+        in steps["Generate this lock environment SBOM"]["run"]
+    )
+    audit_text = yaml.safe_dump(audit)
+    assert "--ignore-vuln" not in audit_text
+    assert "pip install -e" not in audit_text
+    assert all(not step.get("continue-on-error", False) for step in audit["steps"])
+    assert not audit.get("continue-on-error", False)
+    artifact = next(step for step in audit["steps"] if step.get("uses", "").startswith("actions/upload-artifact@"))
+    assert artifact["if"] == "always()"
+    assert artifact["with"]["name"].endswith("${{ matrix.lock-profile }}")
+    assert artifact["with"]["path"] == "audit-${{ matrix.lock-profile }}/*"
+
+
+def test_independent_lock_audit_gate_rejects_loss_of_isolation_and_evidence() -> None:
+    workflow = _read(".github/workflows/ci.yml")
+    parsed = yaml.safe_load(workflow)
+    mutations = [
+        ("native frozen sync", "uv sync --frozen", "uv sync"),
+        ("fresh admission", 'test ! -e "$AUDIT_ENV"', 'test -e "$AUDIT_ENV"'),
+        (
+            "native profile environment",
+            "${{ runner.temp }}/fdo-audit-${{ matrix.lock-profile }}",
+            "${{ runner.temp }}/shared-audit",
+        ),
+        ("native selector", "matrix.lock-profile == 'native'", "matrix.lock-profile == 'legacy'"),
+        ("lock identity", "sha256sum pyproject.toml uv.lock requirements-dev.lock.txt", "sha256sum pyproject.toml"),
+        ("inventory", "pip freeze --all", "pip --version"),
+        ("audit", "-I -m pip_audit", "-I -m pip"),
+        ("SBOM", "cyclonedx-py", "missing-sbom-command"),
+        ("suppression", "--progress-spinner=off", "--progress-spinner=off --ignore-vuln=fixture"),
+    ]
+    for label, original, replacement in mutations:
+        assert original in workflow, label
+        with pytest.raises((AssertionError, KeyError)):
+            _assert_independent_lock_audits(workflow.replace(original, replacement))
+    single = copy.deepcopy(parsed)
+    single["jobs"]["audit"]["strategy"]["matrix"]["lock-profile"] = ["legacy"]
+    with pytest.raises(AssertionError):
+        _assert_independent_lock_audits(yaml.safe_dump(single))
 
 
 def test_formatter_has_one_exactly_pinned_owner_across_local_and_ci_surfaces() -> None:

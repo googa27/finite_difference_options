@@ -8,7 +8,7 @@ import sys
 import tomllib
 import unittest
 
-from packaging.requirements import Requirement
+from packaging.requirements import InvalidRequirement, Requirement
 from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,9 +31,18 @@ UNSAFE = {
 DIRECT_DEV_FLOORS = tuple(name for name in FLOORS if name != "httpcore2")
 
 
+def join_requirement_continuations(text: str) -> str:
+    """Match pip joining: remove escaped newlines, preserve all other whitespace.
+
+    Version tokens must not contain whitespace, including indentation introduced
+    inside a split token. Indented hash/option continuations remain supported.
+    """
+    return re.sub(r"\\\r?\n", "", text)
+
+
 def legacy_pinned_versions(text: str, name: str) -> list[str]:
-    """Read pinned version tokens after joining requirements continuation lines."""
-    logical_lines = re.sub(r"\\\r?\n", "", text)
+    """Read pinned tokens; whitespace within version tokens is invalid."""
+    logical_lines = join_requirement_continuations(text)
     return re.findall(r"^" + re.escape(name) + r"==([^\s\\]+)", logical_lines, re.MULTILINE)
 
 
@@ -62,13 +71,16 @@ class DeclaredSecurityFloors(unittest.TestCase):
 
     def test_direct_development_mirror_enforces_every_declared_floor(self) -> None:
         text = (ROOT / "requirements-dev.txt").read_text()
-        logical_lines = re.sub(r"\\\r?\n", "", text)
+        logical_lines = join_requirement_continuations(text)
         requirements: dict[str, list[Requirement]] = {}
         for line in logical_lines.splitlines():
             line = line.partition("#")[0].strip()
             if not line or line == "-r requirements.txt":
                 continue
-            requirement = Requirement(line)
+            try:
+                requirement = Requirement(line)
+            except InvalidRequirement as exc:
+                self.fail(f"unsupported direct development requirement {line!r}: {exc}")
             requirements.setdefault(requirement.name, []).append(requirement)
         for name in DIRECT_DEV_FLOORS:
             with self.subTest(package=name):
