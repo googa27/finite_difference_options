@@ -78,6 +78,7 @@ dev = [
     "pip-audit>=2.7,<3",
     "plotly>=6.3,<7",
     "pre-commit>=4.3,<5",
+    "PyYAML>=6.0.3,<7",
     "pytest>=9.0.3,<10",
     "pytest-cov>=5,<7",
     "pytest-xdist>=3.6,<4",
