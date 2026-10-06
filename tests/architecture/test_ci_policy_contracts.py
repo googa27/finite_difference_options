@@ -138,14 +138,14 @@ def test_testclient_dependency_uses_httpx2_without_legacy_httpx() -> None:
     locked_requirements = _read("requirements-dev.lock.txt").splitlines()
 
     for profile in ("validation", "dev"):
-        assert "httpx2>=2,<3" in extras[profile]
+        assert "httpx2>=2.12,<3" in extras[profile]
         assert "httpx2" in _requirement_names(extras[profile])
         assert "httpx" not in _requirement_names(extras[profile])
         assert "httpcore" not in _requirement_names(extras[profile])
 
     assert "finite-difference-options[api]" in extras["validation"]
 
-    assert "httpx2>=2,<3" in requirements
+    assert "httpx2>=2.12,<3" in requirements
     assert "httpx2" in _requirement_names(requirements)
     assert "httpx" not in _requirement_names(requirements)
     assert "httpcore" not in _requirement_names(requirements)

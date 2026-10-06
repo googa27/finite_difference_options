@@ -27,6 +27,7 @@ dependencies = [
 
 [project.optional-dependencies]
 api = [
+    "anyio>=4.14.2,<5",
     "fastapi>=0.116,<1",
     "uvicorn>=0.35,<1",
 ]
@@ -44,27 +45,34 @@ ui = [
     "finite-difference-options[viz]",
 ]
 validation = [
+    "anyio>=4.14.2,<5",
     "finite-difference-options[api]",
     "pytest>=9.0.3,<10",
     "pytest-cov>=5,<7",
     "pytest-xdist>=3.6,<4",
-    "httpx2>=2,<3",
+    "httpx2>=2.12,<3",
 ]
 build = [
     "build>=1,<1.5.1",
     "twine>=5,<7",
 ]
 audit = [
+    "pip>=26.2,<27",
+    "urllib3>=2.8,<3",
     "pip-audit>=2.7,<3",
     "cyclonedx-bom>=5,<8",
 ]
 dev = [
+    "anyio>=4.14.2,<5",
+    "pip>=26.2,<27",
+    "urllib3>=2.8,<3",
+    "virtualenv>=21.14.4,<22",
     "build>=1,<1.5.1",
     "cyclonedx-bom>=5,<8",
     "cryptography>=50,<51",
     "fastapi>=0.116,<1",
     "GitPython>=3.1.60,<4",
-    "httpx2>=2,<3",
+    "httpx2>=2.12,<3",
     "matplotlib>=3.10,<4",
     "mypy>=1.17,<2",
     "pip-audit>=2.7,<3",
