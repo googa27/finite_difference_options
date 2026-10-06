@@ -28,6 +28,7 @@ UNSAFE = {
     "virtualenv": "21.14.3",
     "anyio": "4.14.1",
 }
+DIRECT_DEV_FLOORS = tuple(name for name in FLOORS if name != "httpcore2")
 
 
 def legacy_pinned_versions(text: str, name: str) -> list[str]:
@@ -39,6 +40,7 @@ def legacy_pinned_versions(text: str, name: str) -> list[str]:
 class DeclaredSecurityFloors(unittest.TestCase):
     def assert_declared_floor(self, requirement: Requirement, name: str) -> None:
         """Require an inclusive safe floor, beyond excluding one bad release."""
+        self.assertIsNone(requirement.marker, f"{requirement} must govern every supported environment")
         floor = Version(FLOORS[name])
         # Version membership checks satisfaction of all requirement specifiers.
         self.assertIn(floor, requirement.specifier)
@@ -48,6 +50,31 @@ class DeclaredSecurityFloors(unittest.TestCase):
             f"{requirement} does not establish the security floor {floor}",
         )
         self.assertNotIn(Version(UNSAFE[name]), requirement.specifier)
+
+    def test_profile_floors_cannot_be_disabled_by_environment_markers(self) -> None:
+        for name, floor in FLOORS.items():
+            for marker in ('python_version < "3"', 'sys_platform == "win32"'):
+                with self.subTest(package=name, marker=marker):
+                    marked = Requirement(f"{name}>={floor}; {marker}")
+                    self.assertIn(Version(floor), marked.specifier)
+                    with self.assertRaises(AssertionError):
+                        self.assert_declared_floor(marked, name)
+
+    def test_direct_development_mirror_enforces_every_declared_floor(self) -> None:
+        text = (ROOT / "requirements-dev.txt").read_text()
+        logical_lines = re.sub(r"\\\r?\n", "", text)
+        requirements: dict[str, list[Requirement]] = {}
+        for line in logical_lines.splitlines():
+            line = line.partition("#")[0].strip()
+            if not line or line == "-r requirements.txt":
+                continue
+            requirement = Requirement(line)
+            requirements.setdefault(requirement.name, []).append(requirement)
+        for name in DIRECT_DEV_FLOORS:
+            with self.subTest(package=name):
+                entries = requirements.get(name, [])
+                self.assertEqual(len(entries), 1, f"{name} must have one direct mirrored floor")
+                self.assert_declared_floor(entries[0], name)
 
     def test_known_bad_exclusions_cannot_replace_complete_security_floors(self) -> None:
         for name, floor in FLOORS.items():
