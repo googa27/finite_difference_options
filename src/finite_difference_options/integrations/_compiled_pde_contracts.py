@@ -3,6 +3,7 @@
 from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
+from types import MappingProxyType
 from typing import Any, Literal
 
 
@@ -49,6 +50,18 @@ EXPECTED_OUTPUTS = ("delta", "gamma", "value")
 
 
 _PACKAGED_FIXTURE = "compiled_pde_black_scholes_call_v0.json"
+
+
+# Compiler and numerical solver versions are independent identity axes.
+_COMPILED_FIXTURE_REGISTRY = MappingProxyType(
+    {
+        "pde_ir_symbolic_compiler.v0": (EXPECTED_COMPILED_HASH, _PACKAGED_FIXTURE),
+        "pde_ir_symbolic_compiler.v1": (
+            "sha256:b449647e7f8deea870b0e8fbe0cfd4355040a53b9853d69c17443f0b3a6d9cb2",
+            "compiled_pde_black_scholes_call_compiler_v1.json",
+        ),
+    }
+)
 
 
 _COMPILED_ROUTE_NUMERICS = {

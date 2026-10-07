@@ -14,8 +14,9 @@ from finite_difference_options.integrations import compiled_pde_adapter as adapt
 
 def test_compiled_adapter_legacy_public_contract() -> None:
     reference = json.loads((Path(__file__).parent / "fixtures/compiled_pde_adapter_v0_contract.json").read_text())
-    assert [name for name in adapter.__all__ if name != "solve_compiled_pde_payload_v1"] == reference["exports"]
-    assert set(adapter.__all__) - set(reference["exports"]) == {"solve_compiled_pde_payload_v1"}
+    additions = {"solve_compiled_pde_payload_v1", "packaged_compiled_black_scholes_fixture_for_compiler"}
+    assert [name for name in adapter.__all__ if name not in additions] == reference["exports"]
+    assert set(adapter.__all__) - set(reference["exports"]) == additions
     for name, expected in reference["metadata"].items():
         member = getattr(adapter, name)
         assert member.__module__ == expected["module"]

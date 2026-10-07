@@ -28,6 +28,7 @@ from ._compiled_pde_contracts import (
     EXPECTED_BOUNDARY_KINDS as EXPECTED_BOUNDARY_KINDS,
     EXPECTED_OUTPUTS as EXPECTED_OUTPUTS,
     _PACKAGED_FIXTURE as _PACKAGED_FIXTURE,
+    _COMPILED_FIXTURE_REGISTRY as _COMPILED_FIXTURE_REGISTRY,
     _COMPILED_ROUTE_NUMERICS as _COMPILED_ROUTE_NUMERICS,
     CompiledPDEDiagnostic as CompiledPDEDiagnostic,
     CompiledPDEScreeningResult as CompiledPDEScreeningResult,
@@ -88,7 +89,23 @@ def load_compiled_pde_json(path: str | Path) -> dict[str, Any]:
 def packaged_compiled_black_scholes_fixture() -> dict[str, Any]:
     """Return the packaged exact public-synthetic compiled Black--Scholes fixture."""
 
-    text = _packaged_compiled_black_scholes_fixture_resource().read_text(encoding="utf-8")
+    return _load_packaged_compiled_fixture(_packaged_compiled_black_scholes_fixture_resource())
+
+
+def packaged_compiled_black_scholes_fixture_for_compiler(compiler_version: str) -> dict[str, Any]:
+    """Select one exact registered compiler record; numerical v0/v1 is separate."""
+
+    if type(compiler_version) is not str or compiler_version not in _COMPILED_FIXTURE_REGISTRY:
+        raise CompiledPDEAdapterError(
+            (_diag("compiled_pde.compiler_unsupported", "unknown compiler fixture selection", "compiler_version"),)
+        )
+    filename = _COMPILED_FIXTURE_REGISTRY[compiler_version][1]
+    resource = resources.files("finite_difference_options.validation.fixtures").joinpath(filename)
+    return _load_packaged_compiled_fixture(resource)
+
+
+def _load_packaged_compiled_fixture(resource: Traversable) -> dict[str, Any]:
+    text = resource.read_text(encoding="utf-8")
     payload = json.loads(text, parse_constant=_reject_non_finite_json)
     if type(payload) is not dict:  # pragma: no cover - package-data corruption guard
         raise CompiledPDEAdapterError(
@@ -292,7 +309,12 @@ def _validate(payload: Mapping[str, Any]) -> tuple[CompiledPDEDiagnostic, ...]:
     _validate_source_ir(diagnostics, source)
     _validate_compiled_operator(diagnostics, compiled_result, compiled, source)
     _validate_solver_plan(diagnostics, solver)
-    if not diagnostics and not matches_exact_public_fixture(root, packaged_compiled_black_scholes_fixture()):
+    if not diagnostics:
+        evidence = cast(Mapping[str, Any], compiled["compiler_evidence"])
+        expected = packaged_compiled_black_scholes_fixture_for_compiler(evidence["compiler_version"])
+        if matches_exact_public_fixture(root, expected):
+            return ()
+    if not diagnostics:
         diagnostics.append(
             _diag(
                 "compiled_pde.exact_fixture_mismatch",
@@ -347,6 +369,7 @@ __all__ = [
     "CompiledPDESolveResult",
     "load_compiled_pde_json",
     "packaged_compiled_black_scholes_fixture",
+    "packaged_compiled_black_scholes_fixture_for_compiler",
     "packaged_compiled_black_scholes_fixture_path",
     "screen_compiled_pde_payload",
     "solve_compiled_pde_payload",

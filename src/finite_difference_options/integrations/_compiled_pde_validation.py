@@ -13,6 +13,7 @@ from ._compiled_pde_contracts import (
     COMPILED_OPERATOR_SCHEMA_VERSION,
     EXPECTED_SOURCE_IR_HASH,
     EXPECTED_COMPILED_HASH,
+    _COMPILED_FIXTURE_REGISTRY,
     EXPECTED_PROBLEM_ID as EXPECTED_PROBLEM_ID,
     EXPECTED_SOURCE_PROBLEM_ID,
     EXPECTED_FORMULATION_ID,
@@ -167,18 +168,21 @@ def _validate_compiled_operator(
                 "compiled_operator.compiled_hash",
             )
         )
+    evidence = compiled.get("compiler_evidence") if isinstance(compiled.get("compiler_evidence"), Mapping) else {}
+    version = cast(Mapping[str, Any], evidence).get("compiler_version")
+    registered = _COMPILED_FIXTURE_REGISTRY.get(version) if type(version) is str else None
+    expected_hash = registered[0] if registered is not None else EXPECTED_COMPILED_HASH
     _expect(
         diagnostics,
         compiled.get("compiled_hash"),
-        EXPECTED_COMPILED_HASH,
+        expected_hash,
         "compiled_operator.compiled_hash",
         "compiled_pde.compiled_hash_unsupported",
     )
-    evidence = compiled.get("compiler_evidence") if isinstance(compiled.get("compiler_evidence"), Mapping) else {}
     _expect(
         diagnostics,
-        cast(Mapping[str, Any], evidence).get("compiler_version"),
-        "pde_ir_symbolic_compiler.v0",
+        version,
+        version if registered is not None else "pde_ir_symbolic_compiler.v0",
         "compiled_operator.compiler_evidence.compiler_version",
         "compiled_pde.compiler_unsupported",
     )

@@ -392,3 +392,28 @@ source/database discrepancy instead of asserting all three are reachable here.
 Fresh unsuppressed native/legacy audits and SBOMs are required; no advisory ignore.
 Numerical runtime and mandatory core remain unchanged. Issue179 compiler release
 is separately blocked until these declared dependency repairs actually integrate.
+
+## Registered compiler fixture versions (issue179)
+
+The compiled adapter accepts only the exact packaged public-synthetic records
+for `pde_ir_symbolic_compiler.v0` and `.v1`. The named public factory
+`packaged_compiled_black_scholes_fixture_for_compiler(compiler_version)` selects
+one record; unknown selections raise `CompiledPDEAdapterError`. The legacy
+no-argument factory, fixture bytes, public signatures and default CLI stay v0.
+Compiler identity is separate from the explicit banded numerical-solver v1 API.
+
+The current compiler fixture has its own manifest identity and records the
+actual FPF candidate source commit and normal wheel that produced it. Historical
+compiler.v0 evidence is preserved. Whole-record hash recomputation, exact
+registered version/hash pairs and type-sensitive complete fixture comparison
+remain required before numerical work. Rehashed expressions, changed units,
+boundaries, numerical plans, private data, unknown fields or provenance refuse;
+two known hashes are not a general compiler trust policy. No coefficients,
+boundary/time convention, numerical tolerance, maturity or dependency changes.
+
+Run `pytest -q tests/unit/test_compiler_fixture_versions.py
+tests/test_compiled_pde_compatibility.py --no-cov` alongside the complete
+repository gates. Normal wheel validation must run the same public factory,
+screen and solve APIs with analytical price/Delta/Gamma and convergence checks.
+This contract does not claim full five-provider release, market calibration,
+optional-profile promotion or resulting-default acceptance by itself.
