@@ -168,3 +168,19 @@ These negative controls prove the guard detects deletion without mutating the
 package on disk. Neither the guards nor the aliases add numerical behavior.
 
 Primary rule semantics: [Ruff explicit re-exports](https://docs.astral.sh/ruff/rules/unused-import/) and [Ruff loop-variable binding](https://docs.astral.sh/ruff/rules/function-uses-loop-variable/).
+
+
+## Registered compiler fixtures in normal wheel acceptance (issue179)
+
+The package job runs the registered compiler fixture regression file with the
+clean normal-wheel interpreter in isolated mode outside the checkout. It first
+requires actual installed package origin and noneditable distribution metadata.
+Both packaged compiler records then run through both numerical solver APIs,
+with unchanged analytical price/Delta/Gamma and convergence limits, alongside
+unknown-version, inconsistent-hash and semantic-mutation refusal controls.
+Source collection alone cannot substitute for this functional wheel gate.
+The packaging contract independently requires both legacy and current compiler
+JSON members. A controlled omission of the real compiler-v1 wheel member was
+accepted by the preceding contract and is now rejected. The legacy default and
+numerical algorithms are preserved; these public-synthetic gates do not claim
+general symbolic compilation, market calibration or wider scientific release.

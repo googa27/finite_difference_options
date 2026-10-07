@@ -105,20 +105,26 @@ class CompilerFixtureVersions(unittest.TestCase):
                         numerical.assert_not_called()
 
     def test_current_record_runs_real_analytical_and_convergence_gates(self) -> None:
-        old = adapter.solve_compiled_pde_payload(adapter.packaged_compiled_black_scholes_fixture())
-        new = adapter.solve_compiled_pde_payload(current_fixture())
-        self.assertTrue(old.passed)
-        self.assertTrue(new.passed)
-        self.assertEqual(new.values, old.values)
-        self.assertEqual(new.diagnostics, old.diagnostics)
-        self.assertEqual(new.evidence["compiled_hash"], H1)
-        self.assertEqual(old.evidence["compiled_hash"], H0)
-        for name, reference, tolerance in (
-            ("price", "oracle_price", 5e-4),
-            ("delta", "reference_delta", 1e-3),
-            ("gamma", "reference_gamma", 8e-3),
+        for numerical, solve in (
+            ("v0", adapter.solve_compiled_pde_payload),
+            ("v1", adapter.solve_compiled_pde_payload_v1),
         ):
-            self.assertLessEqual(abs(new.values[name] - new.values[reference]), tolerance)
+            with self.subTest(numerical_solver=numerical):
+                old = solve(adapter.packaged_compiled_black_scholes_fixture())
+                new = solve(current_fixture())
+                self.assertTrue(old.passed)
+                self.assertTrue(new.passed)
+                self.assertEqual(new.values, old.values)
+                self.assertEqual(new.diagnostics, old.diagnostics)
+                self.assertEqual(new.evidence["compiled_hash"], H1)
+                self.assertEqual(old.evidence["compiled_hash"], H0)
+                for result in (old, new):
+                    for name, reference, tolerance in (
+                        ("price", "oracle_price", 5e-4),
+                        ("delta", "reference_delta", 1e-3),
+                        ("gamma", "reference_gamma", 8e-3),
+                    ):
+                        self.assertLessEqual(abs(result.values[name] - result.values[reference]), tolerance)
 
 
 if __name__ == "__main__":
