@@ -62,7 +62,11 @@ class CompilerFixtureVersions(unittest.TestCase):
         self.assertEqual(current, current_fixture())
         current["source_pde_ir"]["privacy_class"] = "private"
         self.assertEqual(factory(V1), current_fixture())
-        for version in ("", "v1", "pde_ir_symbolic_compiler.v2", True, [], {}):
+
+        class CompilerString(str):
+            pass
+
+        for version in ("", "v1", "pde_ir_symbolic_compiler.v2", True, [], {}, CompilerString(V1)):
             with self.subTest(version=version), self.assertRaises(adapter.CompiledPDEAdapterError):
                 factory(version)
 
@@ -97,12 +101,16 @@ class CompilerFixtureVersions(unittest.TestCase):
                     p["artifact_manifest"]["manifest_id"] = "invented"
                 variants.append((name, p))
             for name, p in variants:
-                with self.subTest(compiler=version, mutation=name):
-                    with patch.object(adapter, "_run_compiled_black_scholes_route") as numerical:
-                        self.assertFalse(adapter.screen_compiled_pde_payload(p).supported)
-                        with self.assertRaises(adapter.CompiledPDEAdapterError):
-                            adapter.solve_compiled_pde_payload(p)
-                        numerical.assert_not_called()
+                for numerical_version, solve in (
+                    ("v0", adapter.solve_compiled_pde_payload),
+                    ("v1", adapter.solve_compiled_pde_payload_v1),
+                ):
+                    with self.subTest(compiler=version, mutation=name, numerical_solver=numerical_version):
+                        with patch.object(adapter, "_run_compiled_black_scholes_route") as numerical:
+                            self.assertFalse(adapter.screen_compiled_pde_payload(p).supported)
+                            with self.assertRaises(adapter.CompiledPDEAdapterError):
+                                solve(p)
+                            numerical.assert_not_called()
 
     def test_current_record_runs_real_analytical_and_convergence_gates(self) -> None:
         for numerical, solve in (
@@ -114,6 +122,7 @@ class CompilerFixtureVersions(unittest.TestCase):
                 new = solve(current_fixture())
                 self.assertTrue(old.passed)
                 self.assertTrue(new.passed)
+                # Both compiler records map to the same unchanged numerical route.
                 self.assertEqual(new.values, old.values)
                 self.assertEqual(new.diagnostics, old.diagnostics)
                 self.assertEqual(new.evidence["compiled_hash"], H1)

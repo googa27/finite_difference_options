@@ -179,13 +179,14 @@ def _validate_compiled_operator(
         "compiled_operator.compiled_hash",
         "compiled_pde.compiled_hash_unsupported",
     )
-    _expect(
-        diagnostics,
-        version,
-        version if registered is not None else "pde_ir_symbolic_compiler.v0",
-        "compiled_operator.compiler_evidence.compiler_version",
-        "compiled_pde.compiler_unsupported",
-    )
+    if registered is None:
+        _expect(
+            diagnostics,
+            version,
+            "pde_ir_symbolic_compiler.v0",
+            "compiled_operator.compiler_evidence.compiler_version",
+            "compiled_pde.compiler_unsupported",
+        )
 
 
 def _validate_solver_plan(diagnostics: list[CompiledPDEDiagnostic], solver: Mapping[str, Any]) -> None:
