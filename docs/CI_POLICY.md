@@ -122,3 +122,49 @@ The architecture contract gate (`python scripts/check_architecture_contract.py`)
 ## Resolver marker scope for the optional dependency repair
 
 The refreshed native lock makes Secretstorage's Cryptography and Jeepney child edges unconditional within that package. Its parent Keyring edge still selects Secretstorage only when `sys_platform == 'linux'`; this is the complete dependency-path boundary, rather than an inferred Windows or Pyodide installation result. HTTPX2's new jsfetch transport is likewise conditional on Emscripten. Current release acceptance is Linux Python 3.12. No Windows, Emscripten or Pyodide runtime acceptance is inferred from the lock's graph or successful Linux checks.
+
+## Complete configured lint acceptance (issue #188)
+
+The issue #188 release gate runs `ruff check .` with the complete committed rule set, in addition to the narrower blocking CI static smoke. The repair preserves the existing imported compatibility attributes using explicit same-name aliases; it does not remove those exports or add lint ignores. Benchmark callbacks explicitly bind their loop arrays/factors/right-hand sides, and the discarded timing-loop assignment retains the same solver call. Existing callback execution is synchronous, so the old diagnostic does not establish incorrect historical timings or numerical results.
+
+Run the full format/source/compatibility gates and the cached-LAPACK `--quick` contract smoke, then verify fresh normal-wheel numerical v0/v1 replay. Quick timing samples are not a performance-promotion claim. Runtime byte identities legitimately change in the four import-declaration modules; retain historical evidence with its original hashes and generate new current identity-bound artifacts. Compiler-schema v1 and broader scientific acceptance remain separate obligations. No solver arithmetic, fixture, tolerance, public signature, dependency/lock, capability maturity, or workflow enforcement is changed by this repair.
+
+### Incidental import-attribute removal boundary
+
+Five pre-existing 0.1.x namespace attributes are preserved during lint cleanup.
+They are not advertised public API, a new compatibility facade, or additional
+solver capability. The absence of known in-repository callers does not prove
+that all installed consumers can tolerate deleting them.
+`tests/integration/test_legacy_import_attributes.py` characterizes the direct
+consumer imports and their identity with the existing owner objects:
+
+| Retained import location | Attribute | Canonical owner |
+|---|---|---|
+| `integrations._compiled_pde_validation` | `EXPECTED_PROBLEM_ID` | `integrations._compiled_pde_contracts` |
+| `validation.fd_evidence.grid_metrics` | `_solve_compiled_black_scholes_grid` | `integrations.compiled_pde_black_scholes_route` |
+| `validation.fd_evidence.perturbations` | `_solve_compiled_black_scholes_grid` | `integrations.compiled_pde_black_scholes_route` |
+| `validation.fd_verification` | `_solve_compiled_black_scholes_grid` | `integrations.compiled_pde_black_scholes_route` |
+| `validation.fd_verification` | `_upper_call_boundary` | `integrations.compiled_pde_black_scholes_route` |
+
+All locations use the `finite_difference_options.` prefix. Private owner paths
+in this table identify current implementations; they are not recommended new
+public imports. New callers use the documented compiled-adapter and verification
+APIs. The removal-review milestone is the first deliberate distribution-major
+namespace audit, **no earlier than 1.0.0**. That review must audit repository and
+known downstream callers, record an explicit keep/remove disposition and migration
+evidence, and update these guards in the same change. This is a review trigger,
+not scheduled deletion. If a supported public consumer is found, removal first
+requires the replacement, warning version, removal version/date and migration
+example required by AGENTS.md section 18. No public deprecation is announced by
+this lint repair.
+
+Run the five source cases with
+`python -m pytest -q tests/integration/test_legacy_import_attributes.py --no-cov`.
+The same dependency-free test file can run from an unrelated directory with
+`<normal-core-env>/bin/python -I <absolute-test-path>`; its imports must resolve
+to the installed wheel. Release evidence also removes each retained attribute
+in a disposable child process and verifies that its corresponding case fails.
+These negative controls prove the guard detects deletion without mutating the
+package on disk. Neither the guards nor the aliases add numerical behavior.
+
+Primary rule semantics: [Ruff explicit re-exports](https://docs.astral.sh/ruff/rules/unused-import/) and [Ruff loop-variable binding](https://docs.astral.sh/ruff/rules/function-uses-loop-variable/).
