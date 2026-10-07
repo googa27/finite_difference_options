@@ -175,5 +175,6 @@ def test_wheel_contains_only_real_distribution_package(tmp_path: Path) -> None:
     assert any(name.startswith("finite_difference_options/integrations/") for name in names)
     assert "finite_difference_options/pricing/boundary_conditions/__init__.py" in names
     assert "finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json" in names
+    assert "finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_compiler_v1.json" in names
     assert not any(name == "src/__init__.py" or name.startswith("src/") for name in names)
     assert not any(name.startswith(("tests/", ".agent_workspace/", ".gemini_project/")) for name in names)

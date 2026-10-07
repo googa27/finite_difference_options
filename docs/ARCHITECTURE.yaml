@@ -41,7 +41,7 @@
         "public_module": "finite_difference_options.integrations.compiled_pde_adapter",
         "private_contracts": "integrations/_compiled_pde_contracts.py",
         "private_validation": "integrations/_compiled_pde_validation.py",
-        "identity_policy": "public imports, signatures, class modules and trusted historical DTO pickles remain stable",
+        "identity_policy": "public imports, signatures, class modules and trusted historical DTO pickles remain stable; named compiler fixture selection admits only exact registered v0/v1 records, independent of numerical solver version",
         "numerical_policy": "v0 default and dense arithmetic retained; explicit solve_compiled_pde_payload_v1 with banded numerics and v1 schema",
         "fitness_gate": "tests/test_compiled_pde_compatibility.py",
         "private_grid_evidence": "validation/fd_evidence/grid_metrics.py",
@@ -92,7 +92,8 @@
       "py.typed"
     ],
     "allowed_non_python_files": [
-      "src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json"
+      "src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_v0.json",
+      "src/finite_difference_options/validation/fixtures/compiled_pde_black_scholes_call_compiler_v1.json"
     ],
     "future_rule": "Any new Python package uses a src layout unless an evidence-backed exception is approved.",
     "hierarchy_policy": {

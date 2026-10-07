@@ -54,6 +54,21 @@ jobs:
           ]:
               importlib.import_module(name)
           PY
+      - name: Normal wheel registered compiler analytical and convergence gate
+        run: |
+          cd /tmp
+          /tmp/fdo-wheel-smoke/bin/python -I - <<'PY'
+          import importlib.metadata as metadata
+          import json
+          from pathlib import Path
+          import sys
+          import finite_difference_options as package
+          assert sys.flags.isolated
+          assert Path(package.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
+          direct = json.loads(metadata.distribution('finite-difference-options').read_text('direct_url.json'))
+          assert not direct.get('dir_info', {}).get('editable', False)
+          PY
+          /tmp/fdo-wheel-smoke/bin/python -I "$GITHUB_WORKSPACE/tests/unit/test_compiler_fixture_versions.py"
       - name: Generate release manifest
         run: python scripts/write_release_manifest.py --dist dist --output dist/release-manifest.json
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

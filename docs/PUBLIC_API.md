@@ -390,3 +390,15 @@ The `compiled_pde_adapter` public module retains its existing imports and signat
 ## Compatibility notes
 
 The `pricing`, `instruments`, `exceptions`, `models`, and `risk` surfaces include legacy compatibility names. They remain public while tests cover them, but new integrations should prefer typed contracts, explicit problem payloads, and the capability manifest. A public symbol does not imply every model/product combination is mature; maturity is governed by benchmark and capability docs.
+
+## Registered compiler fixture selection (issue179)
+
+Use `finite_difference_options.integrations.compiled_pde_adapter.packaged_compiled_black_scholes_fixture_for_compiler(compiler_version)`
+with the exact full compiler identity `pde_ir_symbolic_compiler.v0` or `.v1`.
+Unknown selections raise `CompiledPDEAdapterError`. The no-argument legacy factory
+and its fixture remain v0. Returned records are caller-owned JSON copies.
+Pass the complete returned record to `screen_compiled_pde_payload` or
+`solve_compiled_pde_payload`; changed semantic/provenance fields are unsupported.
+Compiler v1 is independent of `solve_compiled_pde_payload_v1` banded numerical
+versioning. This adds an exact known public-synthetic input, no general symbolic
+solver, new numerical tolerance, private-data capability or maturity claim.
