@@ -62,6 +62,14 @@
           "tests/validation/test_authentic_v0_replay.py",
           "tests/validation/test_compiled_carry_bounds.py"
         ]
+      },
+      "legacy_import_attributes": {
+        "classification": "incidental 0.1.x module attributes; not advertised public API or solver capability",
+        "owner": "https://github.com/googa27/finite_difference_options/issues/188",
+        "document": "docs/CI_POLICY.md",
+        "fitness_gate": "tests/integration/test_legacy_import_attributes.py",
+        "removal_review": "first deliberate distribution-major namespace/caller audit, no earlier than 1.0.0; explicit reviewed migration before removal",
+        "runtime_change": "none; tests characterize the existing owner-object identity"
       }
     },
     "extension_points": [
