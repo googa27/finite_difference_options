@@ -8,7 +8,7 @@ import numpy as np
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _black_scholes_matrix,
     _select_grid_solver,
-    _solve_compiled_black_scholes_grid,
+    _solve_compiled_black_scholes_grid as _solve_compiled_black_scholes_grid,
     _upper_call_boundary,
 )
 

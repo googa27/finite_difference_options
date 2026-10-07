@@ -122,3 +122,11 @@ The architecture contract gate (`python scripts/check_architecture_contract.py`)
 ## Resolver marker scope for the optional dependency repair
 
 The refreshed native lock makes Secretstorage's Cryptography and Jeepney child edges unconditional within that package. Its parent Keyring edge still selects Secretstorage only when `sys_platform == 'linux'`; this is the complete dependency-path boundary, rather than an inferred Windows or Pyodide installation result. HTTPX2's new jsfetch transport is likewise conditional on Emscripten. Current release acceptance is Linux Python 3.12. No Windows, Emscripten or Pyodide runtime acceptance is inferred from the lock's graph or successful Linux checks.
+
+## Complete configured lint acceptance (issue #188)
+
+The issue #188 release gate runs `ruff check .` with the complete committed rule set, in addition to the narrower blocking CI static smoke. The repair preserves the existing imported compatibility attributes using explicit same-name aliases; it does not remove those exports or add lint ignores. Benchmark callbacks explicitly bind their loop arrays/factors/right-hand sides, and the discarded timing-loop assignment retains the same solver call. Existing callback execution is synchronous, so the old diagnostic does not establish incorrect historical timings or numerical results.
+
+Run the full format/source/compatibility gates and the cached-LAPACK `--quick` contract smoke, then verify fresh normal-wheel numerical v0/v1 replay. Quick timing samples are not a performance-promotion claim. Runtime byte identities legitimately change in the four import-declaration modules; retain historical evidence with its original hashes and generate new current identity-bound artifacts. Compiler-schema v1 and broader scientific acceptance remain separate obligations. No solver arithmetic, fixture, tolerance, public signature, dependency/lock, capability maturity, or workflow enforcement is changed by this repair.
+
+Primary rule semantics: [Ruff explicit re-exports](https://docs.astral.sh/ruff/rules/unused-import/) and [Ruff loop-variable binding](https://docs.astral.sh/ruff/rules/function-uses-loop-variable/).

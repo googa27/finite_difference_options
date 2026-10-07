@@ -20,8 +20,8 @@ from finite_difference_options.integrations.compiled_pde_adapter import (
 )
 from finite_difference_options.integrations.compiled_pde_black_scholes_route import (
     _black_scholes_matrix,
-    _solve_compiled_black_scholes_grid,
-    _upper_call_boundary,
+    _solve_compiled_black_scholes_grid as _solve_compiled_black_scholes_grid,
+    _upper_call_boundary as _upper_call_boundary,
 )
 from finite_difference_options.integrations.haircut_protocol import installed_distribution_version
 from finite_difference_options.validation.black_scholes_parity import (

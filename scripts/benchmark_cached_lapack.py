@@ -1,4 +1,7 @@
-"""Reproduce pivoted LAPACK speed, parity, memory and cache-state measurements.\n\nRun against an explicitly installed checkout; no source or package is modified.\n"""
+"""Reproduce pivoted LAPACK speed, parity, memory and cache-state measurements.
+
+Run against an explicitly installed checkout; no source or package is modified.
+"""
 
 from __future__ import annotations
 
@@ -87,8 +90,8 @@ def main():
         bands[2, :-1] = low[1:]
         old = _factor_tridiagonal(low, diagonal, upper)
         new = factor(low, diagonal, upper)
-        old_factor = measure(lambda: _factor_tridiagonal(low, diagonal, upper))
-        new_factor = measure(lambda: factor(low, diagonal, upper))
+        old_factor = measure(lambda low=low, diagonal=diagonal, upper=upper: _factor_tridiagonal(low, diagonal, upper))
+        new_factor = measure(lambda low=low, diagonal=diagonal, upper=upper: factor(low, diagonal, upper))
         for nrhs in (1, 8):
             rhs = np.random.default_rng(774).normal(size=(n, nrhs))
             if nrhs == 1:
@@ -98,8 +101,8 @@ def main():
             new_value = solve(new, rhs)
             np.testing.assert_allclose(old_value, oracle, rtol=1e-12, atol=1e-12)
             np.testing.assert_allclose(new_value, oracle, rtol=1e-12, atol=1e-12)
-            old_solve = measure(lambda: _solve_factored_tridiagonal(low, *old, rhs))
-            new_solve = measure(lambda: solve(new, rhs))
+            old_solve = measure(lambda low=low, old=old, rhs=rhs: _solve_factored_tridiagonal(low, *old, rhs))
+            new_solve = measure(lambda new=new, rhs=rhs: solve(new, rhs))
             row = {
                 "nodes": n,
                 "rhs_columns": nrhs,
@@ -170,7 +173,7 @@ def main():
             )
             for solver, samples in order:
                 start = time.perf_counter_ns()
-                values = solver.solve_european(**params)
+                solver.solve_european(**params)
                 samples.append((time.perf_counter_ns() - start) / 1e9)
         old_value = old_solver.solve_european(**params)
         new_value = new_solver.solve_european(**params)
@@ -210,7 +213,11 @@ def main():
         "quick": args.quick,
         "classification": "public-synthetic",
         "process_peak_rss_kib_linux": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
-        "memory_notes": "Array bytes are exact logical storage. Tracemalloc is a separately instrumented solve and excludes untracked native allocations. RSS is cumulative whole-process Linux peak, not per-case allocation.",
+        "memory_notes": (
+            "Array bytes are exact logical storage. Tracemalloc is a separately instrumented solve "
+            "and excludes untracked native allocations. RSS is cumulative whole-process Linux peak, "
+            "not per-case allocation."
+        ),
         "harness_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "candidate_source_sha256": {
             p.name: hashlib.sha256(p.read_bytes()).hexdigest()
