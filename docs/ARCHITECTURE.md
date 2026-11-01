@@ -658,3 +658,62 @@ admits the patched Pillow13 release; no resolver override or mandatory core
 dependency is added. Both frozen locks retain their own numerical pins.
 The [CI profile controls](CI_POLICY.md#october-2026-declared-lock-security-refresh)
 and `tests/architecture/test_october_dependency_repair.py` govern this boundary.
+
+## Advisory PR review governance (issue186)
+
+Provider execution requires `workflow_dispatch` with the dedicated boolean
+`run_provider=true`; that input defaults to false. Automatic PR, synchronize,
+comment and review events remain disabled even if both operator variables already
+match. Missing/false manual input also never invokes or installs the provider CLI.
+A manual request additionally requires exact
+`GEMINI_PR_REVIEW_MODE=free-tier-operator-asserted` and
+`GEMINI_PR_REVIEW_MODEL=gemini-2.5-flash`; empty/disabled/unknown configuration
+refuses. No model or CLI fallback is selected.
+This is an operator assertion, not verification of account eligibility, free
+quota, price or a billing restriction. Leave it disabled when those are unknown.
+No credential/account probes or paid fallback belong in this workflow.
+
+The reviewed action remains pinned to `f77273f4c914e4bf38440cf36a0369cb64a37489`
+and CLI `0.40.0-preview.3`. Google's current models documentation says 2.5 is
+served to eligible prior users, not universally retired. This CLI's explicit
+2.5 Flash selection has a single-model availability chain. Newer recommended
+3.5/3.8 models and aliases are refused here: this old CLI can route Gemini 3
+selections through downgrade chains. Supporting them requires separate primary
+compatibility/no-fallback evidence and review, not an automatic substitution.
+Vertex, CodeAssist, WIF, credit overage, extensions and automatic CLI updates are
+not enabled. Agent delegation and experimental dynamic model routing are
+explicitly disabled in the supported pinned settings. The default-disabled path is the only unconditional no-provider-cost
+path; an API key's own account billing policy is outside this source contract.
+
+The PR job has only read-only contents/pull-request permission. No GitHub App
+credential, model-controlled GitHub mutation, OIDC, MCP or built-in tools are
+provided. It refuses a private repository before provider execution, then fetches native
+PR metadata and a comparison bound to immutable base/head
+commits, without checking out or
+executing the reviewed PR head separately. Existing trusted-actor triggers remain.
+The model step receives empty GitHub tokens and returns artifact data only;
+triage/labels and the separate conversational workflow are unchanged.
+
+`scripts/classify_pr_review.py` validates a complete native patch (at most 30
+files, 64 KiB context), binds the exact PR/head and checks a fresh current head. The prepared
+JSON enters the action prompt as an action-input expression, never a literal
+environment placeholder or shell eval.
+Binary, missing/truncated or oversized patches refuse before provider execution.
+Nonempty starts, ordered ranges, equal unchanged gaps and newline markers are checked.
+It reads actual CLI stdout/stderr (at most 128 KiB each), not just wrapper outcome.
+A green wrapper containing `ModelNotFoundError`, quota/auth/service errors, empty,
+invalid, duplicate-key or oversized output never counts as review. A closed JSON
+schema allows at most 20 findings on actual added lines, with 2000 UTF-8-byte summary
+and message bounds. Exact configured-model telemetry, zero model errors and zero
+tool calls are required. JSON `bounded_review` means bounded untrusted model data;
+it is not provider identity/eligibility verification, correctness or approval.
+Native head readback is point-in-time and does not promise a head cannot move later.
+
+Only normalized `.advisory/report.json` is archived for 14 days; the local summary
+contains fixed status text. The pinned upstream action separately exposes public
+prompt/response/error in native outputs/summary, so it must never receive private
+payloads. No provider was contacted for source tests. Dedicated source review and
+real deterministic CI remain the acceptance route when hosted service eligibility
+is unavailable. Fitness controls: `tests/test_pr_review_governance.py` and
+`tests/architecture/test_ci_policy_contracts.py`; all numerical/runtime/lock
+contracts remain unchanged.
