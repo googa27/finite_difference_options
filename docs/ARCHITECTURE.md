@@ -602,7 +602,7 @@ Issue #170 adds an explicit compiled v1 executor with a private banded operator/
 
 Validation and development require HTTPX2>=2.12,<3; its locked HTTPCore2
 must be >=2.10. The optional development and audit profiles require pip>=26.2,<27
-and urllib3>=2.8,<3, and development requires virtualenv>=21.14.4,<22.
+and urllib3>=2.8,<3, and development requires virtualenv>=21.15.2,<22.
 Both uv.lock and requirements-dev.lock.txt retain compatible fixed versions;
 requirements-dev.txt mirrors these floors. These installer/transport tools
 remain outside numerical core. Existing cryptography, GitPython and build
@@ -648,3 +648,13 @@ repository gates. Normal wheel validation must run the same public factory,
 screen and solve APIs with analytical price/Delta/Gamma and convergence checks.
 This contract does not claim full five-provider release, market calibration,
 optional-profile promotion or resulting-default acceptance by itself.
+
+
+## October optional dependency boundary
+
+GitPython>=3.2.1,<4, Virtualenv>=21.15.2,<22 and Streamlit>=1.66.1,<2 remain
+within their existing optional profiles. Streamlit's ordinary Pillow<14 range
+admits the patched Pillow13 release; no resolver override or mandatory core
+dependency is added. Both frozen locks retain their own numerical pins.
+The [CI profile controls](CI_POLICY.md#october-2026-declared-lock-security-refresh)
+and `tests/architecture/test_october_dependency_repair.py` govern this boundary.

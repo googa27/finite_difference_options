@@ -243,7 +243,7 @@ The public-synthetic compiled route offers explicit Python v1 solving/evidence w
 
 Validation and development require HTTPX2>=2.12,<3; its locked HTTPCore2
 must be >=2.10. The optional development and audit profiles require pip>=26.2,<27
-and urllib3>=2.8,<3, and development requires virtualenv>=21.14.4,<22.
+and urllib3>=2.8,<3, and development requires virtualenv>=21.15.2,<22.
 Both uv.lock and requirements-dev.lock.txt retain compatible fixed versions;
 requirements-dev.txt mirrors these floors. These installer/transport tools
 remain outside numerical core. Existing cryptography, GitPython and build
@@ -289,3 +289,12 @@ repository gates. Normal wheel validation must run the same public factory,
 screen and solve APIs with analytical price/Delta/Gamma and convergence checks.
 This contract does not claim full five-provider release, market calibration,
 optional-profile promotion or resulting-default acceptance by itself.
+
+
+## October optional dependency security maintenance
+
+Declared development locks must exclude the six vulnerable package releases
+observed in the 2026-10-31 audit. The compatible Streamlit/Pillow refresh and
+installer-tool floors stay optional; preserve numerical APIs, Python3.12 and
+each profile's numerical pins. Acceptance requires the
+[complete source, normal-wheel and audit controls](CI_POLICY.md#october-2026-declared-lock-security-refresh).

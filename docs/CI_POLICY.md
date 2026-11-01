@@ -62,7 +62,7 @@ The audit job has independent `native` and `legacy` Python 3.12 matrix jobs, eac
 Both jobs independently run dependency coherence, full installed inventory, unsuppressed vulnerability audit and CycloneDX SBOM generation. Profile-specific artifacts retain the input hashes, inventory, audit JSON and SBOM, including available evidence when a step fails. Audits govern installed third-party dependencies; the native `--no-install-project` scope does not certify a project wheel or numerical behavior. Separate package/profile jobs and local release acceptance own those obligations. A failure in either lock blocks that audit profile, and a success in one cannot waive the other. Once inventory establishes a coherent environment, the SBOM step explicitly runs even after a vulnerability audit fails, preserving that failed audit result. Missing or incoherent environments are not claimed audited. Job-level prefix configuration uses the allowed GitHub workspace context and distinct adjacent directories outside the checkout.
 
 The legacy file is a pinned freeze, not a hash-complete export; no `--require-hashes` success is claimed. The native frozen sync uses the committed uv package hashes. These Linux Python 3.12 checks do not prove Windows or Emscripten acceptance. Primary semantics: [uv lock checking, frozen and exact synchronization](https://docs.astral.sh/uv/concepts/projects/sync/).
-`requirements-dev.lock.txt` is the pinned reproducible development/audit environment. `pyproject.toml` remains the package metadata source of truth and intentionally keeps compatible runtime ranges. Security-critical development floors for cryptography and GitPython, plus a ceiling excluding yanked build 1.5.1, are declared directly and enforced against both `uv.lock` and the legacy audit lock by architecture tests. The declared optional profiles also enforce HTTPX2 >=2.12, pip >=26.2, urllib3 >=2.8, virtualenv >=21.14.4, and AnyIO >=4.14.2; both locks enforce the paired HTTPCore2 >=2.10 floor. The fitness test requires a positive safe lower bound and rejects ranges that merely blacklist one known unsafe release. A stronger lower bound may exclude the historical audited minimum; the gate checks that its bound is at or above that minimum, rather than forcing that exact version to remain selectable. Lock freshness, resolver/coherence and installed-profile gates separately establish an installable environment. It also requires an equivalent or stricter compatibility ceiling, including the upper interval implied by compatible-release specifiers. Governed native/legacy pins must remain in that bounded interval; legacy pins are parsed as complete marker-free plain exact requirements, so inactive markers or partial version prefixes cannot waive them. Hash continuations/comments preserve their documented parsing scope rather than imply a hash-complete legacy export. These tools remain optional; the numerical core dependencies are unchanged. The validation profile deliberately states its own AnyIO floor beside its API composition: both remain governed independently, and the explicit repeated constraint is compatible.
+`requirements-dev.lock.txt` is the pinned reproducible development/audit environment. `pyproject.toml` remains the package metadata source of truth and intentionally keeps compatible runtime ranges. Security-critical development floors for cryptography and GitPython, plus a ceiling excluding yanked build 1.5.1, are declared directly and enforced against both `uv.lock` and the legacy audit lock by architecture tests. The declared optional profiles also enforce HTTPX2 >=2.12, pip >=26.2, urllib3 >=2.8, virtualenv >=21.15.2, and AnyIO >=4.14.2; both locks enforce the paired HTTPCore2 >=2.10 floor. The fitness test requires a positive safe lower bound and rejects ranges that merely blacklist one known unsafe release. A stronger lower bound may exclude the historical audited minimum; the gate checks that its bound is at or above that minimum, rather than forcing that exact version to remain selectable. Lock freshness, resolver/coherence and installed-profile gates separately establish an installable environment. It also requires an equivalent or stricter compatibility ceiling, including the upper interval implied by compatible-release specifiers. Governed native/legacy pins must remain in that bounded interval; legacy pins are parsed as complete marker-free plain exact requirements, so inactive markers or partial version prefixes cannot waive them. Hash continuations/comments preserve their documented parsing scope rather than imply a hash-complete legacy export. These tools remain optional; the numerical core dependencies are unchanged. The validation profile deliberately states its own AnyIO floor beside its API composition: both remain governed independently, and the explicit repeated constraint is compatible.
 
 ### Direct development parser ownership
 
@@ -184,3 +184,26 @@ JSON members. A controlled omission of the real compiler-v1 wheel member was
 accepted by the preceding contract and is now rejected. The legacy default and
 numerical algorithms are preserved; these public-synthetic gates do not claim
 general symbolic compilation, market calibration or wider scientific release.
+
+
+## October 2026 declared lock security refresh
+
+Both optional development locks exclude the installed vulnerable Certifi,
+Filelock, GitPython, Msgpack, Pillow and Virtualenv releases observed by the
+unsuppressed 2026-10-31 audit. Existing direct ranges require
+GitPython>=3.2.1,<4, Virtualenv>=21.15.2,<22 and Streamlit>=1.66.1,<2.
+Streamlit1.66.1 natively admits Pillow13 (<14); earlier1.66.0 capped it below13,
+so no resolver override is used. Virtualenv requires Packaging>=26.3 and
+Python-discovery>=1.6.1. Both locks use supported patched releases and preserve
+Python3.12 plus all numerical package pins. Streamlit's unused transitive
+Blinker, Cachetools, Httptools, Tenacity and Toml packages leave the development
+lock through ordinary dependency resolution. No numerical implementation,
+coefficient, fixture, tolerance, capability or mandatory core metadata changes.
+
+Run `tests/architecture/test_october_dependency_repair.py`, the existing source
+gates and normal wheel/profile checks. Independently install each frozen lock,
+check coherence, audit its entire installed inventory without skips or ignores,
+and retain its SBOM; historical fixed-version hints are not current audit proof.
+An installed vulnerable-version finding does not establish a reachable live
+exploit in FDO. Pillow's direct repository consumer is the public-synthetic
+README figure generator; optional UI/visualization compatibility stays tested.

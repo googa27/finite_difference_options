@@ -41,7 +41,7 @@ viz = [
     "seaborn>=0.13,<1",
 ]
 ui = [
-    "streamlit>=1.48,<2",
+    "streamlit>=1.66.1,<2",
     "finite-difference-options[viz]",
 ]
 validation = [
@@ -66,12 +66,12 @@ dev = [
     "anyio>=4.14.2,<5",
     "pip>=26.2,<27",
     "urllib3>=2.8,<3",
-    "virtualenv>=21.14.4,<22",
+    "virtualenv>=21.15.2,<22",
     "build>=1,<1.5.1",
     "cyclonedx-bom>=5,<8",
     "cryptography>=50,<51",
     "fastapi>=0.116,<1",
-    "GitPython>=3.1.60,<4",
+    "GitPython>=3.2.1,<4",
     "httpx2>=2.12,<3",
     "matplotlib>=3.10,<4",
     "mypy>=1.17,<2",
@@ -84,7 +84,7 @@ dev = [
     "pytest-xdist>=3.6,<4",
     "ruff==0.15.21",
     "seaborn>=0.13,<1",
-    "streamlit>=1.48,<2",
+    "streamlit>=1.66.1,<2",
     "twine>=5,<7",
     "typer>=0.16,<1",
     "uvicorn>=0.35,<1",
