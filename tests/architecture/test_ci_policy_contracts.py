@@ -289,8 +289,8 @@ def test_gemini_review_and_issue_triage_failures_are_advisory() -> None:
     scheduled_triage = _read(".github/workflows/gemini-issue-scheduled-triage.yml")
 
     assert "continue-on-error: true" in pr_review
-    assert "Classify unavailable Gemini PR review as advisory" in pr_review
-    assert "review-service events, not as Python/Node/package validation failures" in pr_review
+    assert "Classify every advisory outcome from captured output" in pr_review
+    assert "classify_pr_review.py classify" in pr_review
     assert "Post PR review failure comment" not in pr_review
 
     for workflow in (issue_triage, scheduled_triage):
@@ -363,3 +363,106 @@ def test_ci_policy_is_documented_from_agent_contract_and_architecture() -> None:
     assert "Advisory automated-review signals" in policy
     assert "docs/CI_POLICY.md" in agents
     assert "docs/CI_POLICY.md" in architecture
+
+
+def _assert_pr_review_authority_boundary(workflow: dict) -> None:
+    """Prevent model output from becoming GitHub mutation authority."""
+    events = workflow.get("on", workflow.get(True))
+    opt_in = events["workflow_dispatch"]["inputs"]["run_provider"]
+    assert opt_in["type"] == "boolean" and opt_in["default"] is False and opt_in["required"] is False
+    job = workflow["jobs"]["review-pr"]
+    assert workflow["permissions"] == {"contents": "read"}
+    assert job["permissions"] == {"contents": "read", "pull-requests": "read"}
+    steps = job["steps"]
+    action = next(step for step in steps if "run-gemini-cli@" in step.get("uses", ""))
+    assert action["if"] == (
+        "github.event_name == 'workflow_dispatch' && "
+        "inputs.run_provider == true && steps.prepare.outputs.ready == 'true'"
+    )
+    assert "${{ steps.prepare.outputs.payload }}" in action["with"]["prompt"]
+    assert action["continue-on-error"] is True
+    assert action["with"]["gemini_cli_version"] == "0.40.0-preview.3"
+    assert action["with"]["gemini_model"] == "${{ steps.configure.outputs.model }}"
+    assert action["with"]["use_vertex_ai"] == "false"
+    assert action["with"]["use_gemini_code_assist"] == "false"
+    assert set(action["env"]) == {"GITHUB_TOKEN", "GH_TOKEN"}
+    assert action["env"]["GITHUB_TOKEN"] == action["env"]["GH_TOKEN"] == ""
+    assert not any("create-github-app-token" in step.get("uses", "") for step in steps)
+    import json
+
+    settings = json.loads(action["with"]["settings"])
+    assert settings["tools"]["core"] == []
+    assert settings["mcp"]["allowed"] == []
+    assert settings["mcpServers"] == {}
+    assert settings["billing"]["overageStrategy"] == "never"
+    assert settings["experimental"]["enableAgents"] is False
+    assert settings["experimental"]["dynamicModelConfiguration"] is False
+    classify = next(step for step in steps if "classify_pr_review.py classify" in step.get("run", ""))
+    assert classify["if"] == "always()"
+    archive = next(step for step in steps if "upload-artifact@" in step.get("uses", ""))
+    assert archive["with"]["path"] == ".advisory/report.json"
+    assert archive["with"]["retention-days"] == 14
+
+
+def test_pr_review_is_gated_readonly_artifact_data() -> None:
+    _assert_pr_review_authority_boundary(yaml.safe_load(_read(".github/workflows/gemini-pr-review.yml")))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "permission",
+        "token",
+        "model",
+        "cli",
+        "guard",
+        "tools",
+        "mcp",
+        "credits",
+        "classification",
+        "raw-artifacts",
+        "provider-default",
+        "manual-event",
+        "prompt-context",
+    ],
+)
+def test_pr_review_negative_mutations_are_rejected(mutation: str) -> None:
+    import json
+
+    workflow = yaml.safe_load(_read(".github/workflows/gemini-pr-review.yml"))
+    job = workflow["jobs"]["review-pr"]
+    steps = job["steps"]
+    action = next(step for step in steps if "run-gemini-cli@" in step.get("uses", ""))
+    if mutation == "provider-default":
+        workflow.get("on", workflow.get(True))["workflow_dispatch"]["inputs"]["run_provider"]["default"] = True
+    elif mutation == "manual-event":
+        action["if"] = "steps.prepare.outputs.ready == 'true'"
+    elif mutation == "prompt-context":
+        action["with"]["prompt"] = action["with"]["prompt"].replace(
+            "${{ steps.prepare.outputs.payload }}", "${REVIEW_CONTEXT}"
+        )
+    elif mutation == "permission":
+        job["permissions"]["pull-requests"] = "write"
+    elif mutation == "token":
+        action["env"]["GITHUB_TOKEN"] = "${{ github.token }}"
+    elif mutation == "model":
+        action["with"]["gemini_model"] = "${{ vars.GEMINI_MODEL || 'auto' }}"
+    elif mutation == "cli":
+        action["with"]["gemini_cli_version"] = "latest"
+    elif mutation == "guard":
+        action["if"] = "always()"
+    elif mutation in {"tools", "mcp", "credits"}:
+        settings = json.loads(action["with"]["settings"])
+        if mutation == "tools":
+            settings["tools"]["core"] = ["run_shell_command"]
+        elif mutation == "mcp":
+            settings["mcpServers"] = {"github": {"command": "docker"}}
+        else:
+            settings["billing"]["overageStrategy"] = "always"
+        action["with"]["settings"] = json.dumps(settings)
+    elif mutation == "classification":
+        next(step for step in steps if "classify_pr_review.py classify" in step.get("run", ""))["if"] = "failure()"
+    else:
+        next(step for step in steps if "upload-artifact@" in step.get("uses", ""))["with"]["path"] = "gemini-artifacts/"
+    with pytest.raises(AssertionError):
+        _assert_pr_review_authority_boundary(workflow)

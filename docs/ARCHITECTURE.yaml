@@ -537,19 +537,42 @@
           "reason": "Scheduled Gemini triage requires OIDC inference and issue-label mutation in separate jobs.",
           "owner": "googa27",
           "review_by": "2027-07-15"
-        },
-        {
-          "path": ".github/workflows/gemini-pr-review.yml",
-          "scopes": [
-            "id-token",
-            "issues",
-            "pull-requests",
-            "statuses"
-          ],
-          "reason": "Gemini review requires OIDC inference plus review comments and status publication.",
-          "owner": "googa27",
-          "review_by": "2027-07-15"
         }
+      ]
+    },
+    "advisory_pr_review": {
+      "owner": "googa27 / issue186",
+      "workflow": ".github/workflows/gemini-pr-review.yml",
+      "boundary": "scripts/classify_pr_review.py",
+      "default": "disabled for all automatic events and missing/false workflow_dispatch.run_provider input, even if operator variables match",
+      "opt_in": "workflow_dispatch plus boolean run_provider=true (defaultfalse), then exact GEMINI_PR_REVIEW_MODE=free-tier-operator-asserted and explicit GEMINI_PR_REVIEW_MODEL=gemini-2.5-flash only; operator assertion is not account eligibility, quota or price proof",
+      "action": "google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489",
+      "cli": "0.40.0-preview.3; explicit 2.5 Flash single-model chain; no aliases or model/CLI fallback; no Vertex, CodeAssist, WIF or credit overage",
+      "authority": "readonly contents/pull-requests; empty GitHub tokens in model step; no App token, OIDC, MCP, core tools, agent delegation or dynamic model routing; artifact-only normalized data, no comments/reviews/statuses/labels/fixes",
+      "validation": "native open PR identity; prepared JSON passed directly as action-input data (no shell expansion/eval), exact event/current head, complete bounded patch <=30 files/64 KiB, raw CLI stdout/stderr <=128 KiB each, closed JSON review schema, <=20 findings on added lines, <=2000 UTF8 byte summary/message, exact model telemetry and zero errors/tools; nonempty hunk starts, ordered nonoverlapping old/new ranges and newline marker placement; equal skipped unchanged spans with standard zero-count range offsets",
+      "outcomes": [
+        "disabled",
+        "configuration_refused",
+        "context_refused",
+        "capture_refused",
+        "stale_head",
+        "oversized_output",
+        "empty_output",
+        "invalid_output",
+        "service_error",
+        "action_failed",
+        "bounded_review"
+      ],
+      "limits": "bounded_review means validated model data only; no provider/account/quota attestation, quality guarantee or approval; current head readback is point-in-time; upstream action prints public prompt/response in native summary",
+      "fitness": [
+        "tests/test_pr_review_governance.py",
+        "tests/architecture/test_ci_policy_contracts.py",
+        "tests/test_pr_review_context_bounds.py"
+      ],
+      "evidence": [
+        "https://ai.google.dev/gemini-api/docs/models",
+        "https://github.com/google-github-actions/run-gemini-cli/blob/f77273f4c914e4bf38440cf36a0369cb64a37489/action.yml",
+        "https://github.com/google-gemini/gemini-cli/blob/v0.40.0-preview.3/packages/core/src/availability/policyHelpers.ts"
       ]
     }
   },
